@@ -60,6 +60,7 @@ OUTLINE = vol.Schema(
         vol.Required("level"): ID,
         vol.Required("poly"): POLY,
         vol.Optional("building"): ID,
+        vol.Optional("ref"): vol.In(["outside", "center", "inside"]),  # which face the drawn line is (default centre)
     }
 )
 

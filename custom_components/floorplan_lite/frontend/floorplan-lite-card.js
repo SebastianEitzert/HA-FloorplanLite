@@ -143,12 +143,15 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 /* Plan from the store → per level everything the drawing needs, rotated and with a view box. */
 function prepare(plan, align) {
-  const rot = rotator(plan.rotation || 0);
+  const rot = rotator(plan.rotation || 0), st = plan.style || {};
+  const ow = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
+  // the drawn line of an outer wall may be its outside or inside face; the wall is drawn around its centre line
+  const centre = (o) => (o.ref === "outside" ? grow(o.poly, -ow / 2) : o.ref === "inside" ? grow(o.poly, ow / 2) : o.poly);
   const R = (poly) => poly.map(rot);
   const floors = {};
   (plan.levels || []).forEach((lv) => {
     const at = (x) => x.level === lv.id;
-    const outlines = (plan.outlines || []).filter(at).map((o) => R(o.poly));
+    const outlines = (plan.outlines || []).filter(at).map((o) => R(centre(o)));
     const extra = (plan.lines || []).filter(at).map((l) => ({ poly: R(l.poly), open: !!l.open }));
     const walls = (plan.walls || []).filter(at).map((w) => ({ poly: R(w.poly), width: w.width, closed: !!w.closed }));
     const rooms = (plan.rooms || []).filter(at).map((r) => ({

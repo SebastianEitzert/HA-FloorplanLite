@@ -45,7 +45,7 @@ const T = {
     area: "Bereich (Home Assistant)", areaNone: "– keiner –", areaUsed: "schon im Plan", fill: "Entitäten aus dem Bereich übernehmen",
     filled: "%s Entitäten übernommen", fillNone: "Im Bereich keine passenden Entitäten gefunden",
     fillAll: "Alle Räume mit Bereich ausfüllen", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
-    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
+    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
@@ -97,7 +97,7 @@ const T = {
     area: "Area (Home Assistant)", areaNone: "– none –", areaUsed: "already in the plan", fill: "Take entities from the area",
     filled: "%s entities taken over", fillNone: "No matching entities found in the area",
     fillAll: "Fill all rooms that have an area", areaHint: "Choose the area – name, id and the entities found are taken over.",
-    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
+    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
@@ -177,6 +177,16 @@ const openingRect = (o) => {
 };
 
 const area = (p) => p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
+const grow = (p, d) => {  // move a polygon outwards by d (mitred), as in the card
+  const sg = area(p) > 0 ? 1 : -1, n = p.length;
+  const off = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.sqrt(dx * dx + dy * dy) || 1; return [sg * dy / l, -sg * dx / l]; };
+  return p.map((q, i) => {
+    const a = p[(i - 1 + n) % n], b = p[(i + 1) % n];
+    const n1 = off(a, q), n2 = off(q, b), mx = n1[0] + n2[0], my = n1[1] + n2[1];
+    const k = d / Math.max(0.2, (mx * n1[0] + my * n1[1]));
+    return [R3(q[0] + mx * k), R3(q[1] + my * k)];
+  });
+};
 
 /* Smallest closed area around p formed by wall centre lines (segments [[a, b], …]). Walls are split where they meet
    or cross (2 cm tolerance), loose ends are pruned, then the faces of the resulting graph are walked. */
@@ -648,7 +658,9 @@ class FloorplanLitePanel extends HTMLElement {
       h += this._entitiesHtml(el.key || el.id);
       void part;
     } else if (s.kind === "outlines") {
-      h += this._field(t.building, this._buildingSel("building", el.building));
+      h += this._field(t.refF, `<select data-k="ref">${[["outside", t.refOut], ["center", t.refMid], ["inside", t.refIn]]
+        .map(([v, l]) => `<option value="${v}"${(el.ref || "center") === v ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`) +
+        this._field(t.building, this._buildingSel("building", el.building));
     } else if (s.kind === "walls") {
       h += this._field(t.wallWidth, this._num("width", el.width || this._wall("wall_width"), 0.01)) + this._field(t.closedF, this._chk("closed", el.closed));
     } else if (s.kind === "lines") {
@@ -1162,7 +1174,8 @@ class FloorplanLitePanel extends HTMLElement {
     this._of("openings").filter(({ x }) => x.type === "open").forEach(opening);  // under the outer walls, which stay whole
     this._of("outlines").forEach(({ x, i }) => {
       const sel = S && S.kind === "outlines" && S.i === i;
-      h += `<polygon class="outline${sel ? " sel" : ""}" data-k="outlines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.wall)}" stroke-width="${this._wall("outer_width")}"/>`;
+      h += `<polygon class="outline${sel ? " sel" : ""}" data-k="outlines" data-i="${i}" points="${pts(this._centre(x))}" stroke="${esc(st.wall)}" stroke-width="${this._wall("outer_width")}"/>`;
+      if (x.ref === "outside" || x.ref === "inside") h += `<polygon class="refline" points="${pts(x.poly)}" stroke-width="${1.5 * px}"/>`;  // the line that was drawn
     });
     this._of("lines").forEach(({ x, i }) => {
       const sel = S && S.kind === "lines" && S.i === i;
@@ -1204,6 +1217,16 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (this._scaleA) h += `<circle class="dpt first" cx="${this._scaleA[0]}" cy="${this._scaleA[1]}" r="${6 * px}"/>` +
       (this._hover ? `<line class="draft" x1="${this._scaleA[0]}" y1="${this._scaleA[1]}" x2="${this._hover[0]}" y2="${this._hover[1]}" stroke-width="${2 * px}"/>` : "");
+    const dr = this._drag;
+    if (dr && dr.vertex !== undefined && this._sel && this._sel.kind !== "openings") {  // lengths of both edges while a corner moves
+      const el = this._plan[this._sel.kind][this._sel.i], n = el.poly.length, v = el.poly[dr.vertex];
+      const comma = (x) => x.toFixed(2).replace(".", this.t === T.de ? "," : ".");
+      [el.poly[(dr.vertex - 1 + n) % n], el.poly[(dr.vertex + 1) % n]].forEach((o, k) => {
+        if (!o || !v || (k === 0 && dr.vertex === 0 && n < 3) || o === v) return;
+        const m = [(o[0] + v[0]) / 2, (o[1] + v[1]) / 2];
+        h += `<text class="len" x="${m[0]}" y="${m[1] - 6 * px}" font-size="${12 * px}">${comma(dist(o, v))} m</text>`;
+      });
+    }
     (this._guides || []).forEach(([g, q]) => {
       const L = Math.max(vw, vh), u = sub(q, g), l = len(u) || 1, e = [u[0] / l * L, u[1] / l * L];
       h += `<line class="guide" x1="${g[0] - e[0]}" y1="${g[1] - e[1]}" x2="${q[0] + e[0]}" y2="${q[1] + e[1]}" stroke-width="${px}" stroke-dasharray="${4 * px} ${4 * px}"/>`;
@@ -1262,7 +1285,12 @@ class FloorplanLitePanel extends HTMLElement {
      `nb` are the neighbours of a dragged corner: both edges then snap the same way. */
   _snapPolys() {
     const polys = [], closed = (k, x) => (k === "walls" ? !!x.closed : k === "lines" ? !x.open : true);
-    SHAPES.forEach((k) => this._of(k).forEach(({ x }) => polys.push({ poly: x.poly, closed: closed(k, x) })));
+    SHAPES.forEach((k) => this._of(k).forEach(({ x }) => polys.push({ poly: x.poly, closed: closed(k, x), src: x })));
+    const ow = this._wall("outer_width");
+    this._of("outlines").forEach(({ x }) => {  // outer walls: their other faces and centre line are worth snapping to as well
+      const c = this._centre(x);
+      [c, grow(c, ow / 2), grow(c, -ow / 2)].forEach((poly) => polys.push({ poly, closed: true, src: x }));
+    });
     const below = this._ghost && this._below();
     if (below) ["rooms", "outlines", "walls"].forEach((k) => this._plan[k].filter((x) => x.level === below).forEach((x) => polys.push({ poly: x.poly, closed: closed(k, x) })));
     if (this._draft) polys.push({ poly: this._draft, closed: false });
@@ -1393,8 +1421,17 @@ class FloorplanLitePanel extends HTMLElement {
     return [R3(q[0]), R3(q[1])];
   }
 
-  _onOutline(q) {  // point on an outer wall of this level?
-    return this._of("outlines").some(({ x }) => x.poly.some((a, j) => dist(q, proj(q, a, x.poly[(j + 1) % x.poly.length]).p) < 0.02));
+  _centre(o) {  // centre line of an outer wall – the drawn line can be its outside or inside face
+    const w = this._wall("outer_width");
+    return o.ref === "outside" ? grow(o.poly, -w / 2) : o.ref === "inside" ? grow(o.poly, w / 2) : o.poly;
+  }
+
+  _onOutline(q) {  // point on an outer wall of this level (any of its faces)?
+    const w = this._wall("outer_width");
+    return this._of("outlines").some(({ x }) => {
+      const c = this._centre(x);
+      return [c, grow(c, -w / 2), x.poly].some((poly) => poly.some((a, j) => dist(q, proj(q, a, poly[(j + 1) % poly.length]).p) < 0.02));
+    });
   }
 
   _nearestWall(p) {  // nearest edge of a room or outer wall on this level
@@ -1402,9 +1439,10 @@ class FloorplanLitePanel extends HTMLElement {
     let best = null;
     ["outlines", "walls", "rooms"].forEach((k) => this._of(k).forEach(({ x }) => {
       if (k === "rooms" && (x.outdoor || this._plan.room_walls === false)) return;
-      x.poly.forEach((a, j) => {
-        if (k === "walls" && !x.closed && j === x.poly.length - 1) return;
-        const b = x.poly[(j + 1) % x.poly.length], pr = proj(p, a, b), d = dist(p, pr.p);
+      const poly = k === "outlines" ? this._centre(x) : x.poly;
+      poly.forEach((a, j) => {
+        if (k === "walls" && !x.closed && j === poly.length - 1) return;
+        const b = poly[(j + 1) % poly.length], pr = proj(p, a, b), d = dist(p, pr.p);
         if (d < tol && (!best || d < best.d)) best = { d, p: pr.p, a, b, outer: k === "outlines", width: k === "walls" ? x.width : undefined };
       });
     }));
@@ -1592,8 +1630,24 @@ class FloorplanLitePanel extends HTMLElement {
           el.angle = R3(Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI);
         }
       } else {
-        el.poly = d.orig.poly.map((q) => [R3(q[0] + dx), R3(q[1] + dy)]);
-        if (d.orig.label_at) el.label_at = [R3(d.orig.label_at[0] + dx), R3(d.orig.label_at[1] + dy)];
+        let mx = dx, my = dy;
+        const raw = [p[0] - d.start[0], p[1] - d.start[1]], tol = 10 * this._scale(), others = this._snapPolys().filter((x) => x.src !== el && x.poly !== el.poly);
+        let bd = tol, best = null;  // a corner of the moved element meets a corner or a wall of another one
+        d.orig.poly.forEach((q) => {
+          const m = [q[0] + raw[0], q[1] + raw[1]];
+          others.forEach(({ poly, closed: c }) => poly.forEach((a, j) => {
+            if (!isFinite(a[0])) return;
+            const dv = dist(m, a);
+            if (dv < bd) { bd = dv; best = [a[0] - q[0], a[1] - q[1], a]; }
+            if ((c || j < poly.length - 1) && dv >= tol) {
+              const b = poly[(j + 1) % poly.length], pr = proj(m, a, b), de = dist(m, pr.p);
+              if (de < bd * 0.8) { bd = de; best = [pr.p[0] - q[0], pr.p[1] - q[1], pr.p]; }
+            }
+          }));
+        });
+        if (best) { mx = best[0]; my = best[1]; this._snapMark = best[2]; } else this._snapMark = null;
+        el.poly = d.orig.poly.map((q) => [R3(q[0] + mx), R3(q[1] + my)]);
+        if (d.orig.label_at) el.label_at = [R3(d.orig.label_at[0] + mx), R3(d.orig.label_at[1] + my)];
       }
       this._dirty = true; return this._renderCanvas();
     }
@@ -1663,7 +1717,7 @@ class FloorplanLitePanel extends HTMLElement {
     }
     this._change(() => {
       if (tool === "outline") {
-        const o = { level: this._level, poly: d };
+        const o = { level: this._level, poly: d, ref: "outside" };  // like a blueprint: the drawn size is the outside size
         if (this._building) o.building = this._building;
         p.outlines.push(o);
         this._sel = { kind: "outlines", i: p.outlines.length - 1 };
@@ -1730,8 +1784,24 @@ class FloorplanLitePanel extends HTMLElement {
     const pl = this._plan, have = this._of("rooms").find(({ x }) => !x.outdoor && inside(p, x.poly));
     if (have) { this._sel = { kind: "rooms", i: have.i }; this._renderAll(); return this._status(this.t.haveRoom); }
     const segs = [], add2 = (poly, closed) => poly.forEach((a, j) => { if (closed || j < poly.length - 1) segs.push([a, poly[(j + 1) % poly.length]]); });
-    this._of("outlines").forEach(({ x }) => add2(x.poly, true));
+    this._of("outlines").forEach(({ x }) => add2(this._centre(x), true));
     this._of("walls").forEach(({ x }) => add2(x.poly, !!x.closed));
+    // a wall that ends at the face of another wall (outer wall: inside face) is joined to that wall's centre line
+    const centres = [], ow = this._wall("outer_width"), iw = this._wall("wall_width");
+    this._of("outlines").forEach(({ x }) => { const c = this._centre(x); c.forEach((a, j) => centres.push([a, c[(j + 1) % c.length], ow / 2])); });
+    this._of("walls").forEach(({ x }) => x.poly.forEach((a, j) => { if (x.closed || j < x.poly.length - 1) centres.push([a, x.poly[(j + 1) % x.poly.length], (x.width || iw) / 2, x]); }));
+    this._of("walls").forEach(({ x }) => {
+      if (x.closed) return;
+      [x.poly[0], x.poly[x.poly.length - 1]].forEach((e) => {
+        let best = null;
+        centres.forEach(([a, b, half, own]) => {
+          if (own === x) return;
+          const pr = proj(e, a, b), d = dist(e, pr.p);
+          if (d > 0.01 && d <= half + 0.03 && (!best || d < best.d)) best = { d, p: pr.p };
+        });
+        if (best) segs.push([e, best.p]);
+      });
+    });
     this._of("rooms").forEach(({ x }) => { if (!x.outdoor) add2(x.poly, true); });
     const face = faceAt(segs, p);
     if (!face) return this._status(this.t.noFace, true);
@@ -1746,8 +1816,27 @@ class FloorplanLitePanel extends HTMLElement {
 
   _split(path) {  // cut the room the path crosses into two
     const pl = this._plan, mid = path.length > 2 ? path[1] : [(path[0][0] + path[1][0]) / 2, (path[0][1] + path[1][1]) / 2];
-    const hit = this._of("rooms").find(({ x }) => inside(mid, x.poly) && splitPoly(x.poly, path));
+    // the ends may lie on any face of a wall: move each end along its line to where it meets the room's edge
+    const fit = (poly) => {
+      const q = path.map((x) => x.slice()), meet = (from, to) => {
+        const u = sub(to, from);
+        let best = null;
+        poly.forEach((a, j) => {
+          const b = poly[(j + 1) % poly.length], e = sub(b, a), den = u[0] * e[1] - u[1] * e[0];
+          if (Math.abs(den) < 1e-9) return;
+          const t = ((a[0] - from[0]) * e[1] - (a[1] - from[1]) * e[0]) / den, s2 = ((a[0] - from[0]) * u[1] - (a[1] - from[1]) * u[0]) / den;
+          if (s2 < -1e-6 || s2 > 1 + 1e-6 || t > 0.999) return;  // on the edge, towards the start of the line
+          if (!best || Math.abs(t) < Math.abs(best.t)) best = { t, p: [R3(from[0] + u[0] * t), R3(from[1] + u[1] * t)] };
+        });
+        return best ? best.p : from;
+      };
+      q[0] = meet(q[0], q[1]);
+      q[q.length - 1] = meet(q[q.length - 1], q[q.length - 2]);
+      return q;
+    };
+    const hit = this._of("rooms").find(({ x }) => inside(mid, x.poly) && splitPoly(x.poly, fit(x.poly)));
     if (!hit) { this._status(this.t.noSplit, true); return this._renderCanvas(); }
+    path = fit(hit.x.poly);
     const r = hit.x, parts = splitPoly(r.poly, path), nm = this._newRoomName(r.outdoor);
     this._change(() => {
       const keep = r.label_at && inside(r.label_at, parts[1]) ? 1 : 0;
@@ -1855,6 +1944,7 @@ const STYLES = `
   .outline { fill: none; stroke-linejoin: miter; cursor: pointer; pointer-events: stroke; }
   .op.sky { fill: rgba(159, 211, 255, .3); stroke: #9fd3ff; stroke-width: .05; }
   .small { font-size: 11px; opacity: .7; margin: 0 0 8px; }
+  .refline { fill: none; stroke: #ffd166; stroke-dasharray: .2 .15; opacity: .7; pointer-events: none; }
   .wall { fill: none; stroke-linejoin: miter; stroke-linecap: square; cursor: pointer; pointer-events: stroke; }
   .wall.sel { stroke: #4fc3ff; }
   .hline { fill: none; stroke-dasharray: .3 .22; cursor: pointer; pointer-events: stroke; opacity: .7; }

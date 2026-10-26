@@ -12,6 +12,11 @@ All notable changes to this project. Versions follow the `version` in `custom_co
 - Rooms from Home Assistant areas: choose the area of a room – name, id and the entities found in it (lights, presence,
   motion, window contacts, shades, music, thermostat or temperature) are filled in; *Fill all rooms that have an area*.
 - Windows: choose where "tilted" comes from – automatic, an attribute of the contact (with value), or an entity of its own.
+- Outer walls: choose which face the drawn line is (`ref`: outside, centre, inside); new outer walls use the outside
+  face, so a wall drawn 18 m long is 18 m outside, like on a blueprint. Doors and windows sit in the middle of the wall,
+  inner walls, rooms and corners snap to all faces, and a wall ending at a face counts as joined when generating rooms.
+- Editing afterwards snaps too: while a corner is dragged both edges show their length (plus right-angle marks and
+  guides); a moved element snaps its corners to other corners and walls. A split line may start on any face of a wall.
 
 ## 0.3.0 – 2026-10-26
 - Background from a PDF: the editor turns a page of the PDF (choose which, for multi-page plans) into an image, sharp

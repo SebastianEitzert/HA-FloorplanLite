@@ -110,11 +110,15 @@ const TEXT = {
   de: { win: "Fenster offen", shade: "Beschattung zu", music: "Musik läuft", presence: "Präsenz", motion: "Bewegung",
     light: "Licht in seiner Farbe", musicL: "Musik", prev: "Geschoss zurück", next: "Geschoss weiter",
     loading: "Grundriss wird geladen …", missing: "Grundriss „%s“ nicht gefunden – im Editor (Seitenleiste → Floorplan Lite) anlegen.",
-    noPlan: "Bitte einen Grundriss wählen (plan: …)." },
+    noPlan: "Bitte einen Grundriss wählen (plan: …).",
+    cancel: "Abbrechen", details: "Details", unlock: "Aufschließen", lock: "Abschließen", openDoor: "Öffnen", open: "Öffnen",
+    close: "Schließen", stop: "Stopp", press: "Auslösen", toggle: "Umschalten" },
   en: { win: "Window open", shade: "Shade closed", music: "Music playing", presence: "Presence", motion: "Motion",
     light: "Light in its colour", musicL: "Music", prev: "Previous level", next: "Next level",
     loading: "Loading floor plan …", missing: "Floor plan “%s” not found – create it in the editor (sidebar → Floorplan Lite).",
-    noPlan: "Please choose a floor plan (plan: …)." },
+    noPlan: "Please choose a floor plan (plan: …).",
+    cancel: "Cancel", details: "Details", unlock: "Unlock", lock: "Lock", openDoor: "Open", open: "Open",
+    close: "Close", stop: "Stop", press: "Press", toggle: "Toggle" },
 };
 const chips = (t) => ({
   w: `<span class="chip win" title="${t.win}"><ha-icon icon="mdi:window-open-variant"></ha-icon></span>`,
@@ -139,6 +143,7 @@ function prepare(plan, align) {
     }));
     const openings = (plan.openings || []).filter(at).map((o) => {
       const q = Object.assign({}, o, { at: rot(o.at), angle: (o.angle || 0) + (plan.rotation || 0) });
+      q.ents = (o.entities || []).concat(o.entity && (o.entities || []).indexOf(o.entity) < 0 ? [o.entity] : []);
       q.rect = openingRect(q);
       return q;
     });
@@ -277,6 +282,7 @@ class FloorplanLiteCard extends HTMLElement {
       if (r.temp) ids.push(r.temp);
       if (r.hauptlicht) ids.push(r.hauptlicht);
     });
+    Object.keys(this._floors || {}).forEach((k) => this._floors[k].openings.forEach((o) => { o.ents.forEach((id) => ids.push(id)); }));
     return ids;
   }
 
@@ -369,7 +375,7 @@ class FloorplanLiteCard extends HTMLElement {
       `<filter id="${n("sp")}" ${region}><feGaussianBlur stdDeviation=".7"/></filter>` +
       `<filter id="${n("ed")}" ${region}><feGaussianBlur stdDeviation=".45"/></filter>` +
       `<filter id="${n("sh")}" ${region}><feGaussianBlur stdDeviation=".45"/></filter>`;
-    const cuts = f.openings;
+    const cuts = f.openings.filter((d) => d.type !== "skylight");  // a roof window sits in the room, not in a wall
     if (cuts.length) {
       defs += `<mask id="${n("dm")}" maskUnits="userSpaceOnUse" x="${vx}" y="${vy}" width="${vw}" height="${vh}">` +
         `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#fff"/>` +
@@ -411,6 +417,9 @@ class FloorplanLiteCard extends HTMLElement {
       lbls += `<div class="lbl${room.small ? " small" : ""}" data-i="${i}" data-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(room.name)}" ` +
         `style="left:${X(lx)};top:${Y(ly)}"><div class="name">${esc(room.name)}</div><div class="temp"></div><div class="chips"></div></div>`;
     });
+    f.openings.forEach((o, i) => {  // windows, doors and gates with entities can be tapped (above the rooms)
+      if (o.ents.length) hits += `<polygon class="ohit" data-o="${i}" points="${pts(openingRect(Object.assign({}, o, { width: Math.max(o.width || 0.9, 0.6), depth: Math.max(o.depth || 0.24, 0.6) })))}"/>`;
+    });
     const mask = cuts.length ? ` mask="url(#${n("dm")})"` : "";
     const omask = !outerCuts.length ? "" : outerCuts.length < cuts.length ? ` mask="url(#${n("dmo")})"` : mask;
     const dash = (o) => {
@@ -436,7 +445,7 @@ class FloorplanLiteCard extends HTMLElement {
       `<g class="sp" filter="url(#${n("sp")})">${spills}</g>` +
       `<g class="li">${lights}</g><g class="ed">${edges}</g>` +
       `<g class="wa" stroke-width="${wall}"${mask}>${walls}</g>${extras}${outlines}${rims}` +
-      `<g class="op">${this._openingsHtml(cuts)}</g>` +
+      `<g class="op">${this._openingsHtml(f.openings)}</g>` +
       (bg && bg.mode === "over" ? bg.html : "") + `</svg>`;
     const plan = `<div class="plan" data-f="${esc(key)}"${swipe ? ` style="width:calc(70vh * ${(vw / vh).toFixed(4)})"` : ""}>` +
       `<div class="ratio" style="padding-top:${((vh / vw) * 100).toFixed(3)}%"></div>${svg}` +
@@ -460,21 +469,27 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* Symbols of doors, windows and garage doors (passages are only cut out of the walls). */
   _openingsHtml(list) {
-    return list.map((o) => {
-      const r = (o.angle || 0) * Math.PI / 180, dx = Math.cos(r), dy = Math.sin(r);
-      const w = (o.width || 0.9) / 2, x = o.at[0], y = o.at[1];
-      const a = [x - dx * w, y - dy * w], b = [x + dx * w, y + dy * w];
-      const line = (p, q, cls) => `<line class="${cls}" x1="${p[0].toFixed(3)}" y1="${p[1].toFixed(3)}" x2="${q[0].toFixed(3)}" y2="${q[1].toFixed(3)}"/>`;
-      if (o.type === "window") return line(a, b, "win");
-      if (o.type === "garage") return line(a, b, "gar");
-      if (o.type === "door") {  // leaf open by 90° with its swing arc
-        const s = o.flip ? -1 : 1, L = 2 * w;
-        const tip = [a[0] - dy * L * s, a[1] + dx * L * s];
-        return line(a, tip, "leaf") +
-          `<path class="swing" d="M${tip[0].toFixed(3)} ${tip[1].toFixed(3)} A${L.toFixed(3)} ${L.toFixed(3)} 0 0 ${s > 0 ? 0 : 1} ${b[0].toFixed(3)} ${b[1].toFixed(3)}"/>`;
-      }
-      return "";
-    }).join("");
+    return list.map((o, i) => `<g class="os" data-o="${i}">${this._openingSym(o)}</g>`).join("");
+  }
+
+  _openingSym(o) {
+    const r = (o.angle || 0) * Math.PI / 180, dx = Math.cos(r), dy = Math.sin(r);
+    const w = (o.width || 0.9) / 2, x = o.at[0], y = o.at[1];
+    const a = [x - dx * w, y - dy * w], b = [x + dx * w, y + dy * w];
+    const line = (p, q, cls) => `<line class="${cls}" x1="${p[0].toFixed(3)}" y1="${p[1].toFixed(3)}" x2="${q[0].toFixed(3)}" y2="${q[1].toFixed(3)}"/>`;
+    if (o.type === "skylight") {  // roof window (glass with a frame bar) or dome
+      if (o.round) return `<ellipse class="sky" cx="${x}" cy="${y}" rx="${w.toFixed(3)}" ry="${((o.depth || 1) / 2).toFixed(3)}" transform="rotate(${o.angle || 0} ${x} ${y})"/>`;
+      return `<polygon class="sky" points="${pts(openingRect(o))}"/>` + line(a, b, "skybar");
+    }
+    if (o.type === "window") return line(a, b, "win");
+    if (o.type === "garage") return line(a, b, "gar");
+    if (o.type === "door") {  // leaf open by 90° with its swing arc
+      const s = o.flip ? -1 : 1, L = 2 * w;
+      const tip = [a[0] - dy * L * s, a[1] + dx * L * s];
+      return line(a, tip, "leaf") +
+        `<path class="swing" d="M${tip[0].toFixed(3)} ${tip[1].toFixed(3)} A${L.toFixed(3)} ${L.toFixed(3)} 0 0 ${s > 0 ? 0 : 1} ${b[0].toFixed(3)} ${b[1].toFixed(3)}"/>`;
+    }
+    return "";
   }
 
   _build() {
@@ -502,7 +517,7 @@ class FloorplanLiteCard extends HTMLElement {
     }
     root.innerHTML = `<style>${FloorplanLiteCard.styles}${this._styleVars()}</style>${html}`;
 
-    this._refs = [];
+    this._refs = []; this._orefs = [];
     const plans = root.querySelectorAll(".plan");
     for (let k = 0; k < plans.length; k++) {
       const plan = plans[k], key = plan.getAttribute("data-f");
@@ -517,6 +532,9 @@ class FloorplanLiteCard extends HTMLElement {
           chips: lbl ? lbl.querySelector(".chips") : null,
           st: {},
         });
+      });
+      this._floors[key].openings.forEach((o, i) => {
+        if (o.ents.length) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`), cls: "" });
       });
     }
 
@@ -547,6 +565,7 @@ class FloorplanLiteCard extends HTMLElement {
         }, 500);
       });
     });
+    this._orefs.forEach((r) => { if (r.hit) r.hit.addEventListener("click", (e) => { e.stopPropagation(); this._opTap(r.o); }); });
     root.querySelectorAll(".lbl").forEach((el) => el.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " " || e.keyCode === 13) { e.preventDefault(); this._open(el.getAttribute("data-room")); }
     }));
@@ -625,6 +644,69 @@ class FloorplanLiteCard extends HTMLElement {
         if (o.ck !== ck) { o.ck = ck; ref.chips.innerHTML = ck.split("").map((c) => this._chips[c]).join(""); }
       }
     });
+    (this._orefs || []).forEach((r) => {  // open windows, doors and gates light up, an unlocked lock shows red
+      const cls = "os" + this._opState(r.o.ents);
+      if (r.cls !== cls && r.g) { r.cls = cls; r.g.setAttribute("class", cls); }
+    });
+  }
+
+  _opState(ents) {
+    let open = false, unlocked = false;
+    ents.forEach((id) => {
+      const s = !this._hidden(id) && this._hass.states[id];
+      if (!s) return;
+      const d = id.split(".")[0], v = s.state;
+      if (d === "binary_sensor" && v === "on") open = true;
+      if (d === "cover" && (v === "open" || v === "opening" || v === "closing")) open = true;
+      if (d === "lock" && (v === "open" || v === "opening")) open = true;
+      if (d === "lock" && (v === "unlocked" || v === "unlocking")) unlocked = true;
+    });
+    return open ? " open" : unlocked ? " unlocked" : "";
+  }
+
+  /* Tap on a window, door or gate: windows (and pure sensors) open the entity's dialog, doors and gates ask first. */
+  _opTap(o) {
+    if (this._config.tap === "none" || !this._hass) return;
+    const st = this._hass.states, ents = o.ents.filter((id) => !this._hidden(id) && st[id]);
+    if (!ents.length) return;
+    const ctl = o.type === "door" || o.type === "garage" ? ents.filter((id) => /^(lock|cover|button|switch)\./.test(id))[0] : null;
+    if (!ctl) return this._moreInfo(ents[0]);
+    const t = this._t, s = st[ctl], d = ctl.split(".")[0], v = s.state, acts = [];
+    if (d === "lock") {
+      if (v === "locked") acts.push([t.unlock, "unlock"]); else acts.push([t.lock, "lock"]);
+      if ((s.attributes.supported_features || 0) & 1) acts.push([t.openDoor, "open"]);
+    } else if (d === "cover") {
+      if (v === "opening" || v === "closing") acts.push([t.stop, "stop_cover"]);
+      acts.push(v === "open" || v === "opening" ? [t.close, "close_cover"] : [t.open, "open_cover"]);
+    } else acts.push(d === "button" ? [t.press, "press"] : [t.toggle, "toggle"]);
+    const main = d === "cover" ? acts.length - 1 : 0;  // the question names the usual action, the others are extra buttons
+    this._confirm((s.attributes.friendly_name || ctl) + " – " + acts[main][0] + "?", acts, ctl);
+  }
+
+  _moreInfo(id) {
+    this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: id }, bubbles: true, composed: true }));
+  }
+
+  _confirm(text, acts, id) {  // small dialog inside the card – opening a door or gate needs a second tap
+    const card = this.shadowRoot.querySelector("ha-card"), t = this._t;
+    if (!card) return;
+    const old = card.querySelector(".cfm");
+    if (old) old.remove();
+    const box = document.createElement("div");
+    box.className = "cfm";
+    box.innerHTML = `<div class="cbox"><p>${esc(text)}</p><div class="cbtn"><button data-a="x">${esc(t.cancel)}</button>` +
+      `<button data-a="i">${esc(t.details)}</button>` + acts.map((a, i) => `<button class="go" data-a="${i}">${esc(a[0])}</button>`).join("") + `</div></div>`;
+    const done = () => { box.remove(); clearTimeout(this._cfmT); };
+    box.addEventListener("click", (e) => {
+      const a = e.target.getAttribute && e.target.getAttribute("data-a");
+      if (e.target === box || a === "x") return done();
+      if (a === "i") { done(); return this._moreInfo(id); }
+      if (a !== null && a !== undefined && acts[+a]) { done(); this._hass.callService(id.split(".")[0], acts[+a][1], { entity_id: id }); }
+    });
+    card.appendChild(box);
+    this._cfmT = setTimeout(done, 15000);  // a forgotten question goes away on its own
+    const go = box.querySelector(".go");
+    if (go) go.focus();
   }
 
   // How bright does the room centre get? (screen blend of the light over the floor, roughly Rec. 709)
@@ -808,6 +890,22 @@ FloorplanLiteCard.styles = `
     touch-action: manipulation; }  /* no double-tap zoom on tablets */
   @media (hover: hover) { .hit:hover { fill: rgba(255, 255, 255, .07); transition: none; } }  /* light up at once, fade back softly */
   .hit.pressed { fill: rgba(255, 255, 255, .18); transition: none; }
+  .ohit { fill: rgba(255, 255, 255, 0); pointer-events: all; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  @media (hover: hover) { .ohit:hover { fill: rgba(255, 255, 255, .12); } }
+  .op .sky { fill: rgba(159, 211, 255, .2); stroke: #9fd3ff; stroke-width: .06; opacity: .85; }
+  .op .skybar { stroke: #9fd3ff; stroke-width: .04; opacity: .6; }
+  .op .os { transition: opacity .3s; }
+  .op .os.open .win, .op .os.open .gar, .op .os.open .leaf, .op .os.open .skybar { stroke: #ffb74d; opacity: 1; }
+  .op .os.open .sky { fill: rgba(255, 183, 77, .3); stroke: #ffb74d; opacity: 1; }
+  .op .os.unlocked .leaf { stroke: #ff8a80; opacity: 1; }
+  .cfm { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 12, 24, .55); border-radius: inherit; }
+  .cbox { background: #1d2742; color: var(--n-text); border-radius: 14px; padding: 16px 18px; max-width: 86%; box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
+  .cbox p { margin: 0 0 14px; font-size: 15px; }
+  .cbtn { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+  .cbtn button { font: inherit; font-size: 14px; margin: 4px 0 0 8px; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(160, 182, 230, .35);
+    background: transparent; color: var(--n-text); cursor: pointer; }
+  .cbtn button.go { background: #4f6fd8; border-color: #4f6fd8; color: #fff; }
 
   /* Presence and motion */
   .fx { position: absolute; }

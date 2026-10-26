@@ -79,6 +79,8 @@ LINE = vol.Schema(  # dashed helper lines, e.g. a canopy or a terrace
     }
 )
 
+ENTITY_LIST = vol.All([vol.All(str, vol.Length(max=255))], vol.Length(max=50))
+
 OPENING = vol.Schema(
     {
         vol.Required("level"): ID,
@@ -86,13 +88,14 @@ OPENING = vol.Schema(
         vol.Required("at"): POINT,  # centre on the wall
         vol.Optional("angle", default=0): NUM,  # direction of the wall in degrees (0 = along x)
         vol.Optional("width", default=0.9): vol.All(NUM, vol.Range(min=0.1, max=20)),
-        vol.Optional("depth", default=0.24): vol.All(NUM, vol.Range(min=0.05, max=2)),  # wall thickness to cut
+        vol.Optional("depth", default=0.24): vol.All(NUM, vol.Range(min=0.05, max=20)),  # wall thickness to cut, skylight: length
         vol.Optional("flip", default=False): bool,  # door swing side
-        vol.Optional("entity"): vol.All(str, vol.Length(max=255)),  # e.g. the window contact or garage door cover
+        vol.Optional("entity"): vol.All(str, vol.Length(max=255)),  # older plans: one entity
+        vol.Optional("entities"): ENTITY_LIST,  # window contact, cover, lock, garage door, button …
+        vol.Optional("round", default=False): bool,  # skylight: a dome instead of a rectangle
     }
 )
 
-ENTITY_LIST = vol.All([vol.All(str, vol.Length(max=255))], vol.Length(max=50))
 ROOM_ENTITIES = vol.Schema(
     {
         vol.Optional("praesenz"): ENTITY_LIST,

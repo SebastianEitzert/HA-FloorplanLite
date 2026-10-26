@@ -16,7 +16,7 @@ const T = {
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
-      line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", openWall: "Keine Wand (offener Bereich)",
+      line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", skylight: "Dachfenster / Lichtkuppel (frei im Raum)", openWall: "Keine Wand (offener Bereich)",
       image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", straighten: "Hintergrund gerade ausrichten (zwei Punkte)", pan: "Verschieben (Ansicht)" },
     hintDraw: "Klicken setzt Punkte · Klick auf den ersten Punkt oder Enter schließt · Rücktaste entfernt den letzten · Esc bricht ab · Umschalt: freier Winkel",
     hintLine: "Klicken setzt Punkte · Enter oder erneuter Klick auf den letzten Punkt beendet · Esc bricht ab",
@@ -47,7 +47,9 @@ const T = {
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
       fenster: "Fenster", beschattung: "Beschattung", musik: "Musik" },
-    types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)" },
+    types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)", skylight: "Dachfenster / Lichtkuppel" },
+    opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Fenster: Antippen öffnet die erste Entität · Tür/Tor: Antippen fragt nach und schaltet Schloss, Cover oder Taster",
+    lengthM: "Länge (m)", angleDeg: "Drehung (Grad)", roundF: "rund (Lichtkuppel)",
     invalid: "Fehler beim Speichern: %s", grid: "Raster", ghost: "Stockwerk darunter zeigen", dims: "Maße zeigen",
     entHint: "Entity-IDs, durch Komma getrennt",
   },
@@ -59,7 +61,7 @@ const T = {
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
     tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
-      line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", openWall: "No wall (open plan)",
+      line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", skylight: "Roof window / dome (anywhere in a room)", openWall: "No wall (open plan)",
       image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", straighten: "Straighten background (two points)", pan: "Pan (view)" },
     hintDraw: "Click to add points · click the first point or Enter to close · Backspace removes the last · Esc cancels · Shift: free angle",
     hintLine: "Click to add points · Enter or clicking the last point again finishes · Esc cancels",
@@ -90,7 +92,9 @@ const T = {
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
       fenster: "Window", beschattung: "Shade", musik: "Music" },
-    types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)" },
+    types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)", skylight: "Roof window / dome" },
+    opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Window: tapping opens the first entity · door/gate: tapping asks and then works the lock, cover or button",
+    lengthM: "Length (m)", angleDeg: "Rotation (degrees)", roundF: "round (dome)",
     invalid: "Saving failed: %s", grid: "Grid", ghost: "Show level below", dims: "Show dimensions",
     entHint: "Entity ids, separated by commas",
   },
@@ -107,7 +111,7 @@ const WALLS = { wall_width: 0.2, outer_width: 0.5 };  // wall thickness in metre
 const DEFAULT_STYLE = { background: "#131b30", floor: ["#2a3657", "#1c2541"], wall: "#4d5a7d", edge: "#8d9cc4" };
 const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", roomGen: "mdi:format-color-fill", split: "mdi:content-cut", wall: "mdi:vector-polyline-edit", outline: "mdi:wall", outdoor: "mdi:tree",
   line: "mdi:vector-polyline", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
-  garage: "mdi:garage", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", straighten: "mdi:format-rotate-90", pan: "mdi:pan" };
+  garage: "mdi:garage", skylight: "mdi:window-shutter-open", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", straighten: "mdi:format-rotate-90", pan: "mdi:pan" };
 
 /* ---------- Geometry ---------- */
 const R3 = (v) => Math.round(v * 1000) / 1000;
@@ -539,7 +543,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _renderTools() {
     const t = this.t, nav = this.shadowRoot.querySelector(".tools");
-    const groups = [["select", "pan"], ["outline", "wall", "roomGen", "room", "split", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "straighten", "alignWall"]];
+    const groups = [["select", "pan"], ["outline", "wall", "roomGen", "room", "split", "outdoor", "line"], OPENING_TOOLS.concat(["skylight", "openWall"]), ["image", "scale", "straighten", "alignWall"]];
     nav.innerHTML = groups.map((g) => `<div class="grp">${g.map((k) =>
       `<button class="tool${this._tool === k ? " on" : ""}" data-t="${k}" title="${esc(t.tools[k])}"${!this._plan ? " disabled" : ""}><ha-icon icon="${ICONS[k]}"></ha-icon></button>`).join("")}</div>`).join("");
     nav.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => this._setTool(b.getAttribute("data-t"))));
@@ -631,9 +635,14 @@ class FloorplanLitePanel extends HTMLElement {
     } else if (s.kind === "lines") {
       h += this._field(t.open, this._chk("open", el.open));
     } else if (s.kind === "openings") {
-      h += this._field(t.type, `<select data-k="type">${OPENING_TOOLS.concat(["open"]).map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
-        this._field(t.widthM, this._num("width", el.width, 0.05)) + this._field(t.depth, this._num("depth", el.depth, 0.02)) +
-        (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "");
+      const sky = el.type === "skylight", ents = (el.entities || []).concat(el.entity && (el.entities || []).indexOf(el.entity) < 0 ? [el.entity] : []);
+      h += this._field(t.type, `<select data-k="type">${(sky ? ["skylight"] : OPENING_TOOLS.concat(["open"])).map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
+        this._field(t.widthM, this._num("width", el.width, 0.05)) + this._field(sky ? t.lengthM : t.depth, this._num("depth", el.depth, 0.02)) +
+        (sky ? this._field(t.angleDeg, this._num("angle", el.angle || 0, 1)) + this._field(t.roundF, this._chk("round", el.round)) : "") +
+        (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "") +
+        (el.type === "passage" || el.type === "open" ? "" :
+          this._field(t.opEntities, `<input type="text" list="fl-ents-op" data-oent="1" value="${esc(ents.join(", "))}" placeholder="${esc(t.entHint)}">`) +
+          `<p class="small">${esc(t.opEntHint)}</p><datalist id="fl-ents-op">${this._entityOptions(["binary_sensor", "cover", "lock", "button", "switch"])}</datalist>`);
     }
     return h + `</section>`;
   }
@@ -756,6 +765,11 @@ class FloorplanLitePanel extends HTMLElement {
       const k = inp.getAttribute("data-p");
       const v = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value;
       this._change(() => { if (v === "" && k === "hide_label") delete this._plan[k]; else this._plan[k] = k === "id" ? slug(v) : v; });
+    }));
+    side.querySelectorAll("[data-oent]").forEach((inp) => inp.addEventListener("change", () => {
+      const list = inp.value.split(",").map((x) => x.trim()).filter(Boolean);
+      if (!el) return;
+      this._change(() => { delete el.entity; if (list.length) el.entities = list; else delete el.entities; });
     }));
     side.querySelectorAll("[data-wall]").forEach((inp) => inp.addEventListener("change", () => {
       const k = inp.getAttribute("data-wall"), v = Math.min(1.5, Math.max(0.05, (parseFloat(inp.value) || 0) / 100));
@@ -1055,6 +1069,11 @@ class FloorplanLitePanel extends HTMLElement {
     });
     const opening = ({ x, i }) => {
       const sel = S && S.kind === "openings" && S.i === i;
+      if (x.type === "skylight") {
+        const shape = x.round ? `<ellipse class="op sky${sel ? " sel" : ""}" data-k="openings" data-i="${i}" cx="${x.at[0]}" cy="${x.at[1]}" rx="${(x.width || 0.8) / 2}" ry="${(x.depth || 1.2) / 2}" transform="rotate(${x.angle || 0} ${x.at[0]} ${x.at[1]})"/>`
+          : `<polygon class="op sky${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}"/>`;
+        h += shape; return;
+      }
       h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${x.type === "open" ? "url(#fl)" : esc(st.background)}"/>` + this._openingSym(x, px);
     };
     this._of("walls").forEach(({ x, i }) => {
@@ -1224,6 +1243,16 @@ class FloorplanLitePanel extends HTMLElement {
       return this._change(() => {
         this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3((w.width || this._wall(w.outer ? "outer_width" : "wall_width")) + 0.04) });
         this._openingPreview = null;
+        this._sel = { kind: "openings", i: this._plan.openings.length - 1 };  // its fields (entities …) show right away
+      });
+    }
+    if (tool === "skylight") {  // free in the room, turned like the nearest wall
+      const w = this._nearestWall(p);
+      return this._change(() => {
+        this._plan.openings.push({ level: this._level, type: "skylight", at: [R3(p[0]), R3(p[1])],
+          angle: w ? R3(Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI) : 0, width: 0.8, depth: 1.2 });
+        this._sel = { kind: "openings", i: this._plan.openings.length - 1 };
+        this._setTool("select");
       });
     }
     if (tool === "openWall") {  // no wall where two rooms meet: cut the shared part up to the walls at its ends
@@ -1355,7 +1384,9 @@ class FloorplanLitePanel extends HTMLElement {
       const dx = Math.round((p[0] - d.start[0]) / g) * g, dy = Math.round((p[1] - d.start[1]) / g) * g;
       if (!dx && !dy && !d.moved) return;
       d.moved = true;
-      if (this._sel.kind === "openings") {
+      if (this._sel.kind === "openings" && el.type === "skylight") {
+        el.at = [R3(d.orig.at[0] + dx), R3(d.orig.at[1] + dy)];
+      } else if (this._sel.kind === "openings") {
         const w = this._nearestWall(p);
         if (w) {
           el.at = [R3(w.p[0]), R3(w.p[1])];
@@ -1588,6 +1619,8 @@ const STYLES = `
   .grid line { stroke: rgba(160,182,230,.08); } .grid line.m { stroke: rgba(160,182,230,.18); }
   .room { stroke-linejoin: miter; cursor: pointer; } .room.out { stroke-dasharray: .3 .2; }
   .outline { fill: none; stroke-linejoin: miter; cursor: pointer; pointer-events: stroke; }
+  .op.sky { fill: rgba(159, 211, 255, .3); stroke: #9fd3ff; stroke-width: .05; }
+  .small { font-size: 11px; opacity: .7; margin: 0 0 8px; }
   .wall { fill: none; stroke-linejoin: miter; stroke-linecap: square; cursor: pointer; pointer-events: stroke; }
   .wall.sel { stroke: #4fc3ff; }
   .hline { fill: none; stroke-dasharray: .3 .22; cursor: pointer; pointer-events: stroke; opacity: .7; }

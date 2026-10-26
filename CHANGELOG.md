@@ -14,6 +14,10 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   room are ignored), *Draw room* (corners snap to wall corners and walls, or free) and *Split room* (a line from edge to
   edge, with bends if needed). New plans use this (`room_walls: false`); existing plans keep rooms that draw their own
   walls until the setting is switched off.
+- Windows, doors and gates get entities (window contact, cover, lock, garage door, button, switch): open ones glow
+  orange, an unlocked lock red. Tapping a window opens the entity's dialog; tapping a door or gate asks first
+  ("Garage door – open?", with *Details*) and then works the lock, cover or button.
+- Roof windows and domes (`skylight`, rectangular or `round`), placed anywhere in a room, with entities like windows.
 
 ## 0.2.3 – 2026-10-26
 - No wall (`open`): the outer wall stays whole where the open part meets it, also at slanted corners; the open part

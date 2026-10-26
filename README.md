@@ -28,7 +28,7 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 | **Motion** | an aqua dot with ripples up to the walls |
 | **Temperature** | from a `climate` entity (current temperature) or a sensor |
 | **Chips** | window open, shade closed, music playing (as a small equaliser) |
-| **Openings** | doors with their swing, windows, passages without a door, garage doors |
+| **Openings** | doors with their swing, windows, roof windows and domes, passages without a door, garage doors – with entities (contact, cover, lock, gate) open ones glow orange, an unlocked lock red; tap a window for its dialog, tap a door or gate to open/close/unlock it after a confirmation |
 | **Background** | per level an image under the plan (e.g. a satellite view, so the garden stays a photo) or over it with transparency, or hidden |
 
 Tap a room to open the [Bubble Card](https://github.com/Clooos/Bubble-Card) pop-up with the hash `#<room>`.
@@ -92,7 +92,7 @@ Coordinates are in metres; `y` points down. A plan has:
 | `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
-| `openings` | `{level, type: door/window/passage/garage/open, at, angle, width, depth?, flip?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
+| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
 
 ## Development

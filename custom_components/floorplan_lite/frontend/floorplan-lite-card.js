@@ -31,9 +31,10 @@
  *   script: script.raum_klick     # optional: the script that gets every key, click and wheel step over a room
  * Tapping a room (left click) opens the pop-up, ←/→ change the level. Everything else over a room goes to the script
  * as {raum: <room id>, aktion: …} and the script decides what it does:
- *   hoch / runter (↑/↓), lauter / leiser (mouse wheel), gelb / gelb2 (right click or yellow once / twice),
- *   play / play2 (twice) / pause / play_pause / stop / weiter / zurueck (media keys), blau / gruen / rot (colour keys),
- *   tipp2 / tipp3 (touch: double / triple tap).
+ *   hoch / runter (↑/↓), lauter / leiser (mouse wheel), gelb (right click or yellow), play / pause / play_pause /
+ *   stop / weiter / zurueck (media keys), blau / gruen / rot (colour keys), tipp2 / tipp3 (touch: double / triple tap).
+ * Keys the script has an action „twice“ for (hoch2, gelb2, play2 …) wait for a second press; the script says which
+ * ones and how long (aktion: config), all others go out at once.
  * Without the script play / pause go straight to the room's media players. After an event the room's label shows the
  * volume (louder / quieter / play) or the name of the scene that was switched for 3 s instead of the temperature.
  * Deliberately without ??, ?., aspect-ratio, clamp()/min(), inset, flex-gap and class fields: the browser of older
@@ -185,6 +186,7 @@ function areaEntities(hass, areaId, hidden) {
 }
 
 const CARDS = [];
+const DOUBLE = {};  // script → {keys: keys with an action for „twice“, ms: waiting time}
 /* Remote keys → aktion for the script: the TV Streamer's names (tv-streamer-key) and the browser's media keys */
 const TV_KEYS = { blue: "blau", green: "gruen", red: "rot", yellow: "gelb", play: "play", pause: "pause", stop: "stop",
   next: "weiter", previous: "zurueck" };
@@ -413,6 +415,7 @@ class FloorplanLiteCard extends HTMLElement {
     const first = !this._hass;
     this._hass = hass;
     if (first) this._subscribe();
+    if (this._config && this._config.tap !== "none") this._double();  // ask the script early (at most once a minute)
     if (!this._config || !this.shadowRoot || !this._floors || !this._fl.length) return;
     if (!this._refs) this._build();
     if (Object.keys(this._liveAreas || {}).length && (hass.entities !== this._liveSrc || hass.devices !== this._liveDev)) {
@@ -672,18 +675,10 @@ class FloorplanLiteCard extends HTMLElement {
         this._wheelT = now;
         this._send(el.getAttribute("data-room"), e.deltaY < 0 ? "lauter" : "leiser");
       }, { passive: false });
-      el.addEventListener("contextmenu", (e) => {   // right click / yellow: once = gelb, twice within 0.5 s = gelb2
+      el.addEventListener("contextmenu", (e) => {   // right click / yellow: gelb, twice gelb2
         e.preventDefault();
         el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 280);
-        const id = el.getAttribute("data-room");
-        clearTimeout(this._rkT);
-        if (this._rkRoom !== id) this._rkN = 0;
-        this._rkRoom = id;
-        this._rkN = (this._rkN || 0) + 1;
-        this._rkT = setTimeout(() => {
-          const n = this._rkN; this._rkN = 0; this._rkRoom = null;
-          this._send(id, n < 2 ? "gelb" : "gelb2");
-        }, 500);
+        this._press(el.getAttribute("data-room"), "gelb");
       });
     });
     this._orefs.forEach((r) => { if (r.hit) r.hit.addEventListener("click", (e) => { e.stopPropagation(); this._opTap(r.o); }); });
@@ -925,20 +920,46 @@ class FloorplanLiteCard extends HTMLElement {
   _remote(aktion) {
     if (!aktion || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
     if (location.hash && location.hash.length > 1) return false;  // a pop-up is open
-    if (aktion === "play") {  // play twice within 0.6 s: play2 (default next track) – the first press is not delayed
-      const now = Date.now(), twice = this._playT && now - this._playT < 600;
-      this._playT = twice ? 0 : now;
-      if (twice) aktion = "play2";
-    }
-    this._send(this._hover, aktion);
+    this._press(this._hover, aktion);
     return true;
   }
+
+  /* A key pressed once or twice: keys the script has an action for „twice“ wait for a second press (the script's
+     waiting time) and then send <key>2 – or the key itself when none came. All other keys go out at once. */
+  _press(room, ev) {
+    if (!room || !ev) return;
+    const d = this._double(), p = this._pend;
+    if (p && p.ev === ev && p.room === room) { clearTimeout(p.t); this._pend = null; this._send(room, ev + "2"); return; }
+    if (p) { clearTimeout(p.t); this._pend = null; this._send(p.room, p.ev); }  // another key: the waiting one goes now
+    if (d.keys.indexOf(ev) < 0) { this._send(room, ev); return; }
+    this._pend = { room: room, ev: ev, t: setTimeout(() => { this._pend = null; this._send(room, ev); }, d.ms) };
+  }
+
+  /* Which keys use „twice“, and how long to wait: asked from the script (aktion: config, answered by the Floorplan
+     Lite blueprint – recognised by its field „lichter“), at most once a minute. Otherwise right click / yellow only. */
+  _double() {
+    const sc = this._scriptName(), c = DOUBLE[sc] || (DOUBLE[sc] = { at: 0 }), h = this._hass;
+    const svc = h && h.services && h.services.script && h.services.script[sc];
+    if (svc && svc.fields && svc.fields.lichter && !c.busy && Date.now() - c.at > 60000) {
+      c.busy = true;
+      h.callWS({ type: "call_service", domain: "script", service: sc, service_data: { aktion: "config" }, return_response: true })
+        .then((r) => {
+          const a = r && r.response;
+          if (a && Array.isArray(a.double)) { c.keys = a.double; c.ms = Math.max(150, Math.min(1500, +a.ms || 400)); }
+        })
+        .catch(() => { /* older script: keep the default */ })
+        .then(() => { c.busy = false; c.at = Date.now(); });
+    }
+    return c.keys ? c : { keys: ["gelb"], ms: 500 };
+  }
+
+  _scriptName() { return String(this._config.script || "raum_klick").replace(/^script\./, ""); }
 
   /* Every key, click, wheel step and tap over a room goes to the script (option script, default script.raum_klick) as
      {raum, aktion} – the script decides what happens. Without the script only play / pause work, on the room's players. */
   _send(room, aktion) {
     if (!room || !aktion || !this._hass) return false;
-    const sc = String(this._config.script || "raum_klick").replace(/^script\./, ""), svc = this._hass.services || {};
+    const sc = this._scriptName(), svc = this._hass.services || {};
     if (aktion !== "pause" && aktion !== "stop") this._flashStart(room, aktion === "lauter" || aktion === "leiser" || aktion === "play" ? "vol" : "scene");
     const st = this._hass.states, r = this._roomEnts(this._keyOf(room)), ok = (id) => !!st[id] && !this._hidden(id);
     const players = (r.musik || []).filter(ok);
@@ -1022,7 +1043,7 @@ class FloorplanLiteCard extends HTMLElement {
     const v = e.key === "ArrowUp" || e.keyCode === 38 ? "hoch" : e.key === "ArrowDown" || e.keyCode === 40 ? "runter" : "";
     if (v && this._hover && !(location.hash && location.hash.length > 1)) {
       e.preventDefault();
-      this._send(this._hover, v);
+      if (!e.repeat) this._press(this._hover, v);
       return;
     }
     if (this._config.mode !== "swipe" || !this._track) return;

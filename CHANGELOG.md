@@ -10,7 +10,9 @@ All notable changes to this project. Versions follow the `version` in `custom_co
 - Script blueprint *Floorplan Lite – keys, clicks and wheel over a room*, installed with the integration: what each event
   does is a setting; scenes of a room by area or name (no fixed names), rooms without scenes switch their lights on and
   off, louder / quieter only while music plays (or always), standard players per room, modes in priority order
-  (night, cinema … – their scenes come first while on), play twice = next track (`play2`). Older cards
+  (night, cinema … – their scenes come first while on), an action for every remote key pressed twice (`hoch2`,
+  `gelb2`, `play2` = next track …) with an adjustable waiting time – only keys with a „twice“ action wait, the card asks
+  the script which ones (`aktion: config`). Older cards
   (`klicks`, `aktion: musik`) still work with it.
 - Short display in the room's label: the volume after louder / quieter / play, the scene's name after a scene change.
 - Roller shutter or blind per window (`shade`): drawn outside the wall, closed part as a bar, blinds with their slats

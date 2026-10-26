@@ -47,13 +47,7 @@ blueprint:
         lauter: { name: "Mouse wheel up (lauter)", default: volume_up, selector: *actions }
         leiser: { name: "Mouse wheel down (leiser)", default: volume_down, selector: *actions }
         gelb: { name: "Right click / yellow once (gelb)", default: nothing, selector: *actions }
-        gelb2: { name: "Right click / yellow twice (gelb2)", default: room_off, selector: *actions }
         play: { name: "Play key (play)", default: music_play, selector: *actions }
-        play2:
-          name: "Play key twice (play2)"
-          description: The first press still does what *Play key* says, the second one within 0.6 s this.
-          default: next_track
-          selector: *actions
         pause: { name: "Pause key (pause)", default: music_pause, selector: *actions }
         play_pause: { name: "Play/pause key (play_pause)", default: music_toggle, selector: *actions }
         stop: { name: "Stop key (stop)", default: music_stop, selector: *actions }
@@ -83,6 +77,28 @@ blueprint:
           selector: *actions
         tipp2: { name: "Touch: double tap (tipp2)", default: light_toggle, selector: *actions }
         tipp3: { name: "Touch: triple tap (tipp3)", default: room_off, selector: *actions }
+    twice:
+      name: Keys pressed twice
+      description: >-
+        A key with an action for „twice“ waits for a second press before its single action runs. Keys set to
+        „Nothing“ here react at once – the waiting time only counts where twice is in use.
+      input:
+        double_ms:
+          name: Time for the second press
+          default: 400
+          selector: { number: { min: 200, max: 1000, step: 50, unit_of_measurement: ms, mode: slider } }
+        hoch2: { name: "↑ twice (hoch2)", default: nothing, selector: *actions }
+        runter2: { name: "↓ twice (runter2)", default: nothing, selector: *actions }
+        gelb2: { name: "Right click / yellow twice (gelb2)", default: room_off, selector: *actions }
+        play2: { name: "Play twice (play2)", default: next_track, selector: *actions }
+        pause2: { name: "Pause twice (pause2)", default: nothing, selector: *actions }
+        play_pause2: { name: "Play/pause twice (play_pause2)", default: nothing, selector: *actions }
+        stop2: { name: "Stop twice (stop2)", default: nothing, selector: *actions }
+        weiter2: { name: "Next track key twice (weiter2)", default: nothing, selector: *actions }
+        zurueck2: { name: "Previous track key twice (zurueck2)", default: nothing, selector: *actions }
+        blau2: { name: "Blue twice (blau2) – ⚠ TV Streamer, see Blue", default: nothing, selector: *actions }
+        gruen2: { name: "Green twice (gruen2) – ⚠ TV Streamer, see Green", default: nothing, selector: *actions }
+        rot2: { name: "Red twice (rot2) – ⚠ Moonlight, see Red", default: nothing, selector: *actions }
     music:
       name: Music
       input:
@@ -161,7 +177,9 @@ fields:
     selector: { area: {} }
   aktion:
     name: Event
-    description: hoch, runter, lauter, leiser, gelb, gelb2, play, play2, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3
+    description: >-
+      hoch, runter, lauter, leiser, gelb, play, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3,
+      the same with 2 for twice (hoch2, gelb2 …) – or config: answers which keys use twice and the waiting time
     selector: { text: {} }
   lichter:
     name: Lights
@@ -182,9 +200,7 @@ variables:
     lauter: !input lauter
     leiser: !input leiser
     gelb: !input gelb
-    gelb2: !input gelb2
     play: !input play
-    play2: !input play2
     pause: !input pause
     play_pause: !input play_pause
     stop: !input stop
@@ -195,6 +211,19 @@ variables:
     rot: !input rot
     tipp2: !input tipp2
     tipp3: !input tipp3
+    hoch2: !input hoch2
+    runter2: !input runter2
+    gelb2: !input gelb2
+    play2: !input play2
+    pause2: !input pause2
+    play_pause2: !input play_pause2
+    stop2: !input stop2
+    weiter2: !input weiter2
+    zurueck2: !input zurueck2
+    blau2: !input blau2
+    gruen2: !input gruen2
+    rot2: !input rot2
+  double_ms: !input double_ms
   volume_mode: !input volume_mode
   standard_players: !input standard_players
   music_integration: !input music_integration
@@ -206,6 +235,17 @@ variables:
   light_integration: !input light_integration
 
 sequence:
+  - alias: "The card asks which keys use „twice“ and how long it waits for the second press"
+    if: "{{ aktion is defined and aktion == 'config' }}"
+    then:
+      - variables:
+          answer:
+            double: >-
+              {{ settings.items() | selectattr('0', 'match', '.+2$') | rejectattr('0', 'eq', 'tipp2')
+                 | rejectattr('1', 'eq', 'nothing') | map(attribute='0') | map('regex_replace', '2$', '') | list }}
+            ms: "{{ double_ms | int(400) }}"
+      - stop: config
+        response_variable: answer
   - variables:
       event: >-
         {% set a = aktion if aktion is defined and aktion else '' %}

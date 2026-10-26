@@ -37,13 +37,15 @@ Tap a room to open the [Bubble Card](https://github.com/Clooos/Bubble-Card) pop-
 ←/→ switch the level. Everything else over a room – ↑/↓, mouse wheel, right click (LG remote: yellow) once or twice,
 media keys, the [TV Streamer](https://github.com/SebastianEitzert/TV-Streamer)'s colour and play keys, double / triple
 tap – goes to a script (card option `script`, default `script.raum_klick`) with `raum` (the room's area), `aktion`
-(`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `gelb2`, `play`, `play2` (play twice), `pause`, `play_pause`, `stop`, `weiter`, `zurueck`,
-`blau`, `gruen`, `rot`, `tipp2`, `tipp3`) and the room's `lichter` and `player`. The script decides what happens.
+(`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `play`, `pause`, `play_pause`, `stop`, `weiter`, `zurueck`,
+`blau`, `gruen`, `rot`, `tipp2`, `tipp3`, and `…2` for a key pressed twice) and the room's `lichter` and `player`.
+The script decides what happens.
 
 The integration installs a blueprint for it: *Settings → Automations & scenes → Blueprints → **Floorplan Lite – keys,
 clicks and wheel over a room** → Create script*, and save it as `script.raum_klick`. Per event you choose: next /
 previous scene, light on/off, room off, music play / pause / stop, louder / quieter (only while music plays, or always),
-next / previous track – or nothing. A room's scenes are those assigned to its area and those whose name starts with the
+next / previous track – or nothing; the same once more for every remote key pressed twice. Only keys with an action
+for *twice* wait for the second press (adjustable, default 0.4 s), all others react at once. A room's scenes are those assigned to its area and those whose name starts with the
 room's name; the cycle runs off → first scenes → the others → off, and a room without scenes switches its lights on and
 off. Names of the off scene, standard players per room and *modes* are settings: while a mode (night, cinema …) is on, its scenes come first – the topmost mode wins. With the TV Streamer, blue and green are also used by the streamer itself and red opens Moonlight's menu; the blueprint says so at those keys. Without a
 script, play / pause go straight to the room's media players.

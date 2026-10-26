@@ -38,13 +38,14 @@ Tippen auf einen Raum öffnet das [Bubble-Card](https://github.com/Clooos/Bubble
 ←/→ wechseln das Stockwerk. Alles andere über einem Raum – ↑/↓, Mausrad, Rechtsklick (LG-Fernbedienung: Gelb) ein- oder
 zweimal, Medientasten, die Farb- und Wiedergabetasten des [TV Streamers](https://github.com/SebastianEitzert/TV-Streamer),
 Doppel-/Dreifachtippen – geht an ein Skript (Kartenoption `script`, Standard `script.raum_klick`) mit `raum` (Bereich des
-Raums), `aktion` (`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `gelb2`, `play`, `play2` (Wiedergabe zweimal), `pause`, `play_pause`, `stop`, `weiter`,
-`zurueck`, `blau`, `gruen`, `rot`, `tipp2`, `tipp3`) sowie `lichter` und `player` des Raums. Was passiert, entscheidet das Skript.
+Raums), `aktion` (`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `play`, `pause`, `play_pause`, `stop`, `weiter`,
+`zurueck`, `blau`, `gruen`, `rot`, `tipp2`, `tipp3` und `…2` für zweimal gedrückt) sowie `lichter` und `player` des Raums. Was passiert, entscheidet das Skript.
 
 Die Integration bringt dafür eine Vorlage mit: *Einstellungen → Automationen & Szenen → Blueprints → **Floorplan Lite –
 keys, clicks and wheel over a room** → Skript erstellen* und als `script.raum_klick` speichern. Je Ereignis wählst du:
 Szene weiter / zurück, Licht an/aus, Raum aus, Musik Start / Pause / Stopp, lauter / leiser (nur wenn Musik läuft oder
-immer), Titel weiter / zurück – oder nichts. Die Szenen eines Raums sind die seinem Bereich zugeordneten und die, deren
+immer), Titel weiter / zurück – oder nichts; dasselbe noch einmal für jede Fernbedienungstaste zweimal gedrückt. Nur Tasten mit
+einer Aktion für *zweimal* warten auf den zweiten Druck (einstellbar, Standard 0,4 s), alle anderen reagieren sofort. Die Szenen eines Raums sind die seinem Bereich zugeordneten und die, deren
 Name mit dem Raumnamen beginnt; die Runde geht aus → erste Szenen → die übrigen → aus, ein Raum ohne Szenen schaltet seine
 Lichter an und aus. Name der Aus-Szene, Standard-Player je Raum und *Modi* sind Einstellungen: Solange ein Modus (Nacht, Kino …) an ist, kommen seine Szenen zuerst – der oberste Modus hat Vorrang. Mit dem TV Streamer nutzt der Streamer Blau und Grün auch selbst, Rot öffnet das Moonlight-Menü; die Vorlage weist an diesen Tasten darauf hin.
 Ohne Skript gehen Wiedergabe / Pause direkt an die Musik-Player des Raums.

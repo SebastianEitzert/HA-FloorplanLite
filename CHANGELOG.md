@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.2.3 – 2026-10-26
+- No wall (`open`): the outer wall stays whole where the open part meets it, also at slanted corners; the open part
+  reaches right up to it.
+
 ## 0.2.2 – 2026-10-26
 - Editor: own dialogs instead of the browser's prompt/confirm, which the Home Assistant app blocks – creating a new
   plan, levels and buildings now works there too.

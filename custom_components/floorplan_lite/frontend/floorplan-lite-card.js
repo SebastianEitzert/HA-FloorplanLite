@@ -373,6 +373,12 @@ class FloorplanLiteCard extends HTMLElement {
         `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#fff"/>` +
         cuts.map((d) => `<polygon points="${pts(d.rect)}" fill="#000"/>`).join("") + `</mask>`;
     }
+    const outerCuts = cuts.filter((d) => d.type !== "open");  // "open" (no wall between two rooms) never touches the outer wall
+    if (outerCuts.length && outerCuts.length < cuts.length) {
+      defs += `<mask id="${n("dmo")}" maskUnits="userSpaceOnUse" x="${vx}" y="${vy}" width="${vw}" height="${vh}">` +
+        `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#fff"/>` +
+        outerCuts.map((d) => `<polygon points="${pts(d.rect)}" fill="#000"/>`).join("") + `</mask>`;
+    }
     let floors = "", spills = "", lights = "", edges = "", walls = "", hits = "", fx = "", lbls = "";
     f.rooms.forEach((room, i) => {
       const p = pts(room.poly);
@@ -404,6 +410,7 @@ class FloorplanLiteCard extends HTMLElement {
         `style="left:${X(lx)};top:${Y(ly)}"><div class="name">${esc(room.name)}</div><div class="temp"></div><div class="chips"></div></div>`;
     });
     const mask = cuts.length ? ` mask="url(#${n("dm")})"` : "";
+    const omask = !outerCuts.length ? "" : outerCuts.length < cuts.length ? ` mask="url(#${n("dmo")})"` : mask;
     const dash = (o) => {
       if (!intro) return "";
       const L = perimeter(o).toFixed(2);
@@ -414,8 +421,8 @@ class FloorplanLiteCard extends HTMLElement {
     const st = (this._plan && this._plan.style) || {};
     const wall = typeof st.wall_width === "number" && st.wall_width > 0 ? st.wall_width : WALL;  // thickness from the editor
     const outer = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
-    const outlines = f.outlines.map((o) => `<polygon class="outline" points="${pts(o)}" stroke-width="${outer}"${dash(o)}${mask}/>`).join("");
-    const rims = f.outlines.map((o) => `<polygon class="rim" points="${pts(grow(o, outer / 2))}"${mask}/>`).join("");
+    const outlines = f.outlines.map((o) => `<polygon class="outline" points="${pts(o)}" stroke-width="${outer}"${dash(o)}${omask}/>`).join("");
+    const rims = f.outlines.map((o) => `<polygon class="rim" points="${pts(grow(o, outer / 2))}"${omask}/>`).join("");
     const bg = this._background(f);
     const vb = `viewBox="${vx} ${vy} ${vw} ${vh}" preserveAspectRatio="xMidYMin meet"`;
     const svg = `<svg class="base" ${vb} aria-hidden="true"><defs>${defs}</defs>` +

@@ -896,6 +896,11 @@ class FloorplanLitePanel extends HTMLElement {
       h += `<polygon class="room${x.outdoor ? " out" : ""}${sel ? " sel" : ""}" data-k="rooms" data-i="${i}" points="${pts(x.poly)}" ` +
         `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(st.wall)}" stroke-width="${x.outdoor ? 2 * px : this._wall("wall_width")}"/>`;
     });
+    const opening = ({ x, i }) => {
+      const sel = S && S.kind === "openings" && S.i === i;
+      h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${x.type === "open" ? "url(#fl)" : esc(st.background)}"/>` + this._openingSym(x, px);
+    };
+    this._of("openings").filter(({ x }) => x.type === "open").forEach(opening);  // under the outer walls, which stay whole
     this._of("outlines").forEach(({ x, i }) => {
       const sel = S && S.kind === "outlines" && S.i === i;
       h += `<polygon class="outline${sel ? " sel" : ""}" data-k="outlines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.wall)}" stroke-width="${this._wall("outer_width")}"/>`;
@@ -904,10 +909,7 @@ class FloorplanLitePanel extends HTMLElement {
       const sel = S && S.kind === "lines" && S.i === i;
       h += `<${x.open ? "polyline" : "polygon"} class="hline${sel ? " sel" : ""}" data-k="lines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.edge)}" stroke-width="${3 * px}"/>`;
     });
-    this._of("openings").forEach(({ x, i }) => {
-      const sel = S && S.kind === "openings" && S.i === i;
-      h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${x.type === "open" ? "url(#fl)" : esc(st.background)}"/>` + this._openingSym(x, px);
-    });
+    this._of("openings").filter(({ x }) => x.type !== "open").forEach(opening);
     if (bg && bg.mode === "over") h += bgHtml;
     // labels
     this._of("rooms").forEach(({ x, i }) => {
@@ -1078,7 +1080,7 @@ class FloorplanLitePanel extends HTMLElement {
         });
       });
       const at = (t) => [w.a[0] + u[0] * t, w.a[1] + u[1] * t];
-      const end = (t) => this._wall(this._onOutline(at(t)) ? "outer_width" : "wall_width") / 2;
+      const end = (t) => (this._onOutline(at(t)) ? 0 : this._wall("wall_width") / 2);  // up to the outer wall, which stays whole
       const t0 = lo + end(lo), t1 = hi - end(hi), width = t1 - t0;
       if (width < 0.1) return;
       const c = at((t0 + t1) / 2);

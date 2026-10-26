@@ -43,11 +43,12 @@ Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das
    *Integration* → **Floorplan Lite** herunterladen → Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Floorplan Lite*. In der Seitenleiste erscheint die Seite
    **Floorplan Lite** (nur für Administratoren).
-3. Dort einen Grundriss anlegen: Satellitenbild oder Scan des Bauplans als Hintergrund hochladen, mit zwei Punkten
+3. Dort einen Grundriss anlegen: Satellitenbild, Foto oder Scan des alten Papierplans oder eine PDF als Hintergrund
+   hochladen (einen schiefen Scan mit zwei Punkten gerade ausrichten), mit zwei Punkten
    bekannten Abstands den Maßstab setzen, dann Räume, Außenwände und Bereiche außen nachzeichnen und Türen und Fenster
    auf die Wände klicken. Punkte rasten an Ecken, Kanten, 45°/90° und einem 5-cm-Raster ein (Umschalt: freier Winkel).
    Die Entitäten je Raum in der Seitenleiste eintragen. Räume ohne Wand dazwischen (offener Bereich): Werkzeug *Keine
-   Wand*, dann die gemeinsame Wand anklicken. Wandstärken und den Namen des Grundrisses (✎ neben der Auswahl) gibt es in
+   Wand*, dann die gemeinsame Wand anklicken. Ein Stockwerk lässt sich samt Inhalt als Grundlage des nächsten kopieren. Wandstärken und den Namen des Grundrisses (✎ neben der Auswahl) gibt es in
    der Seitenleiste. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
 4. Die Karte ins Dashboard einfügen:
 

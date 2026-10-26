@@ -17,7 +17,7 @@ const T = {
     leave: "Ungespeicherte Änderungen verwerfen?",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
       line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", openWall: "Keine Wand (offener Bereich)",
-      image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", pan: "Verschieben (Ansicht)" },
+      image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", straighten: "Hintergrund gerade ausrichten (zwei Punkte)", pan: "Verschieben (Ansicht)" },
     hintDraw: "Klicken setzt Punkte · Klick auf den ersten Punkt oder Enter schließt · Rücktaste entfernt den letzten · Esc bricht ab · Umschalt: freier Winkel",
     hintLine: "Klicken setzt Punkte · Enter beendet · Esc bricht ab",
     hintOpening: "Auf eine Wand klicken, um die Öffnung zu setzen",
@@ -25,14 +25,16 @@ const T = {
     hintSelect: "Element anklicken · Ecken ziehen · Doppelklick auf eine Kante fügt eine Ecke ein · Rechtsklick auf eine Ecke löscht sie · Entf löscht das Element",
     hintImage: "Bild mit der Maus verschieben", hintScale: "Zwei Punkte auf dem Bild anklicken, deren Abstand du kennst",
     hintAlign: "Eine Wand anklicken – der ganze Grundriss wird so gedreht, dass sie waagerecht liegt",
+    hintStraighten: "Zwei Punkte auf einer Wand des Bildes anklicken – nur das Bild wird gedreht, bis diese Linie genau waagerecht oder senkrecht liegt (für schief eingescannte oder fotografierte Pläne)",
+    copyLevel: "Stockwerk kopieren", copyLevelText: "Alles von „%s“ (Außenwände, Räume, Türen, Fenster, Hilfslinien) in ein neues Stockwerk kopieren. Die kopierten Räume bekommen eigene IDs ohne Entitäten.",
     scalePrompt: "Wie viele Meter liegen zwischen den beiden Punkten?",
     levels: "Stockwerke", level: "Stockwerk", addLevel: "Stockwerk hinzufügen", levelName: "Name des Stockwerks", levelShort: "Kürzel (z. B. EG)",
     copyOutlines: "Außenwände des aktuellen Stockwerks übernehmen?", delLevel: "Stockwerk „%s“ mit allen Räumen löschen?",
     up: "nach oben", down: "nach unten", buildings: "Gebäude", building: "Gebäude", addBuilding: "Gebäude hinzufügen", buildingName: "Name des Gebäudes",
     noBuilding: "– ohne –", delBuilding: "Gebäude „%s“ entfernen? Elemente bleiben erhalten.",
-    background: "Hintergrundbild", upload: "Bild hochladen", removeImage: "Bild entfernen", opacity: "Deckkraft", mode: "Lage",
+    background: "Hintergrundbild", upload: "Bild oder PDF hochladen", removeImage: "Bild entfernen", opacity: "Deckkraft", mode: "Lage",
     modes: { under: "unter dem Plan", over: "über dem Plan", hidden: "ausgeblendet" }, rotation: "Drehung (Grad)", width: "Breite (m)",
-    posX: "Links (m)", posY: "Oben (m)", uploading: "Wird hochgeladen …",
+    posX: "Links (m)", posY: "Oben (m)", uploading: "Wird hochgeladen …", rendering: "PDF wird umgewandelt …", pdfPage: "Die PDF hat %s Seiten – welche soll der Hintergrund werden?", page: "Seite",
     planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesem Label ignorieren", north: "Norden (Grad, 0 = oben)",
     northAlign: "Nach Norden ausrichten", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
     cWall: "Wände", cEdge: "Kanten", reset: "zurücksetzen",
@@ -54,7 +56,7 @@ const T = {
     leave: "Discard unsaved changes?",
     tools: { select: "Select / edit", room: "Draw room", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
       line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", openWall: "No wall (open plan)",
-      image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", pan: "Pan (view)" },
+      image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", straighten: "Straighten background (two points)", pan: "Pan (view)" },
     hintDraw: "Click to add points · click the first point or Enter to close · Backspace removes the last · Esc cancels · Shift: free angle",
     hintLine: "Click to add points · Enter finishes · Esc cancels",
     hintOpening: "Click on a wall to place the opening",
@@ -62,14 +64,16 @@ const T = {
     hintSelect: "Click an element · drag corners · double-click an edge to add a corner · right-click a corner to remove it · Del deletes the element",
     hintImage: "Drag the image with the mouse", hintScale: "Click two points on the image whose distance you know",
     hintAlign: "Click a wall – the whole plan is turned so that it is horizontal",
+    hintStraighten: "Click two points on a wall in the image – only the image turns until that line is exactly horizontal or vertical (for crooked scans or photos of paper plans)",
+    copyLevel: "Copy level", copyLevelText: "Copy everything of “%s” (outer walls, rooms, doors, windows, helper lines) to a new level. The copied rooms get ids of their own without entities.",
     scalePrompt: "How many metres are between the two points?",
     levels: "Levels", level: "Level", addLevel: "Add level", levelName: "Name of the level", levelShort: "Short name (e.g. GF)",
     copyOutlines: "Copy the outer walls of the current level?", delLevel: "Delete level “%s” with all its rooms?",
     up: "up", down: "down", buildings: "Buildings", building: "Building", addBuilding: "Add building", buildingName: "Name of the building",
     noBuilding: "– none –", delBuilding: "Remove building “%s”? Its elements stay.",
-    background: "Background image", upload: "Upload image", removeImage: "Remove image", opacity: "Opacity", mode: "Position",
+    background: "Background image", upload: "Upload image or PDF", removeImage: "Remove image", opacity: "Opacity", mode: "Position",
     modes: { under: "under the plan", over: "over the plan", hidden: "hidden" }, rotation: "Rotation (degrees)", width: "Width (m)",
-    posX: "Left (m)", posY: "Top (m)", uploading: "Uploading …",
+    posX: "Left (m)", posY: "Top (m)", uploading: "Uploading …", rendering: "Converting PDF …", pdfPage: "The PDF has %s pages – which one should be the background?", page: "Page",
     planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with this label", north: "North (degrees, 0 = up)",
     northAlign: "Turn so north is up", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
     cWall: "Walls", cEdge: "Edges", reset: "reset",
@@ -89,11 +93,12 @@ const ENT_FIELDS = [["licht", "light"], ["hauptlicht", "light"], ["praesenz", "b
 const SINGLE = ["temp", "hauptlicht"];  // one entity, not a list
 const OPENING_TOOLS = ["door", "window", "passage", "garage"];
 const POLY_TOOLS = ["room", "outline", "outdoor"];
+const PDFJS = "/floorplan_lite_static/vendor/pdfjs/";  // pdf.js, loaded only when a PDF is chosen
 const WALLS = { wall_width: 0.2, outer_width: 0.5 };  // wall thickness in metres (style keys), as in the card
 const DEFAULT_STYLE = { background: "#131b30", floor: ["#2a3657", "#1c2541"], wall: "#4d5a7d", edge: "#8d9cc4" };
 const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", outline: "mdi:wall", outdoor: "mdi:tree",
   line: "mdi:vector-polyline", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
-  garage: "mdi:garage", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", pan: "mdi:pan" };
+  garage: "mdi:garage", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", straighten: "mdi:format-rotate-90", pan: "mdi:pan" };
 
 /* ---------- Geometry ---------- */
 const R3 = (v) => Math.round(v * 1000) / 1000;
@@ -363,7 +368,7 @@ class FloorplanLitePanel extends HTMLElement {
           </div>
           <aside class="side"></aside>
         </div>
-        <input type="file" class="file" accept="image/*" hidden>
+        <input type="file" class="file" accept="image/*,application/pdf,.pdf" hidden>
       </div>`;
     const R = this.shadowRoot;
     R.querySelector(".plans").addEventListener("change", (e) => this._open(e.target.value));
@@ -437,12 +442,12 @@ class FloorplanLitePanel extends HTMLElement {
 
   _renderTools() {
     const t = this.t, nav = this.shadowRoot.querySelector(".tools");
-    const groups = [["select", "pan"], ["room", "outline", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "alignWall"]];
+    const groups = [["select", "pan"], ["room", "outline", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "straighten", "alignWall"]];
     nav.innerHTML = groups.map((g) => `<div class="grp">${g.map((k) =>
       `<button class="tool${this._tool === k ? " on" : ""}" data-t="${k}" title="${esc(t.tools[k])}"${!this._plan ? " disabled" : ""}><ha-icon icon="${ICONS[k]}"></ha-icon></button>`).join("")}</div>`).join("");
     nav.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => this._setTool(b.getAttribute("data-t"))));
     const hint = { select: t.hintSelect, room: t.hintDraw, outline: t.hintDraw, outdoor: t.hintDraw, line: t.hintLine,
-      image: t.hintImage, openWall: t.hintOpenWall, scale: t.hintScale, alignWall: t.hintAlign, pan: "" };
+      image: t.hintImage, openWall: t.hintOpenWall, scale: t.hintScale, straighten: t.hintStraighten, alignWall: t.hintAlign, pan: "" };
     this.shadowRoot.querySelector(".hint").textContent = this._plan ? (hint[this._tool] !== undefined ? hint[this._tool] : t.hintOpening) : t.none;
   }
 
@@ -563,9 +568,9 @@ class FloorplanLitePanel extends HTMLElement {
     const t = this.t, lv = this._lv();
     if (!lv) return "";
     const b = lv.background || null;
-    let h = `<section><h3>${esc(t.level)}: ${esc(lv.name)}<span class="sp"></span>` +
+    let h = `<section><h3>${esc(t.level)}: ${esc(lv.name)}</h3><div class="row">` +
       `<button class="mini" data-act="lvup" title="${esc(t.up)}">▲</button><button class="mini" data-act="lvdown" title="${esc(t.down)}">▼</button>` +
-      `<button class="mini danger" data-act="lvdel">${esc(t.del)}</button></h3>` +
+      `<button class="mini" data-act="lvcopy">${esc(t.copyLevel)}</button><button class="mini danger" data-act="lvdel">${esc(t.del)}</button></div>` +
       this._field(t.name, `<input type="text" data-lv="name" value="${esc(lv.name)}">`) +
       this._field(t.levelShort, `<input type="text" data-lv="short" value="${esc(lv.short || "")}">`) +
       `<h4>${esc(t.background)}</h4>`;
@@ -720,6 +725,31 @@ class FloorplanLitePanel extends HTMLElement {
         this._level = p.levels[0].id; this._sel = null;
       });
     }
+    if (a === "lvcopy") {
+      const lv = this._lv();
+      if (!lv) return;
+      const r = await this._dialog(t.copyLevelText.replace("%s", lv.name), [{ label: t.levelName, value: lv.name }, { label: t.levelShort, value: "" }]);
+      const name = r && r[0];
+      if (!name) return;
+      const short = r[1] || name.slice(0, 2).toUpperCase();
+      let id = slug(short || name), n = 2;
+      while (p.levels.some((l) => l.id === id)) id = slug(short || name) + "_" + n++;
+      const ids = {};
+      p.rooms.forEach((x) => { ids[x.id] = 1; });
+      const rid = (old) => { let x = (old + "_" + id).slice(0, 64), k = 2; while (ids[x]) x = (old + "_" + id + "_" + k++).slice(0, 64); ids[x] = 1; return x; };
+      return this._change(() => {
+        const copy = { id, name, short };
+        if (lv.view) copy.view = lv.view.slice();
+        p.levels.splice(p.levels.indexOf(lv) + 1, 0, copy);
+        const map = {};  // old room id → new one, so parts of a room (name: null) stay together
+        ["outlines", "lines", "openings", "rooms"].forEach((k) => p[k].filter((x) => x.level === lv.id).forEach((x) => {
+          const c = Object.assign(clone(x), { level: id });
+          if (k === "rooms") { c.id = map[x.id] || (map[x.id] = rid(x.id)); delete c.key; }
+          p[k].push(c);
+        }));
+        this._level = id; this._sel = null;
+      });
+    }
     if (a === "lvup" || a === "lvdown") {
       const i = p.levels.findIndex((l) => l.id === this._level), j = a === "lvup" ? i - 1 : i + 1;
       if (i < 0 || j < 0 || j >= p.levels.length) return;
@@ -750,10 +780,37 @@ class FloorplanLitePanel extends HTMLElement {
   }
 
   /* ---------- Background image ---------- */
+  async _pdfToImage(file) {  // first (or chosen) page of a PDF as a PNG, about 4000 px on the long side
+    this._status(this.t.rendering);
+    const pdfjs = await import(PDFJS + "pdf.min.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs";
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    let n = 1;
+    if (doc.numPages > 1) {
+      const r = await this._dialog(this.t.pdfPage.replace("%s", doc.numPages), [{ label: this.t.page, type: "number", value: "1" }]);
+      if (!r) return null;
+      n = Math.min(doc.numPages, Math.max(1, parseInt(r[0], 10) || 1));
+    }
+    const page = await doc.getPage(n), v1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(6, 4000 / Math.max(v1.width, v1.height)) });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, canvas, viewport: vp }).promise;
+    doc.destroy();
+    let blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+    let type = "image/png";
+    if (blob.size > 8e6) { blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.88)); type = "image/jpeg"; }
+    return new File([blob], file.name.replace(/\.pdf$/i, "") + (type === "image/png" ? ".png" : ".jpg"), { type });
+  }
+
   async _upload(file) {
     if (!file) return;
-    this._status(this.t.uploading);
     try {
+      if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) file = await this._pdfToImage(file);
+      if (!file) { this.shadowRoot.querySelector(".file").value = ""; return this._renderHeader(); }
+      this._status(this.t.uploading);
       const fd = new FormData();
       fd.append("file", file);
       const resp = await this._hass.fetchWithAuth("/api/image/upload", { method: "POST", body: fd });
@@ -1105,6 +1162,22 @@ class FloorplanLitePanel extends HTMLElement {
         });
       });
     }
+    if (tool === "straighten") {  // turn only the background so the line a–b becomes horizontal or vertical
+      const lv = this._lv(), bg = lv && lv.background;
+      if (!bg) return;
+      if (!this._scaleA) { this._scaleA = p; this._renderCanvas(); return; }
+      const a = this._scaleA;
+      this._scaleA = null;
+      if (dist(a, p) < 0.05) return this._renderCanvas();
+      const ang = Math.atan2(p[1] - a[1], p[0] - a[0]) * 180 / Math.PI;
+      const d = -(ang - Math.round(ang / 90) * 90), r = d * Math.PI / 180;
+      if (Math.abs(d) < 0.01) return this._renderCanvas();
+      const x = (bg.x || 0) - a[0], y = (bg.y || 0) - a[1];  // the corner the image turns about moves around a
+      return this._change(() => {
+        bg.x = R3(a[0] + x * Math.cos(r) - y * Math.sin(r)); bg.y = R3(a[1] + x * Math.sin(r) + y * Math.cos(r));
+        bg.rotation = R3((bg.rotation || 0) + d);
+      });
+    }
     if (tool === "alignWall") {
       const w = this._nearestWall(p);
       if (!w) return;
@@ -1192,7 +1265,7 @@ class FloorplanLitePanel extends HTMLElement {
       this._hover = this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey);
       return this._renderCanvas();
     }
-    if (tool === "scale" && this._scaleA) { this._hover = p; return this._renderCanvas(); }
+    if ((tool === "scale" || tool === "straighten") && this._scaleA) { this._hover = p; return this._renderCanvas(); }
     if (OPENING_TOOLS.indexOf(tool) >= 0) {
       const w = this._nearestWall(p);
       this._openingPreview = w ? { type: tool, at: w.p, angle: Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI,

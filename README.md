@@ -42,11 +42,12 @@ start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over 
    download **Floorplan Lite** → restart Home Assistant.
 2. *Settings → Devices & services → Add integration → Floorplan Lite*. The page **Floorplan Lite** appears in the
    sidebar (administrators only).
-3. Create a plan on that page: upload a satellite image or a scan of your blueprint as the background, set the scale
+3. Create a plan on that page: upload a satellite image, a photo or scan of your old paper blueprint or a PDF as the
+   background (straighten a crooked scan with two points), set the scale
    with two points of known distance, then trace rooms, outer walls and areas outside and click doors and windows onto
    the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
    in the side panel. Rooms without a wall between them (open plan): tool *No wall*, then click the wall they share.
-   Wall thickness and the plan's name (✎ next to the plan list) are in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
+   A level can be copied with everything on it as the start of the next one. Wall thickness and the plan's name (✎ next to the plan list) are in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
 4. Add the card to a dashboard:
 
 ```yaml

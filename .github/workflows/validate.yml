@@ -1,0 +1,43 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    # The HACS action can only validate public repositories.
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          ignore: brands
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements_test.txt
+      - run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: for f in custom_components/floorplan_lite/frontend/*.js; do node --check "$f"; done
+      - name: No syntax newer than Chrome 68 in the card (older TV browsers)
+        run: |
+          # code lines only – comments may mention the operators
+          ! sed -e 's#//.*##' -e 's#^ *\*.*##' custom_components/floorplan_lite/frontend/floorplan-lite-card.js | grep -nE '\?\?|\?\.[a-zA-Z_\[(]'

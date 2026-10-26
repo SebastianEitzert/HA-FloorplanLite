@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Floorplan Lite",
+        "description": "Fügt den Grundriss-Editor zur Seitenleiste hinzu. Die Karte **Floorplan Lite** steht danach in jedem Dashboard zur Verfügung."
+      }
+    },
+    "abort": {
+      "already_configured": "Floorplan Lite ist bereits eingerichtet.",
+      "single_instance_allowed": "Floorplan Lite ist bereits eingerichtet."
+    }
+  }
+}

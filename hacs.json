@@ -1,0 +1,7 @@
+{
+  "name": "Floorplan Lite",
+  "homeassistant": "2025.6.0",
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "floorplan_lite.zip"
+}

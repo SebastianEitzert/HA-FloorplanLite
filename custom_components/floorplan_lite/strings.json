@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Floorplan Lite",
+        "description": "Adds the floor plan editor to the sidebar. The card **Floorplan Lite** is then available in every dashboard."
+      }
+    },
+    "abort": {
+      "already_configured": "Floorplan Lite is already set up.",
+      "single_instance_allowed": "Floorplan Lite is already set up."
+    }
+  }
+}

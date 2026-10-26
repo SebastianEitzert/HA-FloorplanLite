@@ -1,0 +1,61 @@
+name: Release
+
+# A new version is released automatically: when main gets a manifest version that has no release yet and CHANGELOG.md
+# lists that version with a date ("## 0.4.0 – 2026-10-25", not "unreleased"), this workflow creates the tag and the
+# GitHub release "v<version>" with the notes from CHANGELOG.md and attaches floorplan_lite.zip for HACS.
+# A tag pushed by hand or a release published by hand gets the zip as well.
+on:
+  push:
+    branches: [main]
+    paths: ["custom_components/floorplan_lite/manifest.json", "CHANGELOG.md", ".github/workflows/release.yml"]
+    tags: ["v*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version, tag and release notes
+        id: v
+        run: |
+          python3 - <<'EOF'
+          import json, os, re
+          v = json.load(open("custom_components/floorplan_lite/manifest.json"))["version"]
+          s = open("CHANGELOG.md").read()
+          m = re.search(r"^## " + re.escape(v) + r" – (\d{4}-\d{2}-\d{2})\s*\n(.*?)(?=^## |\Z)", s, re.S | re.M)
+          open("notes.md", "w").write(m.group(2).strip() if m else "See CHANGELOG.md.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"tag=v{v}\ndated={'yes' if m else 'no'}\n")
+          EOF
+      - name: Check a pushed tag matches the manifest version
+        if: github.ref_type == 'tag'
+        run: |
+          [ "${{ steps.v.outputs.tag }}" = "${GITHUB_REF_NAME}" ] || { echo "manifest version does not match tag ${GITHUB_REF_NAME}"; exit 1; }
+      - name: Create the release if it does not exist yet
+        id: rel
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          tag="${{ steps.v.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # a push to main must not replace the zip of an existing release with newer code
+            if [ "${{ github.ref_type }}" = "branch" ]; then go=no; else go=yes; fi
+            echo "release $tag exists"; echo "go=$go" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_type }}" = "tag" ] || [ "${{ steps.v.outputs.dated }}" = "yes" ]; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "CHANGELOG has no dated entry for $tag – nothing to release"; echo "go=no" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build zip for HACS
+        if: steps.rel.outputs.go == 'yes'
+        run: cd custom_components/floorplan_lite && zip -r ../../floorplan_lite.zip . -x '__pycache__/*'
+      - name: Upload
+        if: steps.rel.outputs.go == 'yes'
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: gh release upload "${{ steps.v.outputs.tag }}" floorplan_lite.zip --clobber

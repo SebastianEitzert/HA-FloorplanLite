@@ -10,16 +10,18 @@
 const T = {
   de: {
     title: "Floorplan Lite", plan: "Grundriss", newPlan: "Neuer Grundriss", planName: "Name des Grundrisses",
-    save: "Speichern", saved: "Gespeichert", unsaved: "Ungespeicherte Änderungen", undo: "Rückgängig", redo: "Wiederholen",
+    save: "Speichern", ok: "OK", cancel: "Abbrechen", rename: "Umbenennen", idHint: "Karten im Dashboard verweisen über die ID auf den Grundriss (plan: …). Nach einer Änderung dort anpassen.",
+    wallInner: "Innenwände (cm)", wallOuter: "Außenwände (cm)", saved: "Gespeichert", unsaved: "Ungespeicherte Änderungen", undo: "Rückgängig", redo: "Wiederholen",
     del: "Löschen", delPlan: "Grundriss „%s“ wirklich löschen?", importJson: "JSON importieren", exportJson: "JSON exportieren",
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
-      line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor",
+      line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", openWall: "Keine Wand (offener Bereich)",
       image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", pan: "Verschieben (Ansicht)" },
     hintDraw: "Klicken setzt Punkte · Klick auf den ersten Punkt oder Enter schließt · Rücktaste entfernt den letzten · Esc bricht ab · Umschalt: freier Winkel",
     hintLine: "Klicken setzt Punkte · Enter beendet · Esc bricht ab",
     hintOpening: "Auf eine Wand klicken, um die Öffnung zu setzen",
+    hintOpenWall: "Auf die Wand zwischen zwei Räumen klicken – sie verschwindet ganz, beide bleiben eigene Räume (offene Küche, Wohn-Ess-Bereich)",
     hintSelect: "Element anklicken · Ecken ziehen · Doppelklick auf eine Kante fügt eine Ecke ein · Rechtsklick auf eine Ecke löscht sie · Entf löscht das Element",
     hintImage: "Bild mit der Maus verschieben", hintScale: "Zwei Punkte auf dem Bild anklicken, deren Abstand du kennst",
     hintAlign: "Eine Wand anklicken – der ganze Grundriss wird so gedreht, dass sie waagerecht liegt",
@@ -39,22 +41,24 @@ const T = {
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
       fenster: "Fenster", beschattung: "Beschattung", musik: "Musik" },
-    types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor" },
+    types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)" },
     invalid: "Fehler beim Speichern: %s", grid: "Raster", ghost: "Stockwerk darunter zeigen", dims: "Maße zeigen",
     entHint: "Entity-IDs, durch Komma getrennt",
   },
   en: {
     title: "Floorplan Lite", plan: "Floor plan", newPlan: "New floor plan", planName: "Name of the floor plan",
-    save: "Save", saved: "Saved", unsaved: "Unsaved changes", undo: "Undo", redo: "Redo",
+    save: "Save", ok: "OK", cancel: "Cancel", rename: "Rename", idHint: "Dashboard cards refer to the plan by its id (plan: …). Update them after a change.",
+    wallInner: "Inner walls (cm)", wallOuter: "Outer walls (cm)", saved: "Saved", unsaved: "Unsaved changes", undo: "Undo", redo: "Redo",
     del: "Delete", delPlan: "Really delete floor plan “%s”?", importJson: "Import JSON", exportJson: "Export JSON",
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
     tools: { select: "Select / edit", room: "Draw room", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
-      line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door",
+      line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", openWall: "No wall (open plan)",
       image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", pan: "Pan (view)" },
     hintDraw: "Click to add points · click the first point or Enter to close · Backspace removes the last · Esc cancels · Shift: free angle",
     hintLine: "Click to add points · Enter finishes · Esc cancels",
     hintOpening: "Click on a wall to place the opening",
+    hintOpenWall: "Click the wall between two rooms – it disappears completely, both stay rooms of their own (open kitchen, living-dining area)",
     hintSelect: "Click an element · drag corners · double-click an edge to add a corner · right-click a corner to remove it · Del deletes the element",
     hintImage: "Drag the image with the mouse", hintScale: "Click two points on the image whose distance you know",
     hintAlign: "Click a wall – the whole plan is turned so that it is horizontal",
@@ -74,7 +78,7 @@ const T = {
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
       fenster: "Window", beschattung: "Shade", musik: "Music" },
-    types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door" },
+    types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)" },
     invalid: "Saving failed: %s", grid: "Grid", ghost: "Show level below", dims: "Show dimensions",
     entHint: "Entity ids, separated by commas",
   },
@@ -85,10 +89,11 @@ const ENT_FIELDS = [["licht", "light"], ["hauptlicht", "light"], ["praesenz", "b
 const SINGLE = ["temp", "hauptlicht"];  // one entity, not a list
 const OPENING_TOOLS = ["door", "window", "passage", "garage"];
 const POLY_TOOLS = ["room", "outline", "outdoor"];
+const WALLS = { wall_width: 0.2, outer_width: 0.5 };  // wall thickness in metres (style keys), as in the card
 const DEFAULT_STYLE = { background: "#131b30", floor: ["#2a3657", "#1c2541"], wall: "#4d5a7d", edge: "#8d9cc4" };
 const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", outline: "mdi:wall", outdoor: "mdi:tree",
   line: "mdi:vector-polyline", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
-  garage: "mdi:garage", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", pan: "mdi:pan" };
+  garage: "mdi:garage", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", pan: "mdi:pan" };
 
 /* ---------- Geometry ---------- */
 const R3 = (v) => Math.round(v * 1000) / 1000;
@@ -178,6 +183,29 @@ class FloorplanLitePanel extends HTMLElement {
     if (this._onUnload) { window.removeEventListener("beforeunload", this._onUnload); this._onUnload = null; }
   }
 
+  /* ---------- Dialog (prompt() and confirm() are blocked in the companion app) ---------- */
+  _dialog(text, fields, hint) {  // resolves to the field values (or [] without fields), null on cancel
+    return new Promise((resolve) => {
+      const t = this.t, box = document.createElement("div");
+      const val = (v) => (v === undefined || v === null ? "" : v);
+      box.className = "dlg";
+      box.innerHTML = `<form><p>${esc(text)}</p>` + (fields || []).map((f, i) => `<label><span>${esc(f.label || "")}</span>` +
+        (f.type === "textarea" ? `<textarea data-i="${i}" rows="8">${esc(val(f.value))}</textarea>`
+          : `<input type="${f.type || "text"}" step="any" data-i="${i}" value="${esc(val(f.value))}">`) + `</label>`).join("") +
+        (hint ? `<p class="dhint">${esc(hint)}</p>` : "") +
+        `<div class="btns"><button type="button" class="cancel">${esc(t.cancel)}</button><button type="submit" class="primary">${esc(t.ok)}</button></div></form>`;
+      const done = (v) => { box.remove(); resolve(v); };
+      const form = box.querySelector("form");
+      form.addEventListener("submit", (e) => { e.preventDefault(); done(Array.prototype.map.call(form.querySelectorAll("[data-i]"), (x) => x.value.trim())); });
+      form.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); done(null); } });
+      box.querySelector(".cancel").addEventListener("click", () => done(null));
+      box.addEventListener("pointerdown", (e) => { if (e.target === box) done(null); });
+      this.shadowRoot.querySelector(".app").appendChild(box);
+      const first = form.querySelector("[data-i]") || form.querySelector(".primary");
+      first.focus(); if (first.select) first.select();
+    });
+  }
+
   /* ---------- Plans ---------- */
   async _loadList(selectId) {
     this._plans = await this._hass.callWS({ type: "floorplan_lite/list" });
@@ -186,9 +214,10 @@ class FloorplanLitePanel extends HTMLElement {
   }
 
   async _open(id, force) {
-    if (!force && this._dirty && !confirm(this.t.leave)) return this._renderAll();
+    if (!force && this._dirty && !(await this._dialog(this.t.leave))) return this._renderAll();
     const plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id });
     this._setPlan(plan);
+    this._storedId = plan.id;
   }
 
   _setPlan(plan) {
@@ -204,9 +233,10 @@ class FloorplanLitePanel extends HTMLElement {
     this._fit();
   }
 
-  _newPlan() {
-    if (this._dirty && !confirm(this.t.leave)) return;
-    const name = prompt(this.t.planName, this.t === T.de ? "Zuhause" : "Home");
+  async _newPlan() {
+    if (this._dirty && !(await this._dialog(this.t.leave))) return;
+    const r = await this._dialog(this.t.newPlan, [{ label: this.t.planName, value: "" }]);
+    const name = r && r[0];
     if (!name) return;
     let id = slug(name), n = 2;
     while ((this._plans || []).some((p) => p.id === id)) id = slug(name) + "_" + n++;
@@ -215,6 +245,7 @@ class FloorplanLitePanel extends HTMLElement {
       buildings: [{ id: de ? "haus" : "house", name: de ? "Haus" : "House" }],
       levels: [{ id: de ? "eg" : "gf", name: de ? "Erdgeschoss" : "Ground floor", short: de ? "EG" : "GF" }],
       outlines: [], lines: [], rooms: [], openings: [], entities: {} });
+    this._storedId = null;
     this._dirty = true;
     this._renderAll();
   }
@@ -223,6 +254,10 @@ class FloorplanLitePanel extends HTMLElement {
     if (!this._plan) return;
     try {
       const plan = await this._hass.callWS({ type: "floorplan_lite/save", plan: this._clean(this._plan) });
+      if (this._storedId && this._storedId !== plan.id) {  // renamed id: the old entry goes
+        await this._hass.callWS({ type: "floorplan_lite/delete", plan_id: this._storedId });
+      }
+      this._storedId = plan.id;
       this._dirty = false;
       this._plans = await this._hass.callWS({ type: "floorplan_lite/list" });
       this._plan.id = plan.id;
@@ -244,16 +279,30 @@ class FloorplanLitePanel extends HTMLElement {
   }
 
   async _deletePlan() {
-    if (!this._plan || !confirm(this.t.delPlan.replace("%s", this._plan.name))) return;
-    try { await this._hass.callWS({ type: "floorplan_lite/delete", plan_id: this._plan.id }); } catch (e) { /* not saved yet */ }
+    if (!this._plan || !(await this._dialog(this.t.delPlan.replace("%s", this._plan.name)))) return;
+    if (this._storedId) await this._hass.callWS({ type: "floorplan_lite/delete", plan_id: this._storedId });
+    this._storedId = null;
     this._plan = null; this._dirty = false;
     await this._loadList();
   }
 
-  _import() {
-    const text = prompt(this.t.importJson);
+  async _rename() {
+    const t = this.t, p = this._plan;
+    const r = await this._dialog(t.rename, [{ label: t.name, value: p.name }, { label: "ID", value: p.id }], t.idHint);
+    if (!r || !r[0]) return;
+    const id = slug(r[1] || r[0]);
+    if (id !== this._storedId && (this._plans || []).some((x) => x.id === id)) return this._status(t.invalid.replace("%s", "ID " + id), true);
+    this._change(() => { p.name = r[0]; p.id = id; });
+  }
+
+  async _import() {
+    const r = await this._dialog(this.t.importJson, [{ type: "textarea", value: "" }]);
+    const text = r && r[0];
     if (!text) return;
-    try { const plan = JSON.parse(text); this._setPlan(plan); this._dirty = true; this._renderAll(); }
+    try {
+      const plan = JSON.parse(text), keep = this._storedId === plan.id ? plan.id : null;
+      this._setPlan(plan); this._storedId = keep; this._dirty = true; this._renderAll();
+    }
     catch (e) { this._status(String(e), true); }
   }
 
@@ -291,6 +340,7 @@ class FloorplanLitePanel extends HTMLElement {
         <header>
           <ha-icon icon="mdi:floor-plan"></ha-icon><span class="title"></span>
           <select class="plans"></select>
+          <button data-a="rename" class="icon"><ha-icon icon="mdi:pencil"></ha-icon></button>
           <button data-a="new" class="icon" title=""><ha-icon icon="mdi:plus"></ha-icon></button>
           <span class="sp"></span>
           <span class="status"></span>
@@ -338,6 +388,7 @@ class FloorplanLitePanel extends HTMLElement {
     if (a === "new") return this._newPlan();
     if (!this._plan) return;
     if (a === "save") return this._save();
+    if (a === "rename") return this._rename();
     if (a === "undo") return this._doUndo();
     if (a === "redo") return this._doRedo();
     if (a === "import") return this._import();
@@ -371,7 +422,7 @@ class FloorplanLitePanel extends HTMLElement {
     if (this._plan && !list.some((p) => p.id === this._plan.id)) list.push({ id: this._plan.id, name: this._plan.name });
     sel.innerHTML = list.map((p) => `<option value="${esc(p.id)}"${this._plan && p.id === this._plan.id ? " selected" : ""}>${esc(p.name)}</option>`).join("");
     sel.hidden = !list.length;
-    const titles = { new: t.newPlan, undo: t.undo, redo: t.redo, preview: t.preview, import: t.importJson, export: t.exportJson, delete: t.del };
+    const titles = { rename: t.rename, new: t.newPlan, undo: t.undo, redo: t.redo, preview: t.preview, import: t.importJson, export: t.exportJson, delete: t.del };
     R.querySelectorAll("header button").forEach((b) => {
       const a = b.getAttribute("data-a");
       if (titles[a]) b.title = titles[a];
@@ -386,12 +437,12 @@ class FloorplanLitePanel extends HTMLElement {
 
   _renderTools() {
     const t = this.t, nav = this.shadowRoot.querySelector(".tools");
-    const groups = [["select", "pan"], ["room", "outline", "outdoor", "line"], OPENING_TOOLS, ["image", "scale", "alignWall"]];
+    const groups = [["select", "pan"], ["room", "outline", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "alignWall"]];
     nav.innerHTML = groups.map((g) => `<div class="grp">${g.map((k) =>
       `<button class="tool${this._tool === k ? " on" : ""}" data-t="${k}" title="${esc(t.tools[k])}"${!this._plan ? " disabled" : ""}><ha-icon icon="${ICONS[k]}"></ha-icon></button>`).join("")}</div>`).join("");
     nav.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => this._setTool(b.getAttribute("data-t"))));
     const hint = { select: t.hintSelect, room: t.hintDraw, outline: t.hintDraw, outdoor: t.hintDraw, line: t.hintLine,
-      image: t.hintImage, scale: t.hintScale, alignWall: t.hintAlign, pan: "" };
+      image: t.hintImage, openWall: t.hintOpenWall, scale: t.hintScale, alignWall: t.hintAlign, pan: "" };
     this.shadowRoot.querySelector(".hint").textContent = this._plan ? (hint[this._tool] !== undefined ? hint[this._tool] : t.hintOpening) : t.none;
   }
 
@@ -413,14 +464,15 @@ class FloorplanLitePanel extends HTMLElement {
     }));
   }
 
-  _addLevel() {
+  async _addLevel() {
     const t = this.t;
-    const name = prompt(t.levelName);
+    const r = await this._dialog(t.addLevel, [{ label: t.levelName }, { label: t.levelShort }]);
+    const name = r && r[0];
     if (!name) return;
-    const short = prompt(t.levelShort, name.slice(0, 2).toUpperCase()) || name.slice(0, 2).toUpperCase();
+    const short = r[1] || name.slice(0, 2).toUpperCase();
     let id = slug(short || name), n = 2;
     while (this._plan.levels.some((l) => l.id === id)) id = slug(short || name) + "_" + n++;
-    const copy = this._level && this._plan.outlines.some((o) => o.level === this._level) && confirm(t.copyOutlines);
+    const copy = this._level && this._plan.outlines.some((o) => o.level === this._level) && !!(await this._dialog(t.copyOutlines));
     const from = this._level;
     this._change(() => {
       this._plan.levels.push({ id, name, short });
@@ -475,7 +527,7 @@ class FloorplanLitePanel extends HTMLElement {
     } else if (s.kind === "lines") {
       h += this._field(t.open, this._chk("open", el.open));
     } else if (s.kind === "openings") {
-      h += this._field(t.type, `<select data-k="type">${OPENING_TOOLS.map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
+      h += this._field(t.type, `<select data-k="type">${OPENING_TOOLS.concat(["open"]).map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
         this._field(t.widthM, this._num("width", el.width, 0.05)) + this._field(t.depth, this._num("depth", el.depth, 0.02)) +
         (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "");
     }
@@ -547,6 +599,8 @@ class FloorplanLitePanel extends HTMLElement {
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
       `<label class="cur">${esc(t.building)}: ${this._buildingSel("__cur", this._building)}</label></div>` +
+      this._field(t.wallInner, `<input type="number" min="5" max="150" step="1" data-wall="wall_width" value="${Math.round(this._wall("wall_width") * 100)}">`) +
+      this._field(t.wallOuter, `<input type="number" min="5" max="150" step="1" data-wall="outer_width" value="${Math.round(this._wall("outer_width") * 100)}">`) +
       `<h4>${esc(t.colors)}</h4>` +
       this._field(t.cBackground, this._color("s_background", s.background, DEFAULT_STYLE.background)) +
       this._field(t.cFloor1, this._color("s_floor0", fl[0], DEFAULT_STYLE.floor[0])) +
@@ -598,6 +652,16 @@ class FloorplanLitePanel extends HTMLElement {
       const v = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value;
       this._change(() => { if (v === "" && k === "hide_label") delete this._plan[k]; else this._plan[k] = k === "id" ? slug(v) : v; });
     }));
+    side.querySelectorAll("[data-wall]").forEach((inp) => inp.addEventListener("change", () => {
+      const k = inp.getAttribute("data-wall"), v = Math.min(1.5, Math.max(0.05, (parseFloat(inp.value) || 0) / 100));
+      const old = this._wall(k), p = this._plan;
+      this._change(() => {
+        p.style = p.style || {};
+        if (Math.abs(v - WALLS[k]) < 0.001) delete p.style[k]; else p.style[k] = R3(v);
+        // openings cut through these walls get the new depth
+        p.openings.forEach((o) => { if (Math.abs((o.depth || 0.24) - (old + 0.04)) < 0.006) o.depth = R3(v + 0.04); });
+      });
+    }));
     side.querySelectorAll("[data-b]").forEach((inp) => inp.addEventListener("change", () => {
       const b = this._plan.buildings[+inp.getAttribute("data-b")]; this._change(() => { b.name = inp.value; });
     }));
@@ -642,14 +706,14 @@ class FloorplanLitePanel extends HTMLElement {
     });
   }
 
-  _act(a, btn) {
+  async _act(a, btn) {
     const t = this.t, p = this._plan;
     if (a === "delsel") return this._deleteSel();
     if (a === "upload") return this.shadowRoot.querySelector(".file").click();
     if (a === "rmimg") return this._change(() => { delete this._lv().background; });
     if (a === "lvdel") {
       const lv = this._lv();
-      if (!lv || p.levels.length < 2 || !confirm(t.delLevel.replace("%s", lv.name))) return;
+      if (!lv || p.levels.length < 2 || !(await this._dialog(t.delLevel.replace("%s", lv.name)))) return;
       return this._change(() => {
         p.levels = p.levels.filter((l) => l.id !== lv.id);
         ["rooms", "outlines", "lines", "openings"].forEach((k) => { p[k] = p[k].filter((x) => x.level !== lv.id); });
@@ -662,7 +726,8 @@ class FloorplanLitePanel extends HTMLElement {
       return this._change(() => { const x = p.levels[i]; p.levels[i] = p.levels[j]; p.levels[j] = x; });
     }
     if (a === "badd") {
-      const name = prompt(t.buildingName);
+      const r = await this._dialog(t.addBuilding, [{ label: t.buildingName }]);
+      const name = r && r[0];
       if (!name) return;
       let id = slug(name), n = 2;
       while (p.buildings.some((b) => b.id === id)) id = slug(name) + "_" + n++;
@@ -670,7 +735,7 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (a === "bdel") {
       const b = p.buildings[+btn.getAttribute("data-i")];
-      if (!b || !confirm(t.delBuilding.replace("%s", b.name))) return;
+      if (!b || !(await this._dialog(t.delBuilding.replace("%s", b.name)))) return;
       return this._change(() => {
         p.buildings = p.buildings.filter((x) => x !== b);
         ["rooms", "outlines"].forEach((k) => p[k].forEach((x) => { if (x.building === b.id) delete x.building; }));
@@ -791,6 +856,11 @@ class FloorplanLitePanel extends HTMLElement {
     return [vb[0] + (e.clientX - r.left) / r.width * vb[2], vb[1] + (e.clientY - r.top) / r.height * vb[3]];
   }
 
+  _wall(k) {  // thickness of the inner (wall_width) or outer (outer_width) walls in metres
+    const v = this._plan && this._plan.style && this._plan.style[k];
+    return typeof v === "number" && v > 0 ? v : WALLS[k];
+  }
+
   _renderCanvas() {
     const svg = this._svg();
     if (!svg) return;
@@ -824,11 +894,11 @@ class FloorplanLitePanel extends HTMLElement {
     this._of("rooms").forEach(({ x, i }) => {
       const sel = S && S.kind === "rooms" && S.i === i;
       h += `<polygon class="room${x.outdoor ? " out" : ""}${sel ? " sel" : ""}" data-k="rooms" data-i="${i}" points="${pts(x.poly)}" ` +
-        `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(st.wall)}" stroke-width="${x.outdoor ? 2 * px : 0.2}"/>`;
+        `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(st.wall)}" stroke-width="${x.outdoor ? 2 * px : this._wall("wall_width")}"/>`;
     });
     this._of("outlines").forEach(({ x, i }) => {
       const sel = S && S.kind === "outlines" && S.i === i;
-      h += `<polygon class="outline${sel ? " sel" : ""}" data-k="outlines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.wall)}" stroke-width="0.5"/>`;
+      h += `<polygon class="outline${sel ? " sel" : ""}" data-k="outlines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.wall)}" stroke-width="${this._wall("outer_width")}"/>`;
     });
     this._of("lines").forEach(({ x, i }) => {
       const sel = S && S.kind === "lines" && S.i === i;
@@ -836,7 +906,7 @@ class FloorplanLitePanel extends HTMLElement {
     });
     this._of("openings").forEach(({ x, i }) => {
       const sel = S && S.kind === "openings" && S.i === i;
-      h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${esc(st.background)}"/>` + this._openingSym(x, px);
+      h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${x.type === "open" ? "url(#fl)" : esc(st.background)}"/>` + this._openingSym(x, px);
     });
     if (bg && bg.mode === "over") h += bgHtml;
     // labels
@@ -943,6 +1013,10 @@ class FloorplanLitePanel extends HTMLElement {
     return [R3(Math.round(q[0] / g) * g), R3(Math.round(q[1] / g) * g)];
   }
 
+  _onOutline(q) {  // point on an outer wall of this level?
+    return this._of("outlines").some(({ x }) => x.poly.some((a, j) => dist(q, proj(q, a, x.poly[(j + 1) % x.poly.length]).p) < 0.02));
+  }
+
   _nearestWall(p) {  // nearest edge of a room or outer wall on this level
     const tol = 14 * this._scale();
     let best = null;
@@ -982,22 +1056,51 @@ class FloorplanLitePanel extends HTMLElement {
       const ang = Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI;
       const width = { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool];
       return this._change(() => {
-        this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: w.outer ? 0.54 : 0.24 });
+        this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3(this._wall(w.outer ? "outer_width" : "wall_width") + 0.04) });
         this._openingPreview = null;
+      });
+    }
+    if (tool === "openWall") {  // no wall where two rooms meet: cut the shared part up to the walls at its ends
+      const w = this._nearestWall(p);
+      if (!w || w.outer) return;
+      const L = dist(w.a, w.b), u = [(w.b[0] - w.a[0]) / L, (w.b[1] - w.a[1]) / L];
+      const along = (q) => (q[0] - w.a[0]) * u[0] + (q[1] - w.a[1]) * u[1];
+      const off = (q) => Math.abs((q[0] - w.a[0]) * u[1] - (q[1] - w.a[1]) * u[0]);
+      const tp = along(w.p);
+      let lo = 0, hi = L;
+      this._of("rooms").forEach(({ x }) => {
+        if (x.outdoor) return;
+        x.poly.forEach((c, j) => {
+          const d = x.poly[(j + 1) % x.poly.length];
+          if (off(c) > 0.02 || off(d) > 0.02) return;  // not on the same line
+          const t1 = Math.min(along(c), along(d)), t2 = Math.max(along(c), along(d));
+          if (t2 - t1 > 0.05 && tp >= t1 - 0.01 && tp <= t2 + 0.01 && (t1 > 0.01 || t2 < L - 0.01)) { lo = Math.max(lo, t1); hi = Math.min(hi, t2); }
+        });
+      });
+      const at = (t) => [w.a[0] + u[0] * t, w.a[1] + u[1] * t];
+      const end = (t) => this._wall(this._onOutline(at(t)) ? "outer_width" : "wall_width") / 2;
+      const t0 = lo + end(lo), t1 = hi - end(hi), width = t1 - t0;
+      if (width < 0.1) return;
+      const c = at((t0 + t1) / 2);
+      return this._change(() => {
+        this._plan.openings.push({ level: this._level, type: "open", at: [R3(c[0]), R3(c[1])],
+          angle: R3(Math.atan2(u[1], u[0]) * 180 / Math.PI), width: R3(width), depth: R3(this._wall("wall_width") + 0.04) });
       });
     }
     if (tool === "scale") {
       if (!this._scaleA) { this._scaleA = p; this._renderCanvas(); return; }
       const a = this._scaleA, d = dist(a, p);
       this._scaleA = null;
-      const real = parseFloat(String(prompt(this.t.scalePrompt, d.toFixed(2)) || "").replace(",", "."));
-      const lv = this._lv();
-      if (!real || !d || !lv || !lv.background) return this._renderCanvas();
-      const f = real / d, bg = lv.background;
-      return this._change(() => {
+      return this._dialog(this.t.scalePrompt, [{ type: "number", value: d.toFixed(2) }]).then((r) => {
+        const real = parseFloat(String((r && r[0]) || "").replace(",", "."));
+        const lv = this._lv();
+        if (!real || !d || !lv || !lv.background) return this._renderCanvas();
+        const f = real / d, bg = lv.background;
+        this._change(() => {
         bg.x = R3(a[0] + ((bg.x || 0) - a[0]) * f); bg.y = R3(a[1] + ((bg.y || 0) - a[1]) * f);
         bg.width = R3(bg.width * f); if (bg.height) bg.height = R3(bg.height * f);
         this._vb = [a[0] + (this._vb[0] - a[0]) * f, a[1] + (this._vb[1] - a[1]) * f, this._vb[2] * f, this._vb[3] * f];
+        });
       });
     }
     if (tool === "alignWall") {
@@ -1091,7 +1194,7 @@ class FloorplanLitePanel extends HTMLElement {
     if (OPENING_TOOLS.indexOf(tool) >= 0) {
       const w = this._nearestWall(p);
       this._openingPreview = w ? { type: tool, at: w.p, angle: Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI,
-        width: { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool], depth: w.outer ? 0.54 : 0.24 } : null;
+        width: { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool], depth: R3(this._wall(w.outer ? "outer_width" : "wall_width") + 0.04) } : null;
       return this._renderCanvas();
     }
   }
@@ -1196,6 +1299,17 @@ class FloorplanLitePanel extends HTMLElement {
 }
 
 const STYLES = `
+  .dlg { position: fixed; inset: 0; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, .45); }
+  .dlg form { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); border-radius: 12px; padding: 18px;
+    width: min(440px, calc(100vw - 32px)); box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
+  .dlg p { margin: 0 0 12px; } .dlg .dhint { font-size: 12px; opacity: .7; }
+  .dlg label { display: block; margin-bottom: 10px; font-size: 13px; }
+  .dlg label span { display: block; margin-bottom: 4px; opacity: .8; }
+  .dlg input, .dlg textarea { width: 100%; font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color);
+    background: var(--primary-background-color); color: var(--primary-text-color); }
+  .dlg .primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
+  .dlg .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
   :host { display: block; height: 100%; background: var(--primary-background-color); color: var(--primary-text-color);
     font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif); }
   * { box-sizing: border-box; }

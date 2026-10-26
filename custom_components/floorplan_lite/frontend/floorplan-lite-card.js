@@ -411,8 +411,11 @@ class FloorplanLiteCard extends HTMLElement {
     };
     const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("");
     const shadows = f.outlines.map((o) => `<polygon class="shadow" points="${pts(o)}" transform="translate(.15 .45)" filter="url(#${n("sh")})"/>`).join("");
-    const outlines = f.outlines.map((o) => `<polygon class="outline" points="${pts(o)}"${dash(o)}${mask}/>`).join("");
-    const rims = f.outlines.map((o) => `<polygon class="rim" points="${pts(grow(o, OUTER / 2))}"${mask}/>`).join("");
+    const st = (this._plan && this._plan.style) || {};
+    const wall = typeof st.wall_width === "number" && st.wall_width > 0 ? st.wall_width : WALL;  // thickness from the editor
+    const outer = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
+    const outlines = f.outlines.map((o) => `<polygon class="outline" points="${pts(o)}" stroke-width="${outer}"${dash(o)}${mask}/>`).join("");
+    const rims = f.outlines.map((o) => `<polygon class="rim" points="${pts(grow(o, outer / 2))}"${mask}/>`).join("");
     const bg = this._background(f);
     const vb = `viewBox="${vx} ${vy} ${vw} ${vh}" preserveAspectRatio="xMidYMin meet"`;
     const svg = `<svg class="base" ${vb} aria-hidden="true"><defs>${defs}</defs>` +
@@ -420,7 +423,7 @@ class FloorplanLiteCard extends HTMLElement {
       `<g class="fl">${floors}</g>` +
       `<g class="sp" filter="url(#${n("sp")})">${spills}</g>` +
       `<g class="li">${lights}</g><g class="ed">${edges}</g>` +
-      `<g class="wa"${mask}>${walls}</g>${extras}${outlines}${rims}` +
+      `<g class="wa" stroke-width="${wall}"${mask}>${walls}</g>${extras}${outlines}${rims}` +
       `<g class="op">${this._openingsHtml(cuts)}</g>` +
       (bg && bg.mode === "over" ? bg.html : "") + `</svg>`;
     const plan = `<div class="plan" data-f="${esc(key)}"${swipe ? ` style="width:calc(70vh * ${(vw / vh).toFixed(4)})"` : ""}>` +
@@ -780,8 +783,8 @@ FloorplanLiteCard.styles = `
   .light { opacity: 0; transition: opacity 1.2s ease; }
   .light stop { transition: stop-color 1.2s ease; }
   .edge { fill: none; stroke-width: 1.1; opacity: 0; transition: opacity 1.2s ease; }
-  .wa { fill: none; stroke: var(--n-wall); stroke-width: ${WALL}; stroke-linejoin: miter; }
-  .outline { fill: none; stroke: var(--n-wall); stroke-width: ${OUTER}; stroke-linejoin: miter; }
+  .wa { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; }      /* stroke-width per plan (wall_width) */
+  .outline { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; } /* stroke-width per plan (outer_width) */
   .rim { fill: none; stroke: var(--n-edge); stroke-width: .05; stroke-linejoin: miter; opacity: .55; }
   .extra { fill: none; stroke: var(--n-edge); stroke-width: .07; stroke-dasharray: .3 .22; opacity: .45; }
   .op line, .op path { fill: none; stroke-linecap: round; }

@@ -2,6 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.2.2 – 2026-10-26
+- Editor: own dialogs instead of the browser's prompt/confirm, which the Home Assistant app blocks – creating a new
+  plan, levels and buildings now works there too.
+- Rename a plan (name and id) with ✎ next to the plan list; a changed id replaces the old entry on saving.
+- Wall thickness of inner and outer walls (plan settings, `style.wall_width` / `style.outer_width`).
+- Rooms without a wall between them: opening type `open` and the tool *No wall*, which removes exactly the part of the
+  wall two rooms share – both stay rooms of their own (open-plan kitchen and living room).
+
 ## 0.2.1 – 2026-10-26
 - Main light: it fills the room and all other lights of the room glow as the seam along the walls; main light off and
   other lights on shows only the seam with a dark middle.

@@ -20,4 +20,4 @@ PANEL_COMPONENT: Final = "floorplan-lite-panel"
 EVENT_UPDATED: Final = f"{DOMAIN}_updated"  # a plan was saved or deleted
 
 # Opening types a wall can have
-OPENING_TYPES: Final = ["window", "door", "passage", "garage"]
+OPENING_TYPES: Final = ["window", "door", "passage", "garage", "open"]  # open: no wall at all (open-plan rooms)

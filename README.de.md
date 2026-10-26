@@ -46,7 +46,9 @@ Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das
 3. Dort einen Grundriss anlegen: Satellitenbild oder Scan des Bauplans als Hintergrund hochladen, mit zwei Punkten
    bekannten Abstands den Maßstab setzen, dann Räume, Außenwände und Bereiche außen nachzeichnen und Türen und Fenster
    auf die Wände klicken. Punkte rasten an Ecken, Kanten, 45°/90° und einem 5-cm-Raster ein (Umschalt: freier Winkel).
-   Die Entitäten je Raum in der Seitenleiste eintragen. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
+   Die Entitäten je Raum in der Seitenleiste eintragen. Räume ohne Wand dazwischen (offener Bereich): Werkzeug *Keine
+   Wand*, dann die gemeinsame Wand anklicken. Wandstärken und den Namen des Grundrisses (✎ neben der Auswahl) gibt es in
+   der Seitenleiste. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
 4. Die Karte ins Dashboard einfügen:
 
 ```yaml
@@ -82,13 +84,13 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `rotation` | dreht den ganzen Plan auf dem Bildschirm (Grad); `north` gibt die Nordrichtung an |
 | `align_levels` | `true`: alle Stockwerke im selben Ausschnitt, obere liegen genau über den unteren (Kartenoption `align`) |
 | `hide_label` | Entitäten mit diesem Label werden ignoriert (z. B. ein Label, mit dem du Entitäten schon aus Dashboards heraushältst) |
-| `style` | Farben: `background`, `floor` (zwei Farben des Verlaufs), `wall`, `edge`, `text` |
+| `style` | Farben: `background`, `floor` (zwei Farben des Verlaufs), `wall`, `edge`, `text`; Wandstärke in Metern: `wall_width` (innen, 0,2), `outer_width` (0,5) |
 | `buildings` | `[{id, name}]` – z. B. Haus, Stall, Garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | Außenwände je Stockwerk und Gebäude: `{level, building, poly}` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
-| `openings` | `{level, type: door/window/passage/garage, at, angle, width, depth?, flip?}` – werden aus den Wänden ausgeschnitten |
+| `openings` | `{level, type: door/window/passage/garage/open, at, angle, width, depth?, flip?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
 
 ## Entwicklung

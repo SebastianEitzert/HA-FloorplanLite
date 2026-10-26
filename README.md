@@ -45,7 +45,8 @@ start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over 
 3. Create a plan on that page: upload a satellite image or a scan of your blueprint as the background, set the scale
    with two points of known distance, then trace rooms, outer walls and areas outside and click doors and windows onto
    the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
-   in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
+   in the side panel. Rooms without a wall between them (open plan): tool *No wall*, then click the wall they share.
+   Wall thickness and the plan's name (✎ next to the plan list) are in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
 4. Add the card to a dashboard:
 
 ```yaml
@@ -81,13 +82,13 @@ Coordinates are in metres; `y` points down. A plan has:
 | `rotation` | turns the whole plan on screen (degrees); `north` gives the direction of north |
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
 | `hide_label` | entities with this label are ignored (e.g. a label you already use to keep entities off dashboards) |
-| `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text` |
+| `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text`; wall thickness in metres: `wall_width` (inner, 0.2), `outer_width` (0.5) |
 | `buildings` | `[{id, name}]` – e.g. house, barn, garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
-| `openings` | `{level, type: door/window/passage/garage, at, angle, width, depth?, flip?}` – cut into the walls |
+| `openings` | `{level, type: door/window/passage/garage/open, at, angle, width, depth?, flip?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
 
 ## Development

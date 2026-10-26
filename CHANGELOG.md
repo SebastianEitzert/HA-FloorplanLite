@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.4.2 – 2026-10-26
+- Remote / keyboard arrow keys with several cards on a page (or next to another floor plan card): the card under the
+  pointer takes them, otherwise the first visible one – before, a card higher up could take them all.
+
 ## 0.4.1 – 2026-10-26
 - Play / pause with the pointer over a room start / pause its music – media keys, or the remote keys of the TV Streamer
   (`tv-streamer-key` event). With `script.raum_klick` it gets `aktion: play` / `pause`, otherwise the room's media

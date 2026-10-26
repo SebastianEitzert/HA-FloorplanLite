@@ -167,6 +167,8 @@ function areaEntities(hass, areaId, hidden) {
   return out;
 }
 
+const CARDS = [];  // floorplan cards on the page – the remote's arrow keys go to one of them
+
 const planLabels = (plan) => ((plan && plan.hide_labels) || []).concat(plan && plan.hide_label ? [plan.hide_label] : []);
 
 function prepare(plan, align) {
@@ -248,6 +250,13 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   connectedCallback() {
+    CARDS.indexOf(this) < 0 && CARDS.push(this);
+    if (!this._onOver) {  // which card the pointer is over: that one takes the remote's arrow keys
+      this._onOver = () => { this._over = true; };
+      this._onOut = () => { this._over = false; };
+      this.addEventListener("pointerenter", this._onOver);
+      this.addEventListener("pointerleave", this._onOut);
+    }
     if (window.ResizeObserver) {
       if (!this._ro) this._ro = new ResizeObserver(() => this._resized());
       this._ro.observe(this);
@@ -267,6 +276,7 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   disconnectedCallback() {
+    if (CARDS.indexOf(this) >= 0) CARDS.splice(CARDS.indexOf(this), 1);
     if (this._ro) this._ro.disconnect();
     if (this._onResize) { window.removeEventListener("resize", this._onResize); this._onResize = null; }
     if (this._onKey) { window.removeEventListener("keydown", this._onKey); this._onKey = null; }
@@ -863,8 +873,22 @@ class FloorplanLiteCard extends HTMLElement {
     return true;
   }
 
+  _visible() {
+    const r = this.getBoundingClientRect();
+    return !!(r.width && r.height && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth);
+  }
+
+  _keyMine() {  // the card under the pointer, else the first visible one – several cards (and other cards) on one page
+    if (this._over) return true;
+    const live = CARDS.filter((c) => c.isConnected && c._config && c._refs);
+    if (live.some((c) => c._over)) return false;
+    const first = live.filter((c) => c._visible())[0];
+    return first === this;
+  }
+
   _key(e) {  // ← / → change the level; ↑ / ↓ over a room switch light scenes; media keys over a room: its music
-    if (!this._config || !this._refs || e.defaultPrevented) return;
+    if (!this._config || !this._refs) return;
+    if (e.defaultPrevented && !this._over) return;  // another card took it – unless the pointer is over this one
     const mk = e.key === "MediaPlay" ? "play" : e.key === "MediaPause" ? "pause" : "";
     if (mk && this._media(mk)) { e.preventDefault(); return; }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -881,8 +905,7 @@ class FloorplanLiteCard extends HTMLElement {
     let a = document.activeElement;
     while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
     if (a && (a.localName === "input" || a.localName === "textarea" || a.localName === "select" || a.isContentEditable)) return;
-    const r = this.getBoundingClientRect();
-    if (!r.width || !r.height || r.bottom < 0 || r.top > window.innerHeight) return;  // only the visible card
+    if (!this._visible() || !this._keyMine()) return;
     e.preventDefault();
     this._go(this._idx + d);
   }

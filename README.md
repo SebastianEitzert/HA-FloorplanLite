@@ -79,6 +79,8 @@ background: false     # optional: hide the background images
 align: true           # optional: all levels in one frame – the attic stays above the house when swiping
 tap: none             # optional: no pop-up on tap
 hide_label: [no_dboard] # optional: ignore entities with these labels (default: the plan's setting)
+script: script.raum_klick # optional: the script for keys, clicks and the wheel over a room
+scroll_keys: true    # optional: ↑/↓ scroll the page (default: no – the wheel does; for remotes without a wheel)
 intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
   kitchen:

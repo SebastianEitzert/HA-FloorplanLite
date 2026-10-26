@@ -80,6 +80,8 @@ background: false     # optional: Hintergrundbilder ausblenden
 align: true           # optional: Stockwerke aneinander ausrichten – das DG bleibt beim Wischen über dem Haus
 tap: none             # optional: kein Pop-up beim Tippen
 hide_label: [no_dboard] # optional: Entitäten mit diesen Labels ignorieren (Vorgabe: Einstellung des Grundrisses)
+script: script.raum_klick # optional: das Skript für Tasten, Klicks und Mausrad über einem Raum
+scroll_keys: true    # optional: ↑/↓ scrollen die Seite (Vorgabe: nein – dafür ist das Rad da; für Fernbedienungen ohne Rad)
 intro: false          # optional: keine Aufbau-Animation
 rooms:                # optional: Entitäten je Raum – ersetzen die im Grundriss gespeicherten
   kuche:

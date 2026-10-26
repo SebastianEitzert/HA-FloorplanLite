@@ -29,6 +29,7 @@
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
  *   script: script.raum_klick     # optional: the script that gets every key, click and wheel step over a room
+ *   scroll_keys: true             # optional: ↑/↓ scroll the page (default: they don't – the wheel does)
  * Tapping a room (left click) opens the pop-up, ←/→ change the level. Everything else over a room goes to the script
  * as {raum: <room id>, aktion: …} and the script decides what it does:
  *   hoch / runter (↑/↓), lauter / leiser (mouse wheel), gelb (right click or yellow), play / pause / play_pause /
@@ -1046,16 +1047,28 @@ class FloorplanLiteCard extends HTMLElement {
       if (!e.repeat) this._press(this._hover, v);
       return;
     }
+    // ↑ / ↓ do not scroll the page – the wheel does (option scroll_keys: true for remotes without a wheel)
+    if (v && this._config.scroll_keys !== true && !this._typing(e) && this._visible()) { e.preventDefault(); return; }
     if (this._config.mode !== "swipe" || !this._track) return;
     const d = e.key === "ArrowLeft" || e.keyCode === 37 ? -1 : e.key === "ArrowRight" || e.keyCode === 39 ? 1 : 0;
     if (!d) return;
     if (location.hash && location.hash.length > 1) return;  // room pop-up open
-    let a = document.activeElement;
-    while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
-    if (a && (a.localName === "input" || a.localName === "textarea" || a.localName === "select" || a.isContentEditable)) return;
+    if (this._typing(e)) return;
     if (!this._visible() || !this._keyMine()) return;
     e.preventDefault();
     this._go(this._idx + d);
+  }
+
+  _typing(e) {  // keys meant for something else: a pop-up, a dialog, a text field, a slider or a list with focus
+    if (location.hash && location.hash.length > 1) return true;
+    const path = e && e.composedPath ? e.composedPath() : [];
+    if (path.some((n) => n && n.localName && /dialog|popup|menu/.test(n.localName))) return true;
+    let a = document.activeElement;
+    while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+    if (!a) return false;
+    const role = a.getAttribute && a.getAttribute("role");
+    return a.localName === "input" || a.localName === "textarea" || a.localName === "select" || !!a.isContentEditable ||
+      role === "slider" || role === "listbox" || role === "menu" || role === "spinbutton";
   }
 
   _go(i) {
@@ -1298,6 +1311,7 @@ const ED = {
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
+    scroll_keys: "Pfeiltasten ↑/↓ scrollen die Seite (für Fernbedienungen ohne Rad)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest." },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
@@ -1305,6 +1319,7 @@ const ED = {
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
+    scroll_keys: "Arrow keys ↑/↓ scroll the page (for remotes without a wheel)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar." },
 };
@@ -1357,7 +1372,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "intro", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
       { name: "hide_label", selector: { label: { multiple: true } } },
-      { name: "script", selector: { entity: { filter: { domain: "script" } } } });
+      { name: "script", selector: { entity: { filter: { domain: "script" } } } },
+      { name: "scroll_keys", selector: { boolean: {} } });
     return sc;
   }
 
@@ -1366,7 +1382,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
       align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
-      tap: c.tap === "none" ? "none" : "popup", script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
+      tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
 
@@ -1381,6 +1397,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("background", false, v.background === false);
     set("intro", false, v.intro === false);
     set("tap", "none", v.tap === "none");
+    set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");
     const hl = (v.hide_label || []).slice().sort();
     set("hide_label", hl, !planChanged && hl.join() !== this._planLabels.slice().sort().join());

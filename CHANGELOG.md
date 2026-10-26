@@ -2,6 +2,11 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.5.1 – 2026-10-26
+- ↑/↓ no longer scroll the page while a floor plan card is visible – the wheel does. Card option `scroll_keys: true`
+  (visual editor: „Arrow keys ↑/↓ scroll the page“) brings scrolling back for remotes without a wheel. Text fields,
+  sliders, dialogs and pop-ups keep their arrow keys.
+
 ## 0.5.0 – 2026-10-26
 - All keys, clicks, wheel steps and taps over a room go to a script (card option `script`, default
   `script.raum_klick`) as `{raum, aktion, lichter, player}` – the card itself only opens the pop-up and changes the

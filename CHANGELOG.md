@@ -2,6 +2,17 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.2.0 – 2026-10-26
+- Drawing editor in the sidebar page: upload a background image per level (satellite view, scanned blueprint), set
+  the scale from two points, move it, show it under or over the plan; draw rooms, outer walls, areas outside and helper
+  lines with snapping to corners, edges, 45°/90° and a grid; click doors, windows, passages and garage doors onto
+  walls; drag corners and labels, insert and delete corners; align the plan to a wall or to north; levels and
+  buildings; colours; entities per room with suggestions; undo/redo; live preview.
+- Main light per room (`hauptlicht`): while it is on, it alone colours the room; the other lights only count when it
+  is off.
+- White light reported as RGB (e.g. warm white from an RGBW controller) now counts as white instead of as a colour light.
+- `hide_label` (plan setting or card option): entities with this label are ignored.
+
 ## 0.1.2 – 2026-10-26
 - Levels can be aligned to each other: plan setting `align_levels` or card option `align: true` draws all levels in one
   frame, so an attic stays above the house when swiping between levels.

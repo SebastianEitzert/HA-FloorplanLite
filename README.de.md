@@ -17,14 +17,14 @@ und CSS, kein WebGL, kein Framework.
 | Integration: zentrale Ablage der Grundrisse (Gebäude, Stockwerke, Räume, Wände, Türen, Fenster, Durchgänge, Garagentore, Hintergrundbilder, Farben, Drehung), WebSocket-Schnittstelle | **0.1** |
 | Karte `custom:floorplan-lite-card` – in jedem Dashboard automatisch verfügbar | **0.1** |
 | Editor-Seite in der Seitenleiste – Import/Export als JSON, Vorschau | **0.1** |
-| Zeichen-Editor: Satellitenbild oder alten Bauplan hochladen, Maßstab setzen, Räume und Wände nachzeichnen, Türen/Fenster setzen, nach einer Wand oder nach Norden ausrichten, Farben | geplant (0.2) |
+| Zeichen-Editor: Satellitenbild oder alten Bauplan hochladen, Maßstab setzen, Räume und Wände nachzeichnen, Türen/Fenster setzen, nach einer Wand oder nach Norden ausrichten, Farben, Entitäten je Raum | **0.2** |
 | Import: PDF, SVG, Sweet Home 3D (`.sh3d`), DXF | geplant (0.3) |
 
 ## Was die Karte zeigt
 
 | | |
 |---|---|
-| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. |
+| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. Ein **Hauptlicht** je Raum (`hauptlicht`) bestimmt allein, solange es an ist – die anderen Lichter zählen erst, wenn es aus ist. Weißlicht, das als RGB gemeldet wird (Warmweiß von RGBW-Controllern), zählt als Weiß. |
 | **Präsenz** | ruhig atmender Lichtpunkt (Blau-Violett) |
 | **Bewegung** | Lichtpunkt in Aqua mit Wellen bis an die Wände |
 | **Temperatur** | aus einer `climate`-Entität (aktuelle Temperatur) oder einem Sensor |
@@ -43,7 +43,10 @@ Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das
    *Integration* → **Floorplan Lite** herunterladen → Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Floorplan Lite*. In der Seitenleiste erscheint die Seite
    **Floorplan Lite** (nur für Administratoren).
-3. Dort einen Grundriss anlegen (0.1: Grundriss als JSON importieren; der Zeichen-Editor folgt).
+3. Dort einen Grundriss anlegen: Satellitenbild oder Scan des Bauplans als Hintergrund hochladen, mit zwei Punkten
+   bekannten Abstands den Maßstab setzen, dann Räume, Außenwände und Bereiche außen nachzeichnen und Türen und Fenster
+   auf die Wände klicken. Punkte rasten an Ecken, Kanten, 45°/90° und einem 5-cm-Raster ein (Umschalt: freier Winkel).
+   Die Entitäten je Raum in der Seitenleiste eintragen. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
 4. Die Karte ins Dashboard einfügen:
 
 ```yaml
@@ -55,10 +58,12 @@ floors: [eg, og]      # optional: nur diese Stockwerke
 background: false     # optional: Hintergrundbilder ausblenden
 align: true           # optional: Stockwerke aneinander ausrichten – das DG bleibt beim Wischen über dem Haus
 tap: none             # optional: kein Pop-up beim Tippen
+hide_label: no_dboard # optional: Entitäten mit diesem Label ignorieren (Vorgabe: Einstellung des Grundrisses)
 intro: false          # optional: keine Aufbau-Animation
 rooms:                # optional: Entitäten je Raum – ersetzen die im Grundriss gespeicherten
   kuche:
     licht: [light.kuche_decke, light.kuche_led]
+    hauptlicht: light.kuche_decke   # optional: färbt allein, solange es an ist
     praesenz: [binary_sensor.prasenz_kuche]
     bewegung: [binary_sensor.bewegung_kuche]
     temp: climate.kuche
@@ -76,6 +81,7 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `id`, `name` | ID (`a-z0-9_`) und Name |
 | `rotation` | dreht den ganzen Plan auf dem Bildschirm (Grad); `north` gibt die Nordrichtung an |
 | `align_levels` | `true`: alle Stockwerke im selben Ausschnitt, obere liegen genau über den unteren (Kartenoption `align`) |
+| `hide_label` | Entitäten mit diesem Label werden ignoriert (z. B. ein Label, mit dem du Entitäten schon aus Dashboards heraushältst) |
 | `style` | Farben: `background`, `floor` (zwei Farben des Verlaufs), `wall`, `edge`, `text` |
 | `buildings` | `[{id, name}]` – z. B. Haus, Stall, Garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |

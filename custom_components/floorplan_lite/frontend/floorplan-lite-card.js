@@ -24,6 +24,7 @@
  *   background: false             # optional: hide the background images of all levels
  *   align: true                   # optional: all levels in one frame, so upper levels stay above the ones below
  *                                 #   (default: the plan's setting align_levels)
+ *   hide_label: no_dboard         # optional: ignore entities with this label (default: the plan's hide_label)
  *   tap: none                     # optional: no pop-up on tap
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
@@ -86,6 +87,10 @@ const openingRect = (o) => {
 const WARM = [255, 208, 152];  // lights without colour information (Loxone dimmers, switched circuits)
 const KELVIN = [[1800, [255, 166, 90]], [2200, [255, 186, 115]], [2700, [255, 205, 145]], [3000, [255, 215, 166]],
   [3500, [255, 227, 192]], [4000, [255, 237, 214]], [5000, [248, 244, 240]], [6500, [228, 236, 255]]];
+const warmWhite = (rgb) => {  // a white light reported as RGB (e.g. warm white from an RGBW controller)
+  const mx = Math.max(rgb[0], rgb[1], rgb[2]) || 1, n = rgb.map((v) => v * 255 / mx);
+  return KELVIN.some((e) => Math.max(Math.abs(n[0] - e[1][0]), Math.abs(n[1] - e[1][1]), Math.abs(n[2] - e[1][2])) < 30);
+};
 const kelvinRgb = (k) => {
   if (k <= KELVIN[0][0]) return KELVIN[0][1];
   for (let i = 1; i < KELVIN.length; i++) {
@@ -233,6 +238,7 @@ class FloorplanLiteCard extends HTMLElement {
     this._fl = (cfg.floors || keys).filter((k) => this._floors && this._floors[k]);
     if (this._idx === undefined || this._idx >= this._fl.length) this._idx = Math.max(0, this._fl.indexOf(cfg.start || this._fl[0]));
     this._rooms = Object.assign({}, plan && plan.entities || {}, cfg.rooms || {});
+    this._hideLabel = cfg.hide_label === undefined ? (plan && plan.hide_label) || "" : cfg.hide_label || "";
     this._idl = this._ids();
     this._refs = null;
     this._sig = null;
@@ -267,8 +273,14 @@ class FloorplanLiteCard extends HTMLElement {
       const r = rooms[k] || {};
       ["praesenz", "bewegung", "licht", "fenster", "beschattung", "musik"].forEach((f) => { (r[f] || []).forEach((id) => ids.push(id)); });
       if (r.temp) ids.push(r.temp);
+      if (r.hauptlicht) ids.push(r.hauptlicht);
     });
     return ids;
+  }
+
+  _hidden(id) {  // entities with the hide label (e.g. no_dboard) count as not there
+    const label = this._hideLabel, reg = label && this._hass.entities && this._hass.entities[id];
+    return !!(reg && reg.labels && reg.labels.indexOf(label) >= 0);
   }
 
   set hass(hass) {
@@ -293,25 +305,27 @@ class FloorplanLiteCard extends HTMLElement {
   _status(key) {
     const r = (key && this._rooms[key]) || {};
     const st = this._hass.states;
-    const any = (list, fn) => (list || []).some((id) => { const s = st[id]; return !!s && fn(s); });
-    const white = [], colored = [];
-    (r.licht || []).forEach((id) => {
-      const s = st[id];
-      if (!s || s.state !== "on") return;
+    const get = (id) => (id && !this._hidden(id) ? st[id] : undefined);
+    const any = (list, fn) => (list || []).some((id) => { const s = get(id); return !!s && fn(s); });
+    const light = (id) => {  // {c: rgb, b: brightness, col: colour light} of a light that is on
+      const s = get(id);
+      if (!s || s.state !== "on") return null;
       const a = s.attributes || {};
       const b = typeof a.brightness === "number" ? Math.max(0.15, a.brightness / 255) : 1;
       const rgb = Array.isArray(a.rgb_color) && a.rgb_color.length >= 3 ? a.rgb_color : null;
       if (rgb && WHITE_MODES.indexOf(a.color_mode) < 0) {
         const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]);
-        if (mx > 0 && (mx - mn) / mx > 0.3) colored.push({ c: rgb, b: b });
-        else white.push({ c: rgb, b: b });
-        return;
+        return { c: rgb, b: b, col: mx > 0 && (mx - mn) / mx > 0.3 && !warmWhite(rgb) };
       }
-      white.push({ c: typeof a.color_temp_kelvin === "number" ? kelvinRgb(a.color_temp_kelvin) : WARM, b: b });
-    });
+      return { c: typeof a.color_temp_kelvin === "number" ? kelvinRgb(a.color_temp_kelvin) : WARM, b: b, col: false };
+    };
+    const main = light(r.hauptlicht);
+    // while the main light is on it alone colours the room; the other lights count only when it is off
+    const lights = main ? [main] : (r.licht || []).map(light).filter((l) => !!l);
+    const colored = lights.filter((l) => l.col), white = lights.filter((l) => !l.col);
     let temp = "";
-    if (r.temp && st[r.temp]) {
-      const s = st[r.temp];
+    const s = get(r.temp);
+    if (s) {
       const val = r.temp.indexOf("climate.") === 0 ? s.attributes.current_temperature : parseFloat(s.state);
       if (typeof val === "number" && !isNaN(val)) {
         const de = this._t === TEXT.de;
@@ -323,7 +337,7 @@ class FloorplanLiteCard extends HTMLElement {
       presence: any(r.praesenz, (s) => s.state === "on"),
       pool: white.length ? mix(white) : colored.length ? mix(colored) : null,  // colour light only: whole room in its colour
       tint: !white.length && colored.length > 0,
-      edge: white.length && colored.length ? mix(colored) : null,              // colour light next to white light: seam along the walls
+      edge: white.length && colored.length ? mix(colored) : null,     // colour light next to white light: seam along the walls
       win: any(r.fenster, (s) => s.state === "on"),
       shade: any(r.beschattung, (s) => s.state === "closed" || s.state === "closing" ||
         (typeof s.attributes.current_position === "number" && s.attributes.current_position < 95)),

@@ -16,14 +16,14 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 | Integration: central storage of plans (buildings, levels, rooms, walls, doors, windows, passages, garage doors, background images, colours, rotation), WebSocket API | **0.1** |
 | Card `custom:floorplan-lite-card` – loaded automatically in every dashboard | **0.1** |
 | Editor page in the sidebar – import/export as JSON, preview | **0.1** |
-| Drawing editor: upload a satellite image or an old blueprint, set the scale, trace rooms and walls, place doors/windows, align to a wall or to north, colours | planned (0.2) |
+| Drawing editor: upload a satellite image or an old blueprint, set the scale, trace rooms and walls, place doors/windows, align to a wall or to north, colours, entities per room | **0.2** |
 | Import: PDF, SVG, Sweet Home 3D (`.sh3d`), DXF | planned (0.3) |
 
 ## What the card shows
 
 | | |
 |---|---|
-| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. |
+| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. A **main light** per room (`hauptlicht`) decides alone while it is on – the other lights only count when it is off. White light reported as RGB (warm white from RGBW controllers) counts as white. |
 | **Presence** | a calmly breathing dot (blue-violet) |
 | **Motion** | an aqua dot with ripples up to the walls |
 | **Temperature** | from a `climate` entity (current temperature) or a sensor |
@@ -42,7 +42,10 @@ start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over 
    download **Floorplan Lite** → restart Home Assistant.
 2. *Settings → Devices & services → Add integration → Floorplan Lite*. The page **Floorplan Lite** appears in the
    sidebar (administrators only).
-3. Create a plan on that page (0.1: import a JSON plan; the drawing editor follows).
+3. Create a plan on that page: upload a satellite image or a scan of your blueprint as the background, set the scale
+   with two points of known distance, then trace rooms, outer walls and areas outside and click doors and windows onto
+   the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
+   in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
 4. Add the card to a dashboard:
 
 ```yaml
@@ -54,10 +57,12 @@ floors: [eg, og]      # optional: only these levels
 background: false     # optional: hide the background images
 align: true           # optional: all levels in one frame – the attic stays above the house when swiping
 tap: none             # optional: no pop-up on tap
+hide_label: no_dboard # optional: ignore entities with this label (default: the plan's setting)
 intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
   kitchen:
     licht: [light.kitchen_ceiling, light.kitchen_strip]
+    hauptlicht: light.kitchen_ceiling   # optional: while on, it alone colours the room
     praesenz: [binary_sensor.kitchen_presence]
     bewegung: [binary_sensor.kitchen_motion]
     temp: climate.kitchen
@@ -75,6 +80,7 @@ Coordinates are in metres; `y` points down. A plan has:
 | `id`, `name` | id (`a-z0-9_`) and name |
 | `rotation` | turns the whole plan on screen (degrees); `north` gives the direction of north |
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
+| `hide_label` | entities with this label are ignored (e.g. a label you already use to keep entities off dashboards) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text` |
 | `buildings` | `[{id, name}]` – e.g. house, barn, garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |

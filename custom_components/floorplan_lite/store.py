@@ -89,6 +89,7 @@ ROOM_ENTITIES = vol.Schema(
         vol.Optional("praesenz"): ENTITY_LIST,
         vol.Optional("bewegung"): ENTITY_LIST,
         vol.Optional("licht"): ENTITY_LIST,
+        vol.Optional("hauptlicht"): vol.All(str, vol.Length(max=255)),  # while on, it alone colours the room
         vol.Optional("temp"): vol.All(str, vol.Length(max=255)),
         vol.Optional("fenster"): ENTITY_LIST,
         vol.Optional("beschattung"): ENTITY_LIST,
@@ -103,6 +104,7 @@ PLAN = vol.Schema(
         vol.Optional("rotation", default=0): NUM,  # turns the whole plan on screen (degrees)
         vol.Optional("north", default=0): NUM,  # direction of north in plan coordinates (degrees, 0 = up)
         vol.Optional("align_levels", default=False): bool,  # all levels in one frame (upper levels above lower ones)
+        vol.Optional("hide_label"): vol.All(str, vol.Length(max=255)),  # entities with this label are ignored
         vol.Optional("style", default=dict): vol.Schema({vol.Optional(str): vol.Any(str, NUM, [str])}),
         vol.Optional("buildings", default=list): [vol.Schema({vol.Required("id"): ID, vol.Required("name"): str})],
         vol.Required("levels"): vol.All([LEVEL], vol.Length(min=1, max=30)),

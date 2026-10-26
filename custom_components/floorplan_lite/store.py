@@ -51,6 +51,7 @@ ROOM = vol.Schema(
         vol.Optional("small", default=False): bool,
         vol.Optional("outdoor", default=False): bool,
         vol.Optional("color"): vol.All(str, vol.Length(max=32)),
+        vol.Optional("area"): vol.All(str, vol.Length(max=255)),  # Home Assistant area the room stands for
     }
 )
 
@@ -96,6 +97,9 @@ OPENING = vol.Schema(
         vol.Optional("confirm"): bool,  # ask before switching (default: doors and gates yes, windows no)
         vol.Optional("confirm_text"): vol.All(str, vol.Length(max=120)),  # own question instead of "Unlock?" / "Open?"
         vol.Optional("tap"): vol.In(["auto", "info"]),  # info: tapping only shows the entity's dialog
+        vol.Optional("tilt_attribute"): vol.All(str, vol.Length(max=64)),  # tilted when this attribute of a contact …
+        vol.Optional("tilt_value"): vol.All(str, vol.Length(max=64)),  # … (or tilt_entity's state) has this value
+        vol.Optional("tilt_entity"): vol.All(str, vol.Length(max=255)),  # own entity for "tilted" (binary_sensor: on)
     }
 )
 

@@ -186,7 +186,13 @@ function prepare(plan, align) {
 }
 
 class FloorplanLiteCard extends HTMLElement {
-  static getStubConfig() { return { plan: "", mode: "swipe" }; }
+  static getConfigElement() { return document.createElement("floorplan-lite-card-editor"); }
+
+  static async getStubConfig(hass) {  // the card picker starts with the first stored plan
+    let plans = [];
+    try { plans = hass ? await hass.callWS({ type: "floorplan_lite/list" }) : []; } catch (e) { /* integration not set up */ }
+    return { plan: plans.length ? plans[0].id : "", mode: "swipe" };
+  }
 
   setConfig(config) {
     if (!config) throw new Error("config missing");
@@ -296,7 +302,10 @@ class FloorplanLiteCard extends HTMLElement {
       if (r.temp) ids.push(r.temp);
       if (r.hauptlicht) ids.push(r.hauptlicht);
     });
-    Object.keys(this._floors || {}).forEach((k) => this._floors[k].openings.forEach((o) => { o.ents.forEach((id) => ids.push(id)); }));
+    Object.keys(this._floors || {}).forEach((k) => this._floors[k].openings.forEach((o) => {
+      o.ents.forEach((id) => ids.push(id));
+      if (o.tilt_entity) ids.push(o.tilt_entity);
+    }));
     return ids;
   }
 
@@ -548,7 +557,7 @@ class FloorplanLiteCard extends HTMLElement {
         });
       });
       this._floors[key].openings.forEach((o, i) => {
-        if (o.ents.length) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`), cls: "" });
+        if (o.ents.length || o.tilt_entity) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`), cls: "" });
       });
     }
 
@@ -659,13 +668,15 @@ class FloorplanLiteCard extends HTMLElement {
       }
     });
     (this._orefs || []).forEach((r) => {  // open windows, doors and gates light up, an unlocked lock shows red
-      const cls = "os" + this._opState(r.o.ents);
+      const cls = "os" + this._opState(r.o.ents, r.o);
       if (r.cls !== cls && r.g) { r.cls = cls; r.g.setAttribute("class", cls); }
     });
   }
 
-  _opState(ents) {
+  _opState(ents, o) {
     let open = false, tilted = false, unlocked = false;
+    const want = o && o.tilt_value ? [String(o.tilt_value).toLowerCase()] : TILTED;
+    const isTilt = (v) => typeof v === "string" && want.indexOf(v.toLowerCase()) >= 0;
     const st = this._hass.states, contact = ents.some((id) => /^(binary_sensor|sensor)\./.test(id) && st[id]);
     ents.forEach((id) => {
       const s = !this._hidden(id) && st[id];
@@ -674,13 +685,23 @@ class FloorplanLiteCard extends HTMLElement {
       // a raised shutter or blind is no open window; a cover counts as window/gate/door, or when there is no contact
       if (d === "cover" && (["shutter", "blind", "awning", "curtain", "shade"].indexOf(dc) >= 0 || (contact && ["window", "garage", "door", "gate"].indexOf(dc) < 0))) return;
       if (d === "binary_sensor" || d === "sensor" || d === "cover") {
-        const w = winState(s);
+        let w = winState(s);
+        if (o && o.tilt_attribute) {  // tilted from a chosen attribute (e.g. zustand = gekippt)
+          if (isTilt(s.attributes[o.tilt_attribute])) w = "tilted"; else if (w === "tilted") w = "open";
+        }
         if (w === "open") open = true; else if (w === "tilted") tilted = true;
         if (lockAttr(s) === "unlocked") unlocked = true;
       }
       if (d === "lock" && (v === "open" || v === "opening")) open = true;
       if (d === "lock" && (v === "unlocked" || v === "unlocking")) unlocked = true;
     });
+    const te = o && o.tilt_entity && !this._hidden(o.tilt_entity) && st[o.tilt_entity];
+    if (te) {  // own entity for "tilted": a binary sensor that is on, or a state / attribute with the tilt value
+      const on = o.tilt_entity.indexOf("binary_sensor.") === 0 ? te.state === "on"
+        : isTilt(te.state) || (o.tilt_attribute ? isTilt(te.attributes[o.tilt_attribute]) : false);
+      if (on && !open) tilted = true;
+      if (on && open) { open = false; tilted = true; }  // the contact reports "open" while the window is only tilted
+    }
     return open ? " open" : tilted ? " tilted" : unlocked ? " unlocked" : "";
   }
 
@@ -1018,8 +1039,124 @@ FloorplanLiteCard.styles = `
   }
 `;
 
+/* ---------- Visual editor of the card (dashboard → edit card) ---------- */
+const ED = {
+  de: { plan: "Grundriss", mode: "Darstellung", swipe: "Ein Stockwerk groß – wischen, Reiter, Pfeile", all: "Alle Stockwerke nebeneinander",
+    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten",
+    background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
+    popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesem Label ignorieren",
+    noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
+    hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest." },
+  en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
+    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other",
+    background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
+    popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with this label",
+    noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
+    hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar." },
+};
+
+class FloorplanLiteCardEditor extends HTMLElement {
+  setConfig(config) {
+    const reload = !this._config || this._config.plan !== config.plan;
+    this._config = Object.assign({}, config);
+    if (reload && this._hass) this._loadPlan(); else this._render();
+  }
+
+  set hass(hass) {
+    const first = !this._hass;
+    this._hass = hass;
+    if (first) this._load(); else if (this._form) this._form.hass = hass;
+  }
+
+  get _t() {
+    const l = (this._hass && ((this._hass.locale && this._hass.locale.language) || this._hass.language)) || "en";
+    return ED[String(l).slice(0, 2)] || ED.en;
+  }
+
+  async _load() {
+    try { this._plans = await this._hass.callWS({ type: "floorplan_lite/list" }); } catch (e) { this._plans = []; }
+    this._loadPlan();
+  }
+
+  async _loadPlan() {
+    const id = this._config && this._config.plan;
+    let plan = null;
+    if (id) { try { plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { plan = null; } }
+    this._levels = plan ? plan.levels || [] : [];
+    this._planAlign = !!(plan && plan.align_levels);
+    this._planLabel = (plan && plan.hide_label) || "";
+    this._render();
+  }
+
+  _schema() {
+    const t = this._t, lv = (this._levels || []).map((l) => ({ value: l.id, label: l.name }));
+    const sel = (options, extra) => ({ select: Object.assign({ mode: "dropdown", options: options }, extra || {}) });
+    const sc = [
+      { name: "plan", required: true, selector: sel((this._plans || []).map((p) => ({ value: p.id, label: p.name }))) },
+      { name: "mode", selector: sel([{ value: "swipe", label: t.swipe }, { value: "all", label: t.all }], { mode: "list" }) },
+    ];
+    if (this._config.mode === "swipe" && lv.length) sc.push({ name: "start", selector: sel(lv) });
+    if (lv.length > 1) sc.push({ name: "floors", selector: sel(lv, { multiple: true, mode: "list" }) });
+    sc.push(
+      { name: "align", selector: { boolean: {} } },
+      { name: "background", selector: { boolean: {} } },
+      { name: "intro", selector: { boolean: {} } },
+      { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
+      { name: "hide_label", selector: { label: {} } });
+    return sc;
+  }
+
+  _data() {
+    const c = this._config;
+    return {
+      plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
+      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
+      tap: c.tap === "none" ? "none" : "popup", hide_label: c.hide_label === undefined ? this._planLabel : c.hide_label,
+    };
+  }
+
+  _changed(v) {
+    const c = Object.assign({}, this._config), set = (k, val, keep) => { if (keep) c[k] = val; else delete c[k]; };
+    const planChanged = v.plan !== c.plan;
+    c.plan = v.plan;
+    set("mode", "swipe", v.mode === "swipe");
+    set("start", v.start, v.mode === "swipe" && v.start && !planChanged);
+    set("floors", v.floors, v.floors && v.floors.length && !planChanged && v.floors.length < (this._levels || []).length);
+    set("align", v.align, !planChanged && v.align !== this._planAlign);
+    set("background", false, v.background === false);
+    set("intro", false, v.intro === false);
+    set("tap", "none", v.tap === "none");
+    set("hide_label", v.hide_label || "", !planChanged && (v.hide_label || "") !== this._planLabel);
+    this._config = c;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: c }, bubbles: true, composed: true }));
+    if (planChanged) this._loadPlan(); else this._render();
+  }
+
+  _render() {
+    if (!this._hass || !this._config || !this._plans) return;
+    const t = this._t;
+    if (!this._box) {
+      this._box = document.createElement("div");
+      this._box.innerHTML = `<style>.fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; } .fl-hint a { color: var(--primary-color); }</style>` +
+        `<div class="fl-msg"></div><div class="fl-form"></div><p class="fl-hint fl-foot"></p>`;
+      this.appendChild(this._box);
+      this._form = document.createElement("ha-form");
+      this._form.computeLabel = (s) => this._t[s.name] || s.name;
+      this._form.addEventListener("value-changed", (e) => this._changed(e.detail.value));
+      this._box.querySelector(".fl-form").appendChild(this._form);
+    }
+    const msg = this._box.querySelector(".fl-msg");
+    msg.innerHTML = this._plans.length ? "" : `<p class="fl-hint">${esc(t.noPlans)}</p>`;
+    this._box.querySelector(".fl-foot").innerHTML = `${esc(t.hint)} <a href="/floorplan-lite">${esc(t.open)} →</a>`;
+    this._form.hass = this._hass;
+    this._form.schema = this._schema();
+    this._form.data = this._data();
+  }
+}
+
+if (!customElements.get("floorplan-lite-card-editor")) customElements.define("floorplan-lite-card-editor", FloorplanLiteCardEditor);
 if (!customElements.get("floorplan-lite-card")) customElements.define("floorplan-lite-card", FloorplanLiteCard);
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "floorplan-lite-card"))
   window.customCards.push({ type: "floorplan-lite-card", name: "Floorplan Lite",
-    description: "Floor plan with lights in their colour, presence, motion, windows, shades and music", preview: false });
+    description: "Floor plan with lights in their colour, presence, motion, windows, shades and music", preview: true });

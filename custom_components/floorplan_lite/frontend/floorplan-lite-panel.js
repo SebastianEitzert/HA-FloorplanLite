@@ -42,6 +42,9 @@ const T = {
     planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesem Label ignorieren", north: "Norden (Grad, 0 = oben)",
     northAlign: "Nach Norden ausrichten", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
     cWall: "Wände", cEdge: "Kanten", reset: "zurücksetzen",
+    area: "Bereich (Home Assistant)", areaNone: "– keiner –", areaUsed: "schon im Plan", fill: "Entitäten aus dem Bereich übernehmen",
+    filled: "%s Entitäten übernommen", fillNone: "Im Bereich keine passenden Entitäten gefunden",
+    fillAll: "Alle Räume mit Bereich ausfüllen", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
     room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
@@ -50,6 +53,8 @@ const T = {
     types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)", skylight: "Dachfenster / Lichtkuppel" },
     opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Antippen schaltet Schloss, Cover (Tor, elektrisches Fenster) oder Taster – mit Sicherheitsabfrage nach Rückfrage, sonst sofort. Ohne schaltbare Entität öffnet sich die Karte der ersten Entität. Gekippte Fenster werden erkannt (Zustand/Attribut gekippt oder tilted).",
     lengthM: "Länge (m)", angleDeg: "Drehung (Grad)", roundF: "rund (Lichtkuppel)",
+    tiltF: "Gekippt erkennen", tiltAuto: "automatisch (gekippt/tilted)", tiltAttr: "aus einem Attribut", tiltEnt: "aus einer eigenen Entität",
+    tiltAttrF: "Attribut", tiltValF: "Wert für gekippt", tiltEntF: "Entität für gekippt", tiltValPh: "z. B. gekippt",
     confirmF: "Sicherheitsabfrage", confirmText: "Text der Abfrage", confirmPh: "Standard: Aufschließen? / Öffnen?",
     tapF: "Antippen", tapAuto: "Schalten (Schloss, Cover, Taster)", tapInfo: "Nur Details zeigen",
     invalid: "Fehler beim Speichern: %s", grid: "Raster", ghost: "Stockwerk darunter zeigen", dims: "Maße zeigen",
@@ -89,6 +94,9 @@ const T = {
     planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with this label", north: "North (degrees, 0 = up)",
     northAlign: "Turn so north is up", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
     cWall: "Walls", cEdge: "Edges", reset: "reset",
+    area: "Area (Home Assistant)", areaNone: "– none –", areaUsed: "already in the plan", fill: "Take entities from the area",
+    filled: "%s entities taken over", fillNone: "No matching entities found in the area",
+    fillAll: "Fill all rooms that have an area", areaHint: "Choose the area – name, id and the entities found are taken over.",
     room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
@@ -97,6 +105,8 @@ const T = {
     types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)", skylight: "Roof window / dome" },
     opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Tapping works the lock, cover (gate, electric window) or button – after a question if \"Ask first\" is ticked, otherwise at once. Without anything to switch, the first entity's dialog opens. Tilted windows are recognised (state or attribute tilted/gekippt).",
     lengthM: "Length (m)", angleDeg: "Rotation (degrees)", roundF: "round (dome)",
+    tiltF: "Detect tilted", tiltAuto: "automatic (tilted/gekippt)", tiltAttr: "from an attribute", tiltEnt: "from an entity of its own",
+    tiltAttrF: "Attribute", tiltValF: "Value for tilted", tiltEntF: "Entity for tilted", tiltValPh: "e.g. tilted",
     confirmF: "Ask first", confirmText: "Question", confirmPh: "Default: Unlock? / Open?",
     tapF: "Tap", tapAuto: "Switch (lock, cover, button)", tapInfo: "Only show details",
     invalid: "Saving failed: %s", grid: "Grid", ghost: "Show level below", dims: "Show dimensions",
@@ -618,6 +628,11 @@ class FloorplanLitePanel extends HTMLElement {
     let h = `<section><h3>${esc({ rooms: el.outdoor ? t.tools.outdoor : t.room, outlines: t.outline, walls: t.wallEl, lines: t.line, openings: t.opening }[s.kind])}` +
       `<button class="mini danger" data-act="delsel">${esc(t.del)}</button></h3>`;
     if (s.kind === "rooms") {
+      const areas = this._areas(), used = {};
+      this._plan.rooms.forEach((r) => { if (r.area) used[r.area] = 1; });
+      h += this._field(t.area, `<select data-area="1"><option value="">${esc(t.areaNone)}</option>` +
+        areas.map((a) => `<option value="${esc(a.id)}"${el.area === a.id ? " selected" : ""}>${esc(a.name)}${used[a.id] && el.area !== a.id ? " (" + esc(t.areaUsed) + ")" : ""}</option>`).join("") + `</select>`) +
+        (el.area ? `<div class="row"><button class="mini" data-act="fill">${esc(t.fill)}</button></div>` : `<p class="small">${esc(t.areaHint)}</p>`);
       const others = [];
       this._plan.rooms.forEach((r, i) => { if (i !== s.i && r.name && others.indexOf(r.id) < 0) others.push(r.id); });
       const part = el.name === null || el.name === undefined && false;
@@ -646,12 +661,29 @@ class FloorplanLitePanel extends HTMLElement {
         (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "") +
         (el.type === "passage" || el.type === "open" ? "" :
           this._field(t.opEntities, `<input type="text" list="fl-ents-op" data-oent="1" value="${esc(ents.join(", "))}" placeholder="${esc(t.entHint)}">`) +
+          (el.type === "window" || sky ? this._tiltHtml(el, s.i, ents) : "") +
           this._field(t.tapF, `<select data-otap="1"><option value="auto">${esc(t.tapAuto)}</option><option value="info"${el.tap === "info" ? " selected" : ""}>${esc(t.tapInfo)}</option></select>`) +
           this._field(t.confirmF, `<input type="checkbox" data-oconf="1"${(el.confirm !== undefined ? el.confirm : el.type === "door" || el.type === "garage") ? " checked" : ""}>`) +
           this._field(t.confirmText, `<input type="text" data-k="confirm_text" value="${esc(el.confirm_text || "")}" placeholder="${esc(t.confirmPh)}">`) +
           `<p class="small">${esc(t.opEntHint)}</p><datalist id="fl-ents-op">${this._entityOptions(["binary_sensor", "cover", "lock", "button", "switch"])}</datalist>`);
     }
     return h + `</section>`;
+  }
+
+  _tiltHtml(el, i, ents) {  // where "tilted" comes from: automatic, an attribute of the contact, or an entity of its own
+    const t = this.t, ui = this._tiltUi || (this._tiltUi = {});
+    const mode = el.tilt_entity ? "entity" : el.tilt_attribute ? "attribute" : ui[i] || "auto";
+    const st = (this._hass && this._hass.states) || {}, attrs = {};
+    ents.forEach((id) => { if (st[id]) Object.keys(st[id].attributes || {}).forEach((k) => { attrs[k] = 1; }); });
+    if (el.tilt_entity && st[el.tilt_entity]) Object.keys(st[el.tilt_entity].attributes || {}).forEach((k) => { attrs[k] = 1; });
+    let h = this._field(t.tiltF, `<select data-tilt="${i}">` + [["auto", t.tiltAuto], ["attribute", t.tiltAttr], ["entity", t.tiltEnt]]
+      .map(([v, l]) => `<option value="${v}"${mode === v ? " selected" : ""}>${esc(l)}</option>`).join("") + `</select>`);
+    if (mode === "entity") h += this._field(t.tiltEntF, `<input type="text" list="fl-ents-tilt" data-k="tilt_entity" value="${esc(el.tilt_entity || "")}">`) +
+      `<datalist id="fl-ents-tilt">${this._entityOptions(["binary_sensor", "sensor", "select", "input_select"])}</datalist>`;
+    if (mode === "attribute") h += this._field(t.tiltAttrF, `<input type="text" list="fl-attrs" data-k="tilt_attribute" value="${esc(el.tilt_attribute || "")}">`) +
+      `<datalist id="fl-attrs">${Object.keys(attrs).sort().map((k) => `<option value="${esc(k)}">`).join("")}</datalist>`;
+    if (mode !== "auto") h += this._field(t.tiltValF, `<input type="text" data-k="tilt_value" value="${esc(el.tilt_value || "")}" placeholder="${esc(t.tiltValPh)}">`);
+    return h;
   }
 
   _entitiesHtml(key) {
@@ -719,6 +751,7 @@ class FloorplanLitePanel extends HTMLElement {
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
       `<label class="cur">${esc(t.building)}: ${this._buildingSel("__cur", this._building)}</label></div>` +
+      `<div class="row"><button class="mini" data-act="fillall">${esc(t.fillAll)}</button></div>` +
       this._field(t.roomWalls, `<input type="checkbox" data-p="room_walls"${p.room_walls !== false ? " checked" : ""}>`) +
       this._field(t.wallInner, `<input type="number" min="5" max="150" step="1" data-wall="wall_width" value="${Math.round(this._wall("wall_width") * 100)}">`) +
       this._field(t.wallOuter, `<input type="number" min="5" max="150" step="1" data-wall="outer_width" value="${Math.round(this._wall("outer_width") * 100)}">`) +
@@ -772,6 +805,32 @@ class FloorplanLitePanel extends HTMLElement {
       const k = inp.getAttribute("data-p");
       const v = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value;
       this._change(() => { if (v === "" && k === "hide_label") delete this._plan[k]; else this._plan[k] = k === "id" ? slug(v) : v; });
+    }));
+    side.querySelectorAll("[data-area]").forEach((inp) => inp.addEventListener("change", () => {
+      if (!el) return;
+      const a = this._areas().find((x) => x.id === inp.value);
+      let n = 0;
+      this._change(() => {
+        if (!a) { delete el.area; return; }
+        el.area = a.id;
+        if (!el.name || /^(Raum|Room|Garten|Garden) \d+$/.test(el.name)) el.name = a.name;  // a default name gives way
+        if (/^(raum|room|garten|garden)_\d+(_\d+)?$/.test(el.id)) {
+          const nid = slug(a.id);
+          if (!this._plan.rooms.some((r) => r !== el && r.id === nid)) this._setProp(el, "id", nid);
+        }
+        const key = el.key || el.id, e = this._plan.entities[key];
+        if (!e || !Object.keys(e).some((k) => (Array.isArray(e[k]) ? e[k].length : e[k]))) n = this._fill(key, a.id);
+      });
+      if (n) this._status(this.t.filled.replace("%s", n));
+    }));
+    side.querySelectorAll("[data-tilt]").forEach((inp) => inp.addEventListener("change", () => {
+      if (!el) return;
+      (this._tiltUi || (this._tiltUi = {}))[inp.getAttribute("data-tilt")] = inp.value;
+      this._change(() => {
+        if (inp.value !== "entity") delete el.tilt_entity;
+        if (inp.value !== "attribute") delete el.tilt_attribute;
+        if (inp.value === "auto") delete el.tilt_value;
+      });
     }));
     side.querySelectorAll("[data-oconf]").forEach((inp) => inp.addEventListener("change", () => {
       if (el) this._change(() => { el.confirm = inp.checked; });  // stored either way: the default differs by type
@@ -841,6 +900,12 @@ class FloorplanLitePanel extends HTMLElement {
   async _act(a, btn) {
     const t = this.t, p = this._plan;
     if (a === "delsel") return this._deleteSel();
+    if (a === "fill" || a === "fillall") {
+      let n = 0;
+      const rooms = a === "fill" ? [this._plan[this._sel.kind][this._sel.i]] : p.rooms.filter((r) => r.area && r.name !== null);
+      this._change(() => { rooms.forEach((r) => { if (r && r.area) n += this._fill(r.key || r.id, r.area); }); });
+      return this._status(n ? t.filled.replace("%s", n) : t.fillNone, !n);
+    }
     if (a === "upload") return this.shadowRoot.querySelector(".file").click();
     if (a === "rmimg") return this._change(() => { delete this._lv().background; });
     if (a === "lvdel") {
@@ -1615,6 +1680,41 @@ class FloorplanLitePanel extends HTMLElement {
       }
     });
     this._setTool("select");
+  }
+
+  _areas() {  // Home Assistant areas, sorted by name
+    const a = (this._hass && this._hass.areas) || {};
+    return Object.keys(a).map((id) => ({ id, name: a[id].name || id })).sort((x, y) => x.name.localeCompare(y.name));
+  }
+
+  /* Entities of an area, sorted into the room fields; adds what is missing, keeps what is there. Returns how many were added. */
+  _fill(key, areaId) {
+    const H = this._hass, reg = H.entities || {}, dev = H.devices || {}, st = H.states || {}, label = this._plan.hide_label;
+    const found = { licht: [], praesenz: [], bewegung: [], fenster: [], beschattung: [], musik: [] };
+    let climate = null, sensor = null;
+    Object.keys(reg).sort().forEach((id) => {
+      const e = reg[id], s = st[id];
+      if (!s || e.hidden || e.entity_category || (label && (e.labels || []).indexOf(label) >= 0)) return;
+      const area = e.area_id || (e.device_id && dev[e.device_id] && dev[e.device_id].area_id);
+      if (area !== areaId) return;
+      const d = id.split(".")[0], dc = s.attributes.device_class;
+      if (d === "light") found.licht.push(id);
+      else if (d === "binary_sensor" && (dc === "occupancy" || dc === "presence")) found.praesenz.push(id);
+      else if (d === "binary_sensor" && dc === "motion") found.bewegung.push(id);
+      else if (d === "binary_sensor" && ["window", "door", "opening", "garage_door"].indexOf(dc) >= 0) found.fenster.push(id);
+      else if (d === "cover" && ["garage", "door", "gate", "window"].indexOf(dc) < 0) found.beschattung.push(id);
+      else if (d === "media_player" && dc !== "tv") found.musik.push(id);
+      else if (d === "climate" && !climate) climate = id;
+      else if (d === "sensor" && dc === "temperature" && !sensor) sensor = id;
+    });
+    const e = this._plan.entities[key] || (this._plan.entities[key] = {});
+    let n = 0;
+    Object.keys(found).forEach((f) => found[f].forEach((id) => {
+      const list = e[f] || (e[f] = []);
+      if (list.indexOf(id) < 0) { list.push(id); n++; }
+    }));
+    if (!e.temp && (climate || sensor)) { e.temp = climate || sensor; n++; }
+    return n;
   }
 
   _newRoomName(outdoor) {

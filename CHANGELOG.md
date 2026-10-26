@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.3.0 – 2026-10-26
 - Background from a PDF: the editor turns a page of the PDF (choose which, for multi-page plans) into an image, sharp
   enough for tracing an old blueprint. pdf.js (Apache-2.0) ships with the integration and only loads when a PDF is chosen.
 - Tool *Straighten background*: two points on a wall of a crooked scan or photo of a paper plan – only the image turns

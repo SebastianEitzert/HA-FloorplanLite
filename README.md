@@ -47,7 +47,8 @@ previous scene, light on/off, room off, music play / pause / stop, louder / quie
 next / previous track – or nothing; the same once more for every remote key pressed twice. Only keys with an action
 for *twice* wait for the second press (adjustable, default 0.4 s), all others react at once. A room's scenes are those assigned to its area and those whose name starts with the
 room's name; the cycle runs off → first scenes → the others → off, and a room without scenes switches its lights on and
-off. Names of the off scene, standard players per room and *modes* are settings: while a mode (night, cinema …) is on, its scenes come first – the topmost mode wins. With the TV Streamer, blue and green are also used by the streamer itself and red opens Moonlight's menu; the blueprint says so at those keys. Without a
+off. Which lights and players: exactly the ones entered for the room in the floor plan (switches too); only when there
+are none, the area's, limited by allow / block lists of integrations and labels. Names of the off scene, standard players per room and *modes* are settings: while a mode (night, cinema …) is on, its scenes come first – the topmost mode wins. With the TV Streamer, blue and green are also used by the streamer itself and red opens Moonlight's menu; the blueprint says so at those keys. Without a
 script, play / pause go straight to the room's media players.
 
 ## Installation

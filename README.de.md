@@ -47,7 +47,8 @@ Szene weiter / zurück, Licht an/aus, Raum aus, Musik Start / Pause / Stopp, lau
 immer), Titel weiter / zurück – oder nichts; dasselbe noch einmal für jede Fernbedienungstaste zweimal gedrückt. Nur Tasten mit
 einer Aktion für *zweimal* warten auf den zweiten Druck (einstellbar, Standard 0,4 s), alle anderen reagieren sofort. Die Szenen eines Raums sind die seinem Bereich zugeordneten und die, deren
 Name mit dem Raumnamen beginnt; die Runde geht aus → erste Szenen → die übrigen → aus, ein Raum ohne Szenen schaltet seine
-Lichter an und aus. Name der Aus-Szene, Standard-Player je Raum und *Modi* sind Einstellungen: Solange ein Modus (Nacht, Kino …) an ist, kommen seine Szenen zuerst – der oberste Modus hat Vorrang. Mit dem TV Streamer nutzt der Streamer Blau und Grün auch selbst, Rot öffnet das Moonlight-Menü; die Vorlage weist an diesen Tasten darauf hin.
+Lichter an und aus. Welche Lichter und Player: genau die im Grundriss für den Raum eingetragenen (auch Schalter); nur wenn dort keine
+stehen, die des Bereichs, eingegrenzt durch Erlauben-/Sperren-Listen für Integrationen und Labels. Name der Aus-Szene, Standard-Player je Raum und *Modi* sind Einstellungen: Solange ein Modus (Nacht, Kino …) an ist, kommen seine Szenen zuerst – der oberste Modus hat Vorrang. Mit dem TV Streamer nutzt der Streamer Blau und Grün auch selbst, Rot öffnet das Moonlight-Menü; die Vorlage weist an diesen Tasten darauf hin.
 Ohne Skript gehen Wiedergabe / Pause direkt an die Musik-Player des Raums.
 
 ## Installation

@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.5.0 – 2026-10-26
 - All keys, clicks, wheel steps and taps over a room go to a script (card option `script`, default
   `script.raum_klick`) as `{raum, aktion, lichter, player}` – the card itself only opens the pop-up and changes the
   level. New event names: `gelb` / `gelb2` (right click or yellow once / twice), `tipp2` / `tipp3`, `play_pause`,
@@ -13,7 +13,8 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   (night, cinema … – their scenes come first while on), an action for every remote key pressed twice (`hoch2`,
   `gelb2`, `play2` = next track …) with an adjustable waiting time – only keys with a „twice“ action wait, the card asks
   the script which ones (`aktion: config`). Allow and block lists of integrations and labels, for lights and for
-  players; switches chosen as lights in the plan work as lights, without the card also switches with an allowed label. Older cards
+  players. The lights and players entered for the room in the floor plan are the ones that are switched (switches too);
+  the lists only filter the area's entities when the plan has none (optional: also the plan's). Older cards
   (`klicks`, `aktion: musik`) still work with it.
 - Short display in the room's label: the volume after louder / quieter / play, the scene's name after a scene change.
 - Roller shutter or blind per window (`shade`): drawn outside the wall, closed part as a bar, blinds with their slats

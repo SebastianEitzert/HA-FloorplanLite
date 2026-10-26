@@ -14,6 +14,13 @@ blueprint:
 
     **Music** goes to the room's players that are playing; play starts the standard players of the room (or all of
     them) when none is playing.
+
+
+    **Which lights and players?** Exactly the ones entered for the room in the floor plan editor (light, main light –
+    switches too, music), nothing else of the area. Only when the room has none there, the script takes the area's
+    lights / players itself, limited by the allow / block lists below. Scenes switch whatever they contain; for them
+    the room's lights only tell whether the room is on. A room set to take its entities live from its area also
+    sends the area's lights (not its switches).
   domain: script
   source_url: https://github.com/SebastianEitzert/HA-FloorplanLite/blob/main/custom_components/floorplan_lite/blueprints/script/room_click.yaml
   input:
@@ -139,11 +146,17 @@ blueprint:
       name: "Music players – which ones count"
       collapsed: true
       description: >-
-        The card sends the room's players from the floor plan; without the card the area's media players are used
-        (TVs never). Integrations by their internal name (domain), as in the address of the integration's page
+        The card sends the room's players from the floor plan. Only when it sends none (no players entered, or an
+        older card) the area's media players are used (TVs never) – these lists say which of them count.
+        Integrations by their internal name (domain), as in the address of the integration's page
         (…/config/integrations/integration/loxone): `loxone` for PyLoxone, `sonos`, `squeezebox` … An allow list
         that is not empty lets only its integrations and labels through; the block lists always win.
       input:
+        players_plan_always:
+          name: Players from the floor plan always count
+          description: Off = the lists below also filter the players entered in the floor plan.
+          default: true
+          selector: { boolean: {} }
         players_allow_integrations:
           name: Allow – integrations
           default: []
@@ -205,13 +218,19 @@ blueprint:
       collapsed: true
       description: >-
         The card sends the room's lights from the floor plan – switches chosen there as light or main light included.
-        Without the card the area's lights are used, plus switches and other entities of the area with an allowed
-        label. Integrations by their internal name (domain), as in the address of the integration's page
+        Only when it sends none (no lights entered, or an older card) the area's lights are used, plus switches and
+        other entities of the area with an allowed label – these lists say which of them count. Integrations by their
+        internal name (domain), as in the address of the integration's page
         (…/config/integrations/integration/loxone): `loxone` for PyLoxone, `shelly`, `hue`, `template` (template
         lights and switches), `group` (light groups) … An allow list that is not empty lets only its integrations
         and labels through; the block lists always win. Blocked entities neither switch nor keep the room „on“ (e.g. a
         status LED).
       input:
+        lights_plan_always:
+          name: Lights from the floor plan always count
+          description: Off = the lists below also filter the lights entered in the floor plan.
+          default: true
+          selector: { boolean: {} }
         lights_allow_integrations:
           name: Allow – integrations
           default: []
@@ -289,6 +308,7 @@ variables:
   double_ms: !input double_ms
   volume_mode: !input volume_mode
   standard_players: !input standard_players
+  players_plan_always: !input players_plan_always
   players_allow_integrations: !input players_allow_integrations
   players_allow_labels: !input players_allow_labels
   players_block_integrations: !input players_block_integrations
@@ -298,6 +318,7 @@ variables:
   off_names: !input off_names
   first_names: !input first_names
   modes: !input modes
+  lights_plan_always: !input lights_plan_always
   lights_allow_integrations: !input lights_allow_integrations
   lights_allow_labels: !input lights_allow_labels
   lights_block_integrations: !input lights_block_integrations
@@ -342,15 +363,19 @@ sequence:
   - variables:
       lights: >-
         {% set area = area_entities(raum) %}
-        {% set l = lichter if lichter is defined and lichter
+        {% set plan = lichter is defined and lichter | count > 0 %}
+        {% set l = lichter if plan
              else (area | select('match', 'light\.') | list) + (light_lists[1] | select('in', area) | reject('match', 'light\.') | list) %}
-        {{ (l | select('in', light_lists[0]) | list if light_lists[3] else l) | reject('in', light_lists[2]) | list }}
+        {% if plan and lights_plan_always %}{{ l }}
+        {% else %}{{ (l | select('in', light_lists[0]) | list if light_lists[3] else l) | reject('in', light_lists[2]) | list }}{% endif %}
       players: >-
         {% set area = area_entities(raum) %}
-        {% set p = player if player is defined and player
+        {% set plan = player is defined and player | count > 0 %}
+        {% set p = player if plan
              else (area | select('match', 'media_player\.') | reject('is_state_attr', 'device_class', 'tv') | list)
                   + (player_lists[1] | select('in', area) | select('match', 'media_player\.') | reject('in', area | select('match', 'media_player\.') | list) | list) %}
-        {{ (p | select('in', player_lists[0]) | list if player_lists[3] else p) | reject('in', player_lists[2]) | list }}
+        {% if plan and players_plan_always %}{{ p }}
+        {% else %}{{ (p | select('in', player_lists[0]) | list if player_lists[3] else p) | reject('in', player_lists[2]) | list }}{% endif %}
       prefix: "{{ room_names.get(raum, area_name(raum) or raum) }}"
       # [entity_id, short name] of the room's scenes
       scenes: >-

@@ -1251,8 +1251,20 @@ class FloorplanLiteCardEditor extends HTMLElement {
   }
 }
 
-if (!customElements.get("floorplan-lite-card-editor")) customElements.define("floorplan-lite-card-editor", FloorplanLiteCardEditor);
-if (!customElements.get("floorplan-lite-card")) customElements.define("floorplan-lite-card", FloorplanLiteCard);
+/* Register the elements. Another dashboard plugin may swap window.customElements for a polyfilled registry right after
+   start-up (seen in the wild: this file loads first, its elements were then unknown and every card showed a
+   configuration error). So check again for a few seconds and register again where needed – with a subclass if the
+   registry refuses a constructor it has seen before. */
+const flDefine = () => {
+  [["floorplan-lite-card-editor", FloorplanLiteCardEditor], ["floorplan-lite-card", FloorplanLiteCard]].forEach((d) => {
+    if (customElements.get(d[0])) return;
+    try { customElements.define(d[0], d[1]); } catch (e) {
+      try { customElements.define(d[0], class extends d[1] {}); } catch (e2) { /* someone else defined it meanwhile */ }
+    }
+  });
+};
+flDefine();
+[200, 600, 1500, 3000, 6000, 10000].forEach((t) => setTimeout(flDefine, t));
 window.customCards = window.customCards || [];
 if (!window.customCards.some((c) => c.type === "floorplan-lite-card"))
   window.customCards.push({ type: "floorplan-lite-card", name: "Floorplan Lite",

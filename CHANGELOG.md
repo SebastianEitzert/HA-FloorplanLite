@@ -2,6 +2,11 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.4.3 – 2026-10-26
+- Fix "configuration error" in place of the card: another dashboard plugin can swap the browser's custom-element
+  registry for a polyfilled one right after start-up, after this card had registered (it loads first). The card now
+  checks for a few seconds and registers again where needed.
+
 ## 0.4.2 – 2026-10-26
 - Remote / keyboard arrow keys with several cards on a page (or next to another floor plan card): the card under the
   pointer takes them, otherwise the first visible one – before, a card higher up could take them all.

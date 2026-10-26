@@ -32,9 +32,11 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 | **Background** | per level an image under the plan (e.g. a satellite view, so the garden stays a photo) or over it with transparency, or hidden |
 
 Tap a room to open the [Bubble Card](https://github.com/Clooos/Bubble-Card) pop-up with the hash `#<room>`.
-With a mouse or a TV remote (e.g. through Moonlight): right click (LG remote: yellow) once over a room = music
-start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes – these call a script
-`script.raum_klick` with `raum`, `aktion`/`klicks` (optional; without the script nothing happens). ←/→ switch the level.
+With a mouse or a TV remote (e.g. through Moonlight): play / pause over a room = its music (media keys, or the
+[TV Streamer](https://github.com/SebastianEitzert/TV-Streamer) remote keys), right click (LG remote: yellow) twice over a
+room = room off, mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes – these call a script
+`script.raum_klick` with `raum`, `aktion`/`klicks` (optional; play/pause work without it on the room's media players).
+←/→ switch the level.
 
 ## Installation
 

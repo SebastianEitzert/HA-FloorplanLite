@@ -2,6 +2,12 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.4.1 – 2026-10-26
+- Play / pause with the pointer over a room start / pause its music – media keys, or the remote keys of the TV Streamer
+  (`tv-streamer-key` event). With `script.raum_klick` it gets `aktion: play` / `pause`, otherwise the room's media
+  players are used directly. A single right click (LG remote: yellow) over a room no longer starts the music, so it is
+  free for something else; twice still switches the room off.
+
 ## 0.4.0 – 2026-10-26
 - Several labels to ignore (`hide_labels`, card option `hide_label` as a list); the older single label still works.
 - Rooms can take their entities live from their area (`area_live`): new devices in the area show up by themselves.

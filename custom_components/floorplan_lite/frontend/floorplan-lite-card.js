@@ -28,8 +28,9 @@
  *   tap: none                     # optional: no pop-up on tap
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
- * Mouse / TV remote: left click = pop-up, right click (remote: yellow) once = music start/pause, twice within 0.5 s =
- * room off, mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes (script.raum_klick), ←/→ = level.
+ * Mouse / TV remote: left click = pop-up, right click (remote: yellow) twice within 0.5 s = room off (once: free),
+ * mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes (script.raum_klick), ←/→ = level,
+ * play / pause over a room (media keys, or the TV Streamer's tv-streamer-key event) = its music.
  * Touch (tablet/phone): double/triple tap = light scene / room off.
  * Deliberately without ??, ?., aspect-ratio, clamp()/min(), inset, flex-gap and class fields: the browser of older
  * LG TVs (webOS 5) is about Chrome 68.
@@ -259,6 +260,8 @@ class FloorplanLiteCard extends HTMLElement {
     if (!this._onKey) {
       this._onKey = (e) => this._key(e);
       window.addEventListener("keydown", this._onKey);
+      this._onTvKey = (e) => this._media(e.detail && e.detail.key);  // TV Streamer: remote keys the page itself does not get
+      window.addEventListener("tv-streamer-key", this._onTvKey);
     }
     this._subscribe();
   }
@@ -267,6 +270,7 @@ class FloorplanLiteCard extends HTMLElement {
     if (this._ro) this._ro.disconnect();
     if (this._onResize) { window.removeEventListener("resize", this._onResize); this._onResize = null; }
     if (this._onKey) { window.removeEventListener("keydown", this._onKey); this._onKey = null; }
+    if (this._onTvKey) { window.removeEventListener("tv-streamer-key", this._onTvKey); this._onTvKey = null; }
     this._unsubscribe();
   }
 
@@ -622,7 +626,7 @@ class FloorplanLiteCard extends HTMLElement {
         const id = el.getAttribute("data-room");
         if (id && this._hass) this._hass.callService("script", "raum_klick", { raum: id, aktion: e.deltaY < 0 ? "lauter" : "leiser" });
       }, { passive: false });
-      el.addEventListener("contextmenu", (e) => {   // right click / yellow – once music start/pause, twice within 0.5 s room off
+      el.addEventListener("contextmenu", (e) => {   // right click / yellow – twice within 0.5 s room off; once is left free
         e.preventDefault();
         el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 280);
         const id = el.getAttribute("data-room");
@@ -632,8 +636,8 @@ class FloorplanLiteCard extends HTMLElement {
         this._rkN = (this._rkN || 0) + 1;
         this._rkT = setTimeout(() => {
           const n = this._rkN; this._rkN = 0; this._rkRoom = null;
-          if (!id || !this._hass) return;
-          this._hass.callService("script", "raum_klick", n >= 2 ? { raum: id, klicks: 3 } : { raum: id, aktion: "musik" });
+          if (!id || !this._hass || n < 2) return;
+          this._hass.callService("script", "raum_klick", { raum: id, klicks: 3 });
         }, 500);
       });
     });
@@ -841,8 +845,28 @@ class FloorplanLiteCard extends HTMLElement {
     window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
   }
 
-  _key(e) {  // ← / → change the level; ↑ / ↓ over a room switch light scenes
+  /* Play / pause over a room: its music. With script.raum_klick (aktion play / pause) the script decides which players,
+     otherwise the room's media players directly. */
+  _media(cmd) {
+    if ((cmd !== "play" && cmd !== "pause") || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
+    if (location.hash && location.hash.length > 1) return false;  // a pop-up is open
+    const ref = (this._refs || []).filter((r) => r.lbl && r.lbl.getAttribute("data-room") === this._hover)[0];
+    const svc = this._hass.services || {};
+    if (svc.script && svc.script.raum_klick) {
+      this._hass.callService("script", "raum_klick", { raum: this._hover, aktion: cmd });
+      return true;
+    }
+    const st = this._hass.states, players = (this._roomEnts(ref ? ref.key : this._hover).musik || []).filter((id) => st[id] && !this._hidden(id));
+    const playing = players.filter((id) => st[id].state === "playing");
+    const target = cmd === "pause" ? playing : playing.length ? playing : players.slice(0, 1);
+    if (target.length) this._hass.callService("media_player", cmd === "pause" ? "media_pause" : "media_play", { entity_id: target });
+    return true;
+  }
+
+  _key(e) {  // ← / → change the level; ↑ / ↓ over a room switch light scenes; media keys over a room: its music
     if (!this._config || !this._refs || e.defaultPrevented) return;
+    const mk = e.key === "MediaPlay" ? "play" : e.key === "MediaPause" ? "pause" : "";
+    if (mk && this._media(mk)) { e.preventDefault(); return; }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const v = e.key === "ArrowUp" || e.keyCode === 38 ? "hoch" : e.key === "ArrowDown" || e.keyCode === 40 ? "runter" : "";
     if (v && this._hover && !(location.hash && location.hash.length > 1)) {

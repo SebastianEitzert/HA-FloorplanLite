@@ -33,9 +33,11 @@ und CSS, kein WebGL, kein Framework.
 | **Hintergrund** | je Stockwerk ein Bild unter dem Plan (z. B. Satellitenbild, damit der Garten ein Foto bleibt), darüber mit Transparenz oder ausgeblendet |
 
 Tippen auf einen Raum öffnet das [Bubble-Card](https://github.com/Clooos/Bubble-Card)-Pop-up mit dem Hash `#<raum>`.
-Mit Maus oder Fernseher-Fernbedienung (z. B. über Moonlight): Rechtsklick (LG-Fernbedienung: Gelb) einmal über einem Raum =
-Musik Start/Pause, zweimal = Raum aus, Mausrad = Musik lauter/leiser, ↑/↓ über einem Raum = Lichtszenen – das ruft ein
-Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das Skript passiert nichts). ←/→ wechseln das Stockwerk.
+Mit Maus oder Fernseher-Fernbedienung (z. B. über Moonlight): Wiedergabe / Pause über einem Raum = seine Musik
+(Medientasten oder die Fernbedienungstasten des [TV Streamers](https://github.com/SebastianEitzert/TV-Streamer)),
+Rechtsklick (LG-Fernbedienung: Gelb) zweimal über einem Raum = Raum aus, Mausrad = Musik lauter/leiser, ↑/↓ über einem
+Raum = Lichtszenen – das ruft ein Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; Wiedergabe/Pause
+gehen ohne Skript direkt an die Musik-Player des Raums). ←/→ wechseln das Stockwerk.
 
 ## Installation
 

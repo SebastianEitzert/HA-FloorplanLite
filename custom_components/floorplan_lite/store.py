@@ -89,7 +89,7 @@ ROOM_ENTITIES = vol.Schema(
         vol.Optional("praesenz"): ENTITY_LIST,
         vol.Optional("bewegung"): ENTITY_LIST,
         vol.Optional("licht"): ENTITY_LIST,
-        vol.Optional("hauptlicht"): vol.All(str, vol.Length(max=255)),  # while on, it alone colours the room
+        vol.Optional("hauptlicht"): vol.All(str, vol.Length(max=255)),  # fills the room; the other lights only as a seam
         vol.Optional("temp"): vol.All(str, vol.Length(max=255)),
         vol.Optional("fenster"): ENTITY_LIST,
         vol.Optional("beschattung"): ENTITY_LIST,

@@ -320,9 +320,16 @@ class FloorplanLiteCard extends HTMLElement {
       return { c: typeof a.color_temp_kelvin === "number" ? kelvinRgb(a.color_temp_kelvin) : WARM, b: b, col: false };
     };
     const main = light(r.hauptlicht);
-    // while the main light is on it alone colours the room; the other lights count only when it is off
-    const lights = main ? [main] : (r.licht || []).map(light).filter((l) => !!l);
+    const lights = (r.licht || []).filter((id) => id !== r.hauptlicht).map(light).filter((l) => !!l);
     const colored = lights.filter((l) => l.col), white = lights.filter((l) => !l.col);
+    let pool, tint, edge;
+    if (r.hauptlicht) {  // room with a main light: it fills the room, all other lights only glow as a seam
+      pool = main ? mix([main]) : null; tint = !!main && main.col; edge = lights.length ? mix(lights) : null;
+    } else {
+      pool = white.length ? mix(white) : colored.length ? mix(colored) : null;  // colour light only: whole room in its colour
+      tint = !white.length && colored.length > 0;
+      edge = white.length && colored.length ? mix(colored) : null;              // colour light next to white light: seam along the walls
+    }
     let temp = "";
     const s = get(r.temp);
     if (s) {
@@ -335,9 +342,9 @@ class FloorplanLiteCard extends HTMLElement {
     return {
       motion: any(r.bewegung, (s) => s.state === "on"),
       presence: any(r.praesenz, (s) => s.state === "on"),
-      pool: white.length ? mix(white) : colored.length ? mix(colored) : null,  // colour light only: whole room in its colour
-      tint: !white.length && colored.length > 0,
-      edge: white.length && colored.length ? mix(colored) : null,     // colour light next to white light: seam along the walls
+      pool: pool,
+      tint: tint,
+      edge: edge,
       win: any(r.fenster, (s) => s.state === "on"),
       shade: any(r.beschattung, (s) => s.state === "closed" || s.state === "closing" ||
         (typeof s.attributes.current_position === "number" && s.attributes.current_position < 95)),

@@ -24,7 +24,7 @@ und CSS, kein WebGL, kein Framework.
 
 | | |
 |---|---|
-| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. Ein **Hauptlicht** je Raum (`hauptlicht`) bestimmt allein, solange es an ist – die anderen Lichter zählen erst, wenn es aus ist. Weißlicht, das als RGB gemeldet wird (Warmweiß von RGBW-Controllern), zählt als Weiß. |
+| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. Mit einem **Hauptlicht** je Raum (`hauptlicht`) füllt nur das Hauptlicht den Raum, alle anderen Lichter leuchten als Saum – Hauptlicht aus und andere an: nur der Saum, die Mitte bleibt dunkel. Weißlicht, das als RGB gemeldet wird (Warmweiß von RGBW-Controllern), zählt als Weiß. |
 | **Präsenz** | ruhig atmender Lichtpunkt (Blau-Violett) |
 | **Bewegung** | Lichtpunkt in Aqua mit Wellen bis an die Wände |
 | **Temperatur** | aus einer `climate`-Entität (aktuelle Temperatur) oder einem Sensor |
@@ -63,7 +63,7 @@ intro: false          # optional: keine Aufbau-Animation
 rooms:                # optional: Entitäten je Raum – ersetzen die im Grundriss gespeicherten
   kuche:
     licht: [light.kuche_decke, light.kuche_led]
-    hauptlicht: light.kuche_decke   # optional: färbt allein, solange es an ist
+    hauptlicht: light.kuche_decke   # optional: füllt den Raum, die anderen Lichter nur als Saum
     praesenz: [binary_sensor.prasenz_kuche]
     bewegung: [binary_sensor.bewegung_kuche]
     temp: climate.kuche

@@ -23,7 +23,7 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 
 | | |
 |---|---|
-| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. A **main light** per room (`hauptlicht`) decides alone while it is on – the other lights only count when it is off. White light reported as RGB (warm white from RGBW controllers) counts as white. |
+| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. With a **main light** per room (`hauptlicht`) only the main light fills the room and all other lights glow as the seam – main light off and others on: just the seam, the middle stays dark. White light reported as RGB (warm white from RGBW controllers) counts as white. |
 | **Presence** | a calmly breathing dot (blue-violet) |
 | **Motion** | an aqua dot with ripples up to the walls |
 | **Temperature** | from a `climate` entity (current temperature) or a sensor |
@@ -62,7 +62,7 @@ intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
   kitchen:
     licht: [light.kitchen_ceiling, light.kitchen_strip]
-    hauptlicht: light.kitchen_ceiling   # optional: while on, it alone colours the room
+    hauptlicht: light.kitchen_ceiling   # optional: fills the room, the other lights only as a seam
     praesenz: [binary_sensor.kitchen_presence]
     bewegung: [binary_sensor.kitchen_motion]
     temp: climate.kitchen

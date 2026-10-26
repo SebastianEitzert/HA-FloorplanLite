@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.2.1 – 2026-10-26
+- Main light: it fills the room and all other lights of the room glow as the seam along the walls; main light off and
+  other lights on shows only the seam with a dark middle.
+
 ## 0.2.0 – 2026-10-26
 - Drawing editor in the sidebar page: upload a background image per level (satellite view, scanned blueprint), set
   the scale from two points, move it, show it under or over the plan; draw rooms, outer walls, areas outside and helper

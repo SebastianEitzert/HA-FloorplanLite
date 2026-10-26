@@ -135,16 +135,33 @@ blueprint:
           description: "Players that play starts when none is playing, e.g. `living_room: [media_player.ceiling]`. Without an entry: all players of the room."
           default: {}
           selector: { object: {} }
-        music_integration:
-          name: Only players of these integrations (optional)
-          description: >-
-            The integration's internal name (domain) – it is in the address of the integration's page
-            (…/config/integrations/integration/loxone), e.g. `loxone` for PyLoxone, `sonos`, `squeezebox`.
-            Several are fine; empty = all players of the room. TVs (device class tv) are always left alone.
+    players_filter:
+      name: "Music players – which ones count"
+      collapsed: true
+      description: >-
+        The card sends the room's players from the floor plan; without the card the area's media players are used
+        (TVs never). Integrations by their internal name (domain), as in the address of the integration's page
+        (…/config/integrations/integration/loxone): `loxone` for PyLoxone, `sonos`, `squeezebox` … An allow list
+        that is not empty lets only its integrations and labels through; the block lists always win.
+      input:
+        players_allow_integrations:
+          name: Allow – integrations
           default: []
           selector: { text: { multiple: true } }
+        players_allow_labels:
+          name: Allow – labels
+          default: []
+          selector: { label: { multiple: true } }
+        players_block_integrations:
+          name: Block – integrations
+          default: []
+          selector: { text: { multiple: true } }
+        players_block_labels:
+          name: Block – labels
+          default: []
+          selector: { label: { multiple: true } }
     scenes:
-      name: Scenes and light
+      name: Scenes and modes
       collapsed: true
       input:
         scenes_by_name:
@@ -183,20 +200,32 @@ blueprint:
             ```
           default: []
           selector: { object: {} }
-        light_integration:
-          name: Only lights of these integrations (optional)
-          description: >-
-            The integration's internal name (domain) – it is in the address of the integration's page
-            (…/config/integrations/integration/loxone), e.g. `loxone` for PyLoxone, `shelly`, `hue`. Several
-            are fine; empty = every light of the room. A status LED of another integration then neither switches nor
-            keeps the room „on“.
+    lights_filter:
+      name: "Lights – which ones count"
+      collapsed: true
+      description: >-
+        The card sends the room's lights from the floor plan – switches chosen there as light or main light included.
+        Without the card the area's lights are used, plus switches and other entities of the area with an allowed
+        label. Integrations by their internal name (domain), as in the address of the integration's page
+        (…/config/integrations/integration/loxone): `loxone` for PyLoxone, `shelly`, `hue`, `template` (template
+        lights and switches), `group` (light groups) … An allow list that is not empty lets only its integrations
+        and labels through; the block lists always win. Blocked entities neither switch nor keep the room „on“ (e.g. a
+        status LED).
+      input:
+        lights_allow_integrations:
+          name: Allow – integrations
           default: []
           selector: { text: { multiple: true } }
-        ignore_labels:
-          name: Ignore lights and players with these labels (optional)
-          description: >-
-            Works together with the integrations above, or instead of them. The card already leaves out the entities
-            with its hidden labels; this also covers the area's entities when the card sends none.
+        lights_allow_labels:
+          name: Allow – labels
+          default: []
+          selector: { label: { multiple: true } }
+        lights_block_integrations:
+          name: Block – integrations
+          default: []
+          selector: { text: { multiple: true } }
+        lights_block_labels:
+          name: Block – labels
           default: []
           selector: { label: { multiple: true } }
 
@@ -260,14 +289,19 @@ variables:
   double_ms: !input double_ms
   volume_mode: !input volume_mode
   standard_players: !input standard_players
-  music_integration: !input music_integration
+  players_allow_integrations: !input players_allow_integrations
+  players_allow_labels: !input players_allow_labels
+  players_block_integrations: !input players_block_integrations
+  players_block_labels: !input players_block_labels
   scenes_by_name: !input scenes_by_name
   room_names: !input room_names
   off_names: !input off_names
   first_names: !input first_names
   modes: !input modes
-  light_integration: !input light_integration
-  ignore_labels: !input ignore_labels
+  lights_allow_integrations: !input lights_allow_integrations
+  lights_allow_labels: !input lights_allow_labels
+  lights_block_integrations: !input lights_block_integrations
+  lights_block_labels: !input lights_block_labels
 
 sequence:
   - alias: "The card asks which keys use „twice“ and how long it waits for the second press"
@@ -290,22 +324,33 @@ sequence:
   - condition: template
     value_template: "{{ todo != 'nothing' }}"
   - variables:
-      # entities with one of the labels to ignore
-      ignored: >-
-        {% set ns = namespace(l=[]) %}
-        {% for lb in ([ignore_labels] if ignore_labels is string else ignore_labels or []) %}{% set ns.l = ns.l + label_entities(lb) %}{% endfor %}
-        {{ ns.l }}
+      # allow / block lists → [allowed, allowed by label, blocked, allow list in use]; no allow list = everything allowed
+      light_lists: >-
+        {% set ns = namespace(a=[], al=[], b=[]) %}
+        {% for i in lights_allow_integrations or [] %}{% set ns.a = ns.a + integration_entities(i) %}{% endfor %}
+        {% for l in lights_allow_labels or [] %}{% set ns.al = ns.al + label_entities(l) %}{% endfor %}
+        {% for i in lights_block_integrations or [] %}{% set ns.b = ns.b + integration_entities(i) %}{% endfor %}
+        {% for l in lights_block_labels or [] %}{% set ns.b = ns.b + label_entities(l) %}{% endfor %}
+        {{ [ns.a + ns.al, ns.al, ns.b, (lights_allow_integrations or []) | count + (lights_allow_labels or []) | count > 0] }}
+      player_lists: >-
+        {% set ns = namespace(a=[], al=[], b=[]) %}
+        {% for i in players_allow_integrations or [] %}{% set ns.a = ns.a + integration_entities(i) %}{% endfor %}
+        {% for l in players_allow_labels or [] %}{% set ns.al = ns.al + label_entities(l) %}{% endfor %}
+        {% for i in players_block_integrations or [] %}{% set ns.b = ns.b + integration_entities(i) %}{% endfor %}
+        {% for l in players_block_labels or [] %}{% set ns.b = ns.b + label_entities(l) %}{% endfor %}
+        {{ [ns.a + ns.al, ns.al, ns.b, (players_allow_integrations or []) | count + (players_allow_labels or []) | count > 0] }}
+  - variables:
       lights: >-
-        {% set l = lichter if lichter is defined and lichter else area_entities(raum) | select('match', 'light\.') | list %}
-        {% set ints = ([light_integration] if light_integration is string else light_integration or []) | select | list %}
-        {% set ns = namespace(ok=[]) %}{% for i in ints %}{% set ns.ok = ns.ok + integration_entities(i) %}{% endfor %}
-        {{ (l | select('in', ns.ok) | list if ints else l) | reject('in', ignored) | list }}
+        {% set area = area_entities(raum) %}
+        {% set l = lichter if lichter is defined and lichter
+             else (area | select('match', 'light\.') | list) + (light_lists[1] | select('in', area) | reject('match', 'light\.') | list) %}
+        {{ (l | select('in', light_lists[0]) | list if light_lists[3] else l) | reject('in', light_lists[2]) | list }}
       players: >-
-        {% set p = player if player is defined and player else area_entities(raum) | select('match', 'media_player\.')
-           | reject('is_state_attr', 'device_class', 'tv') | list %}
-        {% set ints = ([music_integration] if music_integration is string else music_integration or []) | select | list %}
-        {% set ns = namespace(ok=[]) %}{% for i in ints %}{% set ns.ok = ns.ok + integration_entities(i) %}{% endfor %}
-        {{ (p | select('in', ns.ok) | list if ints else p) | reject('in', ignored) | list }}
+        {% set area = area_entities(raum) %}
+        {% set p = player if player is defined and player
+             else (area | select('match', 'media_player\.') | reject('is_state_attr', 'device_class', 'tv') | list)
+                  + (player_lists[1] | select('in', area) | select('match', 'media_player\.') | reject('in', area | select('match', 'media_player\.') | list) | list) %}
+        {{ (p | select('in', player_lists[0]) | list if player_lists[3] else p) | reject('in', player_lists[2]) | list }}
       prefix: "{{ room_names.get(raum, area_name(raum) or raum) }}"
       # [entity_id, short name] of the room's scenes
       scenes: >-

@@ -136,10 +136,13 @@ blueprint:
           default: {}
           selector: { object: {} }
         music_integration:
-          name: Only players of this integration (optional)
-          description: e.g. `loxone` – leaves TVs and other players alone.
-          default: ""
-          selector: { text: {} }
+          name: Only players of these integrations (optional)
+          description: >-
+            The integration's internal name (domain) – it is in the address of the integration's page
+            (…/config/integrations/integration/loxone), e.g. `loxone` for PyLoxone, `sonos`, `squeezebox`.
+            Several are fine; empty = all players of the room. TVs (device class tv) are always left alone.
+          default: []
+          selector: { text: { multiple: true } }
     scenes:
       name: Scenes and light
       collapsed: true
@@ -181,10 +184,21 @@ blueprint:
           default: []
           selector: { object: {} }
         light_integration:
-          name: Only lights of this integration count (optional)
-          description: e.g. `loxone` – a status LED in the room then does not keep it „on“.
-          default: ""
-          selector: { text: {} }
+          name: Only lights of these integrations (optional)
+          description: >-
+            The integration's internal name (domain) – it is in the address of the integration's page
+            (…/config/integrations/integration/loxone), e.g. `loxone` for PyLoxone, `shelly`, `hue`. Several
+            are fine; empty = every light of the room. A status LED of another integration then neither switches nor
+            keeps the room „on“.
+          default: []
+          selector: { text: { multiple: true } }
+        ignore_labels:
+          name: Ignore lights and players with these labels (optional)
+          description: >-
+            Works together with the integrations above, or instead of them. The card already leaves out the entities
+            with its hidden labels; this also covers the area's entities when the card sends none.
+          default: []
+          selector: { label: { multiple: true } }
 
 mode: parallel
 max: 10
@@ -253,6 +267,7 @@ variables:
   first_names: !input first_names
   modes: !input modes
   light_integration: !input light_integration
+  ignore_labels: !input ignore_labels
 
 sequence:
   - alias: "The card asks which keys use „twice“ and how long it waits for the second press"
@@ -275,13 +290,22 @@ sequence:
   - condition: template
     value_template: "{{ todo != 'nothing' }}"
   - variables:
+      # entities with one of the labels to ignore
+      ignored: >-
+        {% set ns = namespace(l=[]) %}
+        {% for lb in ([ignore_labels] if ignore_labels is string else ignore_labels or []) %}{% set ns.l = ns.l + label_entities(lb) %}{% endfor %}
+        {{ ns.l }}
       lights: >-
         {% set l = lichter if lichter is defined and lichter else area_entities(raum) | select('match', 'light\.') | list %}
-        {{ l | select('in', integration_entities(light_integration)) | list if light_integration else l }}
+        {% set ints = ([light_integration] if light_integration is string else light_integration or []) | select | list %}
+        {% set ns = namespace(ok=[]) %}{% for i in ints %}{% set ns.ok = ns.ok + integration_entities(i) %}{% endfor %}
+        {{ (l | select('in', ns.ok) | list if ints else l) | reject('in', ignored) | list }}
       players: >-
         {% set p = player if player is defined and player else area_entities(raum) | select('match', 'media_player\.')
            | reject('is_state_attr', 'device_class', 'tv') | list %}
-        {{ p | select('in', integration_entities(music_integration)) | list if music_integration else p }}
+        {% set ints = ([music_integration] if music_integration is string else music_integration or []) | select | list %}
+        {% set ns = namespace(ok=[]) %}{% for i in ints %}{% set ns.ok = ns.ok + integration_entities(i) %}{% endfor %}
+        {{ (p | select('in', ns.ok) | list if ints else p) | reject('in', ignored) | list }}
       prefix: "{{ room_names.get(raum, area_name(raum) or raum) }}"
       # [entity_id, short name] of the room's scenes
       scenes: >-

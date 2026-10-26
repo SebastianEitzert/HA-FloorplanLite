@@ -12,7 +12,8 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   off, louder / quieter only while music plays (or always), standard players per room, modes in priority order
   (night, cinema … – their scenes come first while on), an action for every remote key pressed twice (`hoch2`,
   `gelb2`, `play2` = next track …) with an adjustable waiting time – only keys with a „twice“ action wait, the card asks
-  the script which ones (`aktion: config`). Older cards
+  the script which ones (`aktion: config`). Lights and players can be limited to several integrations and/or left out
+  by labels. Older cards
   (`klicks`, `aktion: musik`) still work with it.
 - Short display in the room's label: the volume after louder / quieter / play, the scene's name after a scene change.
 - Roller shutter or blind per window (`shade`): drawn outside the wall, closed part as a bar, blinds with their slats

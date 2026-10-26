@@ -32,7 +32,7 @@
  * Tapping a room (left click) opens the pop-up, ←/→ change the level. Everything else over a room goes to the script
  * as {raum: <room id>, aktion: …} and the script decides what it does:
  *   hoch / runter (↑/↓), lauter / leiser (mouse wheel), gelb / gelb2 (right click or yellow once / twice),
- *   play / pause / play_pause / stop / weiter / zurueck (media keys), blau / gruen / rot (TV Streamer colour keys),
+ *   play / play2 (twice) / pause / play_pause / stop / weiter / zurueck (media keys), blau / gruen / rot (colour keys),
  *   tipp2 / tipp3 (touch: double / triple tap).
  * Without the script play / pause go straight to the room's media players. After an event the room's label shows the
  * volume (louder / quieter / play) or the name of the scene that was switched for 3 s instead of the temperature.
@@ -925,6 +925,11 @@ class FloorplanLiteCard extends HTMLElement {
   _remote(aktion) {
     if (!aktion || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
     if (location.hash && location.hash.length > 1) return false;  // a pop-up is open
+    if (aktion === "play") {  // play twice within 0.6 s: play2 (default next track) – the first press is not delayed
+      const now = Date.now(), twice = this._playT && now - this._playT < 600;
+      this._playT = twice ? 0 : now;
+      if (twice) aktion = "play2";
+    }
     this._send(this._hover, aktion);
     return true;
   }

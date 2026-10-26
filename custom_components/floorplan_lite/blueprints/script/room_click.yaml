@@ -8,7 +8,8 @@ blueprint:
     **Scenes of a room** are the scenes assigned to its area and (optionally) the scenes whose name starts with the
     room's name, e.g. „Kitchen Evening“ or „Kitchen-Bright“. ↑/↓ step through them: off → first scenes → the others
     (alphabetical) → off. A scene named like one of the *off names* stands for „off“; without one the room's lights
-    are switched off. A room without scenes simply switches its lights on and off.
+    are switched off. A room without scenes simply switches its lights on and off. *Modes* (night, cinema, party …)
+    put their scenes first while they are on – the topmost mode wins.
 
 
     **Music** goes to the room's players that are playing; play starts the standard players of the room (or all of
@@ -48,14 +49,38 @@ blueprint:
         gelb: { name: "Right click / yellow once (gelb)", default: nothing, selector: *actions }
         gelb2: { name: "Right click / yellow twice (gelb2)", default: room_off, selector: *actions }
         play: { name: "Play key (play)", default: music_play, selector: *actions }
+        play2:
+          name: "Play key twice (play2)"
+          description: The first press still does what *Play key* says, the second one within 0.6 s this.
+          default: next_track
+          selector: *actions
         pause: { name: "Pause key (pause)", default: music_pause, selector: *actions }
         play_pause: { name: "Play/pause key (play_pause)", default: music_toggle, selector: *actions }
         stop: { name: "Stop key (stop)", default: music_stop, selector: *actions }
         weiter: { name: "Next track key (weiter)", default: next_track, selector: *actions }
         zurueck: { name: "Previous track key (zurueck)", default: previous_track, selector: *actions }
-        blau: { name: "Blue (blau, TV Streamer)", default: nothing, selector: *actions }
-        gruen: { name: "Green (gruen, TV Streamer)", default: nothing, selector: *actions }
-        rot: { name: "Red (rot, TV Streamer)", default: nothing, selector: *actions }
+        blau:
+          name: "Blue (blau)"
+          description: >-
+            ⚠ With the TV Streamer integration the streamer uses blue itself: it shows Home Assistant, and reloads it
+            when it is shown already. What you choose here runs as well – only for things that may happen together
+            with that.
+          default: nothing
+          selector: *actions
+        gruen:
+          name: "Green (gruen)"
+          description: >-
+            ⚠ With the TV Streamer integration the streamer uses green itself: it opens the tab chosen under
+            „Green key“ in the streamer's options. Set that to „none“ to use green only here.
+          default: nothing
+          selector: *actions
+        rot:
+          name: "Red (rot)"
+          description: >-
+            ⚠ With the TV Streamer (Moonlight) red opens Moonlight's own menu and never reaches the page – it only
+            works with other remotes or browsers that pass it on.
+          default: nothing
+          selector: *actions
         tipp2: { name: "Touch: double tap (tipp2)", default: light_toggle, selector: *actions }
         tipp3: { name: "Touch: triple tap (tipp3)", default: room_off, selector: *actions }
     music:
@@ -100,15 +125,25 @@ blueprint:
           name: Scenes that come first (in this order)
           default: []
           selector: { text: { multiple: true } }
-        night_switch:
-          name: Night mode (optional)
-          description: While it is on, the night scene comes first.
-          default: ""
-          selector: { entity: { domain: [switch, input_boolean, binary_sensor] } }
-        night_names:
-          name: Names of the night scene
-          default: [Night, Nacht]
-          selector: { text: { multiple: true } }
+        modes:
+          name: Modes (top = highest priority)
+          description: >-
+            While a mode is on, its scenes come right after „off“, in the order given. Several modes on: the topmost
+            one wins, the others follow. Modes that are off keep their scenes after the first scenes.
+            `state` is optional (default `on`), e.g. for an input_select.
+
+
+            ```
+
+            - entity: switch.night_mode
+              scenes: [Night]
+
+            - entity: input_select.house_mode
+              state: Cinema
+              scenes: [TV, Netflix]
+            ```
+          default: []
+          selector: { object: {} }
         light_integration:
           name: Only lights of this integration count (optional)
           description: e.g. `loxone` – a status LED in the room then does not keep it „on“.
@@ -126,7 +161,7 @@ fields:
     selector: { area: {} }
   aktion:
     name: Event
-    description: hoch, runter, lauter, leiser, gelb, gelb2, play, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3
+    description: hoch, runter, lauter, leiser, gelb, gelb2, play, play2, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3
     selector: { text: {} }
   lichter:
     name: Lights
@@ -149,6 +184,7 @@ variables:
     gelb: !input gelb
     gelb2: !input gelb2
     play: !input play
+    play2: !input play2
     pause: !input pause
     play_pause: !input play_pause
     stop: !input stop
@@ -166,8 +202,7 @@ variables:
   room_names: !input room_names
   off_names: !input off_names
   first_names: !input first_names
-  night_switch: !input night_switch
-  night_names: !input night_names
+  modes: !input modes
   light_integration: !input light_integration
 
 sequence:
@@ -202,26 +237,34 @@ sequence:
         {{ ns.l }}
   - variables:
       low_off: "{{ off_names | map('lower') | list }}"
-      low_night: "{{ night_names | map('lower') | list }}"
+      # scenes of the modes: [active (topmost first), inactive], each in the order the modes list them
+      mode_scenes: >-
+        {% set ns = namespace(on=[], off=[]) %}
+        {% for m in (modes if modes is iterable and modes is not string and modes is not mapping else []) %}
+          {% set ids = namespace(l=[]) %}
+          {% for name in (m.scenes if m.scenes is defined and m.scenes is not string else [m.scenes | default('')]) %}
+            {% for s in scenes if s[1] | lower == name | string | lower %}{% set ids.l = ids.l + [s[0]] %}{% endfor %}
+          {% endfor %}
+          {% if m.entity is defined and is_state(m.entity, (m.state | default('on')) | string) %}{% set ns.on = ns.on + ids.l %}
+          {% else %}{% set ns.off = ns.off + ids.l %}{% endif %}
+        {% endfor %}
+        {{ [ns.on, ns.off] }}
   - variables:
-      # the cycle: off (scene, else „lights off“) → [night] → first scenes → the others; without scenes: off ↔ on
+      # the cycle: off (scene, else „lights off“) → modes that are on → first scenes → other modes → the rest; without scenes: off ↔ on
       order: >-
-        {% set ns = namespace(off='', night='', first=[], rest=[]) %}
+        {% set ns = namespace(off='', first=[], rest=[]) %}
+        {% set fl = first_names | map('lower') | list %}
         {% for s in scenes %}
           {% if s[1] | lower in low_off and not ns.off %}{% set ns.off = s[0] %}
-          {% elif s[1] | lower in low_night and not ns.night %}{% set ns.night = s[0] %}
-          {% elif s[1] | lower in first_names | map('lower') | list %}{% set ns.first = ns.first + [s] %}
+          {% elif s[1] | lower in fl %}{% set ns.first = ns.first + [s] %}
           {% else %}{% set ns.rest = ns.rest + [s[0]] %}{% endif %}
         {% endfor %}
-        {% set fl = first_names | map('lower') | list %}
-        {% set first = ns.first | sort(attribute='1') | list %}
-        {% set ns2 = namespace(f=[]) %}
-        {% for name in fl %}{% for s in first %}{% if s[1] | lower == name %}{% set ns2.f = ns2.f + [s[0]] %}{% endif %}{% endfor %}{% endfor %}
-        {% set night_on = night_switch != '' and is_state(night_switch, 'on') %}
-        {% set night = [ns.night] if ns.night else [] %}
-        {% set mid = (night + ns2.f) if night_on else (ns2.f + night) %}
-        {% set on = mid + ns.rest %}
-        {{ [ns.off or 'lights_off'] + (on if on else ['lights_on']) }}
+        {% set ns2 = namespace(f=[], l=[]) %}
+        {% for name in fl %}{% for s in ns.first if s[1] | lower == name %}{% set ns2.f = ns2.f + [s[0]] %}{% endfor %}{% endfor %}
+        {% for e in mode_scenes[0] + ns2.f + mode_scenes[1] + ns.rest if e != ns.off and e not in ns2.l %}
+          {% set ns2.l = ns2.l + [e] %}
+        {% endfor %}
+        {{ [ns.off or 'lights_off'] + (ns2.l if ns2.l else ['lights_on']) }}
       light_on: >-
         {{ lights | select('is_state', 'on') | list | count > 0 }}
   - variables:

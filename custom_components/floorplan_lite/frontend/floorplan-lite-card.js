@@ -22,6 +22,8 @@
  *   start: eg                     # optional: first level in swipe mode
  *   intro: false                  # optional: no build-up animation on load
  *   background: false             # optional: hide the background images of all levels
+ *   align: true                   # optional: all levels in one frame, so upper levels stay above the ones below
+ *                                 #   (default: the plan's setting align_levels)
  *   tap: none                     # optional: no pop-up on tap
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
@@ -117,7 +119,7 @@ const chips = (t) => ({
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /* Plan from the store → per level everything the drawing needs, rotated and with a view box. */
-function prepare(plan) {
+function prepare(plan, align) {
   const rot = rotator(plan.rotation || 0);
   const R = (poly) => poly.map(rot);
   const floors = {};
@@ -146,6 +148,14 @@ function prepare(plan) {
     floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, rooms, openings,
       background: lv.background || null };
   });
+  if (align) {  // all levels in one frame: each level at its real position, an attic stays above the house when swiping
+    const ks = Object.keys(floors);
+    if (ks.length > 1) {
+      let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+      ks.forEach((k) => { const v = floors[k].view; x1 = Math.min(x1, v[0]); y1 = Math.min(y1, v[1]); x2 = Math.max(x2, v[0] + v[2]); y2 = Math.max(y2, v[1] + v[3]); });
+      ks.forEach((k) => { floors[k].view = [x1, y1, x2 - x1, y2 - y1]; });
+    }
+  }
   return floors;
 }
 
@@ -216,8 +226,9 @@ class FloorplanLiteCard extends HTMLElement {
 
   _setPlan(plan) {
     this._plan = plan;
-    this._floors = plan ? prepare(plan) : null;
     const cfg = this._config || {};
+    const align = cfg.align === undefined ? !!(plan && plan.align_levels) : !!cfg.align;
+    this._floors = plan ? prepare(plan, align) : null;
     const keys = this._floors ? Object.keys(this._floors) : [];
     this._fl = (cfg.floors || keys).filter((k) => this._floors && this._floors[k]);
     if (this._idx === undefined || this._idx >= this._fl.length) this._idx = Math.max(0, this._fl.indexOf(cfg.start || this._fl[0]));

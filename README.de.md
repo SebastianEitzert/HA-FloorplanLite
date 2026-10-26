@@ -53,6 +53,7 @@ mode: swipe           # ein Stockwerk groß, wischen / Reiter / Pfeile; ohne: al
 start: eg             # erstes Stockwerk im Wisch-Modus
 floors: [eg, og]      # optional: nur diese Stockwerke
 background: false     # optional: Hintergrundbilder ausblenden
+align: true           # optional: Stockwerke aneinander ausrichten – das DG bleibt beim Wischen über dem Haus
 tap: none             # optional: kein Pop-up beim Tippen
 intro: false          # optional: keine Aufbau-Animation
 rooms:                # optional: Entitäten je Raum – ersetzen die im Grundriss gespeicherten
@@ -74,6 +75,7 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 |---|---|
 | `id`, `name` | ID (`a-z0-9_`) und Name |
 | `rotation` | dreht den ganzen Plan auf dem Bildschirm (Grad); `north` gibt die Nordrichtung an |
+| `align_levels` | `true`: alle Stockwerke im selben Ausschnitt, obere liegen genau über den unteren (Kartenoption `align`) |
 | `style` | Farben: `background`, `floor` (zwei Farben des Verlaufs), `wall`, `edge`, `text` |
 | `buildings` | `[{id, name}]` – z. B. Haus, Stall, Garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |

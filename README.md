@@ -52,6 +52,7 @@ mode: swipe           # one level large, swipe / tabs / arrows; without: all lev
 start: eg             # first level in swipe mode
 floors: [eg, og]      # optional: only these levels
 background: false     # optional: hide the background images
+align: true           # optional: all levels in one frame – the attic stays above the house when swiping
 tap: none             # optional: no pop-up on tap
 intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
@@ -73,6 +74,7 @@ Coordinates are in metres; `y` points down. A plan has:
 |---|---|
 | `id`, `name` | id (`a-z0-9_`) and name |
 | `rotation` | turns the whole plan on screen (degrees); `north` gives the direction of north |
+| `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text` |
 | `buildings` | `[{id, name}]` – e.g. house, barn, garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |

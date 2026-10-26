@@ -102,6 +102,7 @@ PLAN = vol.Schema(
         vol.Required("name"): vol.All(str, vol.Length(max=80)),
         vol.Optional("rotation", default=0): NUM,  # turns the whole plan on screen (degrees)
         vol.Optional("north", default=0): NUM,  # direction of north in plan coordinates (degrees, 0 = up)
+        vol.Optional("align_levels", default=False): bool,  # all levels in one frame (upper levels above lower ones)
         vol.Optional("style", default=dict): vol.Schema({vol.Optional(str): vol.Any(str, NUM, [str])}),
         vol.Optional("buildings", default=list): [vol.Schema({vol.Required("id"): ID, vol.Required("name"): str})],
         vol.Required("levels"): vol.All([LEVEL], vol.Length(min=1, max=30)),

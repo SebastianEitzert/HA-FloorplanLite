@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.1.2 – 2026-10-26
+- Levels can be aligned to each other: plan setting `align_levels` or card option `align: true` draws all levels in one
+  frame, so an attic stays above the house when swiping between levels.
+
 ## 0.1.1 – 2026-10-26
 - Icon and logo (shown in Home Assistant under Settings → Devices & services and in the README).
 

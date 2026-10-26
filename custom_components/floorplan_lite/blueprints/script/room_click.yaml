@@ -17,12 +17,14 @@ blueprint:
   domain: script
   source_url: https://github.com/SebastianEitzert/HA-FloorplanLite/blob/main/custom_components/floorplan_lite/blueprints/script/room_click.yaml
   input:
-    keys:
-      name: Keys and clicks
-      description: What each event over a room does.
+    pointer:
+      name: "Pointer and arrow keys – mouse, PC keyboard, TV remote"
+      description: >-
+        With the pointer over a room. ↑/↓ are the arrow keys of a keyboard or the TV remote's D-pad, the wheel is the
+        mouse wheel or the Magic Remote's wheel, right click is the right mouse button or the LG remote's yellow key.
       input:
         hoch:
-          name: "↑ (hoch)"
+          name: "↑ arrow up (hoch)"
           default: scene_next
           selector: &actions
             select:
@@ -43,45 +45,63 @@ blueprint:
                 - { value: volume_down, label: "Quieter" }
                 - { value: next_track, label: "Next track" }
                 - { value: previous_track, label: "Previous track" }
-        runter: { name: "↓ (runter)", default: scene_previous, selector: *actions }
-        lauter: { name: "Mouse wheel up (lauter)", default: volume_up, selector: *actions }
-        leiser: { name: "Mouse wheel down (leiser)", default: volume_down, selector: *actions }
-        gelb: { name: "Right click / yellow once (gelb)", default: nothing, selector: *actions }
-        play: { name: "Play key (play)", default: music_play, selector: *actions }
-        pause: { name: "Pause key (pause)", default: music_pause, selector: *actions }
-        play_pause: { name: "Play/pause key (play_pause)", default: music_toggle, selector: *actions }
-        stop: { name: "Stop key (stop)", default: music_stop, selector: *actions }
-        weiter: { name: "Next track key (weiter)", default: next_track, selector: *actions }
-        zurueck: { name: "Previous track key (zurueck)", default: previous_track, selector: *actions }
+        runter: { name: "↓ arrow down (runter)", default: scene_previous, selector: *actions }
+        lauter: { name: "Wheel up (lauter)", default: volume_up, selector: *actions }
+        leiser: { name: "Wheel down (leiser)", default: volume_down, selector: *actions }
+        gelb: { name: "Right click / LG yellow (gelb)", default: nothing, selector: *actions }
+    media:
+      name: "Media keys – TV remote and PC keyboard"
+      description: >-
+        The LG remote has separate play and pause keys and stop (through the TV Streamer's Moonlight), but no track
+        keys. A PC keyboard usually has one play/pause key, stop and next / previous track – they reach the card while
+        its browser window has the focus.
+      input:
+        play: { name: "Play (play) – TV remote, some keyboards", default: music_play, selector: *actions }
+        pause: { name: "Pause (pause) – TV remote, some keyboards", default: music_pause, selector: *actions }
+        play_pause: { name: "Play/pause (play_pause) – PC keyboard", default: music_toggle, selector: *actions }
+        stop: { name: "Stop (stop) – TV remote, PC keyboard", default: music_stop, selector: *actions }
+        weiter: { name: "Next track (weiter) – PC keyboard", default: next_track, selector: *actions }
+        zurueck: { name: "Previous track (zurueck) – PC keyboard", default: previous_track, selector: *actions }
+    colours:
+      name: "Colour keys – TV remote (TV Streamer)"
+      collapsed: true
+      description: >-
+        Only LG remotes through the TV Streamer send these – and the streamer and Moonlight use them themselves, see
+        each key.
+      input:
         blau:
           name: "Blue (blau)"
           description: >-
-            ⚠ With the TV Streamer integration the streamer uses blue itself: it shows Home Assistant, and reloads it
-            when it is shown already. What you choose here runs as well – only for things that may happen together
-            with that.
+            ⚠ The TV Streamer uses blue itself: it shows Home Assistant, and reloads it when it is shown already. What
+            you choose here runs as well – only for things that may happen together with that.
           default: nothing
           selector: *actions
         gruen:
           name: "Green (gruen)"
           description: >-
-            ⚠ With the TV Streamer integration the streamer uses green itself: it opens the tab chosen under
-            „Green key“ in the streamer's options. Set that to „none“ to use green only here.
+            ⚠ The TV Streamer uses green itself: it opens the tab chosen under „Green key“ in the streamer's options.
+            Set that to „none“ to use green only here.
           default: nothing
           selector: *actions
         rot:
           name: "Red (rot)"
           description: >-
-            ⚠ With the TV Streamer (Moonlight) red opens Moonlight's own menu and never reaches the page – it only
-            works with other remotes or browsers that pass it on.
+            ⚠ Red opens Moonlight's own menu while streaming and never reaches the page – it only works with other
+            remotes or browsers that pass it on.
           default: nothing
           selector: *actions
-        tipp2: { name: "Touch: double tap (tipp2)", default: light_toggle, selector: *actions }
-        tipp3: { name: "Touch: triple tap (tipp3)", default: room_off, selector: *actions }
+    touch:
+      name: "Touch – phone, tablet"
+      description: A single tap opens the room's pop-up; double and triple taps go here.
+      input:
+        tipp2: { name: "Double tap (tipp2)", default: light_toggle, selector: *actions }
+        tipp3: { name: "Triple tap (tipp3)", default: room_off, selector: *actions }
     twice:
-      name: Keys pressed twice
+      name: "Pressed twice – arrow keys, right click, media and colour keys"
       description: >-
         A key with an action for „twice“ waits for a second press before its single action runs. Keys set to
-        „Nothing“ here react at once – the waiting time only counts where twice is in use.
+        „Nothing“ here react at once – the waiting time only counts where twice is in use. (Touch has its own double
+        tap above, the wheel has none.)
       input:
         double_ms:
           name: Time for the second press
@@ -89,13 +109,13 @@ blueprint:
           selector: { number: { min: 200, max: 1000, step: 50, unit_of_measurement: ms, mode: slider } }
         hoch2: { name: "↑ twice (hoch2)", default: nothing, selector: *actions }
         runter2: { name: "↓ twice (runter2)", default: nothing, selector: *actions }
-        gelb2: { name: "Right click / yellow twice (gelb2)", default: room_off, selector: *actions }
+        gelb2: { name: "Right click / LG yellow twice (gelb2)", default: room_off, selector: *actions }
         play2: { name: "Play twice (play2)", default: next_track, selector: *actions }
         pause2: { name: "Pause twice (pause2)", default: nothing, selector: *actions }
         play_pause2: { name: "Play/pause twice (play_pause2)", default: nothing, selector: *actions }
         stop2: { name: "Stop twice (stop2)", default: nothing, selector: *actions }
-        weiter2: { name: "Next track key twice (weiter2)", default: nothing, selector: *actions }
-        zurueck2: { name: "Previous track key twice (zurueck2)", default: nothing, selector: *actions }
+        weiter2: { name: "Next track twice (weiter2)", default: nothing, selector: *actions }
+        zurueck2: { name: "Previous track twice (zurueck2)", default: nothing, selector: *actions }
         blau2: { name: "Blue twice (blau2) – ⚠ TV Streamer, see Blue", default: nothing, selector: *actions }
         gruen2: { name: "Green twice (gruen2) – ⚠ TV Streamer, see Green", default: nothing, selector: *actions }
         rot2: { name: "Red twice (rot2) – ⚠ Moonlight, see Red", default: nothing, selector: *actions }

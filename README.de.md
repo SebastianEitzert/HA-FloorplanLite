@@ -43,7 +43,8 @@ Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das
    *Integration* → **Floorplan Lite** herunterladen → Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Floorplan Lite*. In der Seitenleiste erscheint die Seite
    **Floorplan Lite** (nur für Administratoren).
-3. Dort einen Grundriss anlegen: Satellitenbild, Foto oder Scan des alten Papierplans oder eine PDF als Hintergrund
+3. Dort einen Grundriss anlegen – Reihenfolge: Außenwände, Innenwände, dann Räume (*Raum erzeugen* füllt per Klick die
+   Fläche bis zu den Wänden, *Raum zeichnen* frei mit Einrasten, *Raum teilen* zerschneidet einen Raum). Als Vorlage: Satellitenbild, Foto oder Scan des alten Papierplans oder eine PDF als Hintergrund
    hochladen (einen schiefen Scan mit zwei Punkten gerade ausrichten), mit zwei Punkten
    bekannten Abstands den Maßstab setzen, dann Räume, Außenwände und Bereiche außen nachzeichnen und Türen und Fenster
    auf die Wände klicken. Punkte rasten an Ecken, Kanten, 45°/90° und einem 5-cm-Raster ein (Umschalt: freier Winkel).
@@ -89,6 +90,8 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `buildings` | `[{id, name}]` – z. B. Haus, Stall, Garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | Außenwände je Stockwerk und Gebäude: `{level, building, poly}` |
+| `walls` | Innenwände (Mittellinie): `{level, poly, width?, closed?}` – `width` in Metern, sonst `style.wall_width` |
+| `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open, at, angle, width, depth?, flip?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |

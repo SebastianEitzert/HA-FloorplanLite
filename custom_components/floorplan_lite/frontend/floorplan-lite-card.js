@@ -132,6 +132,7 @@ function prepare(plan, align) {
     const at = (x) => x.level === lv.id;
     const outlines = (plan.outlines || []).filter(at).map((o) => R(o.poly));
     const extra = (plan.lines || []).filter(at).map((l) => ({ poly: R(l.poly), open: !!l.open }));
+    const walls = (plan.walls || []).filter(at).map((w) => ({ poly: R(w.poly), width: w.width, closed: !!w.closed }));
     const rooms = (plan.rooms || []).filter(at).map((r) => ({
       id: r.id, key: r.key, name: r.name === undefined ? r.id : r.name, poly: R(r.poly),
       labelAt: r.label_at ? rot(r.label_at) : null, small: !!r.small, outdoor: !!r.outdoor, color: r.color,
@@ -147,10 +148,11 @@ function prepare(plan, align) {
       outlines.forEach((p) => p.forEach((q) => all.push(q)));
       rooms.forEach((r) => r.poly.forEach((q) => all.push(q)));
       extra.forEach((e) => e.poly.forEach((q) => all.push(q)));
+      walls.forEach((w) => w.poly.forEach((q) => all.push(q)));
       const [x1, y1, x2, y2] = all.length ? bbox(all) : [0, 0, 10, 10];
       view = [x1 - 0.6, y1 - 0.6, x2 - x1 + 1.2, y2 - y1 + 1.2];
     }
-    floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, rooms, openings,
+    floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, walls, rooms, openings, roomWalls: plan.room_walls !== false,
       background: lv.background || null };
   });
   if (align) {  // all levels in one frame: each level at its real position, an attic stays above the house when swiping
@@ -393,7 +395,7 @@ class FloorplanLiteCard extends HTMLElement {
       spills += `<polygon class="spill" data-i="${i}" points="${p}"/>`;
       lights += `<g class="light" data-i="${i}"><polygon points="${p}" fill="url(#${n("g", i)})"/></g>`;
       edges += `<polygon class="edge" data-i="${i}" points="${p}" filter="url(#${n("ed")})" clip-path="url(#${n("c", i)})"/>`;
-      if (!room.outdoor) walls += `<polygon points="${p}"/>`;
+      if (!room.outdoor && f.roomWalls) walls += `<polygon points="${p}"/>`;
       hits += `<polygon class="hit" data-room="${esc(room.id)}" points="${p}"/>`;
       if (!room.name) return;  // part of another room: no own dot, no label
       // presence/motion dot: HTML layer, so the animation runs on the graphics card and the SVG is not redrawn
@@ -416,6 +418,9 @@ class FloorplanLiteCard extends HTMLElement {
       const L = perimeter(o).toFixed(2);
       return ` style="stroke-dasharray:${L} ${L};stroke-dashoffset:${L}"`;
     };
+    f.walls.forEach((w) => {  // inner walls drawn on their own (centre line, own thickness)
+      walls += `<poly${w.closed ? "gon" : "line"} points="${pts(w.poly)}"${w.width ? ` stroke-width="${w.width}"` : ""} stroke-linecap="square"/>`;
+    });
     const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("");
     const shadows = f.outlines.map((o) => `<polygon class="shadow" points="${pts(o)}" transform="translate(.15 .45)" filter="url(#${n("sh")})"/>`).join("");
     const st = (this._plan && this._plan.style) || {};

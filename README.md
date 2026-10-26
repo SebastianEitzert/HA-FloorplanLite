@@ -42,7 +42,8 @@ start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over 
    download **Floorplan Lite** → restart Home Assistant.
 2. *Settings → Devices & services → Add integration → Floorplan Lite*. The page **Floorplan Lite** appears in the
    sidebar (administrators only).
-3. Create a plan on that page: upload a satellite image, a photo or scan of your old paper blueprint or a PDF as the
+3. Create a plan on that page – order: outer walls, inner walls, then rooms (*Generate room* fills the area up to the
+   walls with one click, *Draw room* freely with snapping, *Split room* cuts a room in two). As a template: upload a satellite image, a photo or scan of your old paper blueprint or a PDF as the
    background (straighten a crooked scan with two points), set the scale
    with two points of known distance, then trace rooms, outer walls and areas outside and click doors and windows onto
    the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
@@ -87,6 +88,8 @@ Coordinates are in metres; `y` points down. A plan has:
 | `buildings` | `[{id, name}]` – e.g. house, barn, garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
+| `walls` | inner walls (centre line): `{level, poly, width?, closed?}` – `width` in metres, otherwise `style.wall_width` |
+| `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open, at, angle, width, depth?, flip?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |

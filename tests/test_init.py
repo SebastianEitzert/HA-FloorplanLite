@@ -35,6 +35,13 @@ def test_validate_plan() -> None:
         validate_plan({**PLAN, "id": "Bad Id"})
     with pytest.raises(vol.Invalid):
         validate_plan({**PLAN, "openings": [{"level": "eg", "type": "trapdoor", "at": [1, 1]}]})
+    assert plan["room_walls"] is True and plan["walls"] == []  # older plans: rooms keep drawing their walls
+    walls = validate_plan({**PLAN, "room_walls": False, "walls": [{"level": "eg", "poly": [[0, 0], [0, 3]], "width": 0.12}],
+                           "openings": [{"level": "eg", "type": "open", "at": [1, 1]}],
+                           "entities": {"kitchen": {"licht": ["light.a", "light.b"], "hauptlicht": "light.a"}}, "hide_label": "no_dboard"})
+    assert walls["walls"][0]["closed"] is False and walls["entities"]["kitchen"]["hauptlicht"] == "light.a"
+    with pytest.raises(vol.Invalid):
+        validate_plan({**PLAN, "walls": [{"level": "og", "poly": [[0, 0], [0, 3]]}]})  # unknown level
 
 
 async def _setup(hass: HomeAssistant) -> MockConfigEntry:

@@ -9,6 +9,11 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   until that line is exactly horizontal or vertical.
 - *Copy level*: copies outer walls, rooms, doors, windows and helper lines to a new level, so levels that build on each
   other need not be drawn again. Copied rooms get ids of their own without entities.
+- Outer walls, inner walls and rooms are separate: *Draw inner wall* (centre line, own thickness, snaps to corners and
+  walls), *Generate room* (click into an area – the room fills it up to the surrounding walls; wall stubs ending in the
+  room are ignored), *Draw room* (corners snap to wall corners and walls, or free) and *Split room* (a line from edge to
+  edge, with bends if needed). New plans use this (`room_walls: false`); existing plans keep rooms that draw their own
+  walls until the setting is switched off.
 
 ## 0.2.3 – 2026-10-26
 - No wall (`open`): the outer wall stays whole where the open part meets it, also at slanted corners; the open part

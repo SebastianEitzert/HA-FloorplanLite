@@ -15,11 +15,15 @@ const T = {
     del: "Löschen", delPlan: "Grundriss „%s“ wirklich löschen?", importJson: "JSON importieren", exportJson: "JSON exportieren",
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
-    tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
+    tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
       line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", openWall: "Keine Wand (offener Bereich)",
       image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", straighten: "Hintergrund gerade ausrichten (zwei Punkte)", pan: "Verschieben (Ansicht)" },
     hintDraw: "Klicken setzt Punkte · Klick auf den ersten Punkt oder Enter schließt · Rücktaste entfernt den letzten · Esc bricht ab · Umschalt: freier Winkel",
-    hintLine: "Klicken setzt Punkte · Enter beendet · Esc bricht ab",
+    hintLine: "Klicken setzt Punkte · Enter oder erneuter Klick auf den letzten Punkt beendet · Esc bricht ab",
+    hintWall: "Innenwand: Klicken setzt Punkte, sie springen auf Wandecken und Wände · Enter oder erneuter Klick auf den letzten Punkt beendet · Klick auf den ersten Punkt schließt · Umschalt: freier Winkel",
+    hintRoomGen: "In eine von Wänden umschlossene Fläche klicken – der Raum füllt sie bis zu den Wänden",
+    hintSplit: "Linie quer durch einen Raum zeichnen: Anfang und Ende auf seinem Rand, Zwischenpunkte für Knicke · Enter oder erneuter Klick auf den letzten Punkt teilt", noSplit: "Die Linie muss auf dem Rand eines Raums beginnen und enden und ihn durchqueren",
+    noFace: "Hier ist keine geschlossene Fläche – fehlt ein Stück Wand?", haveRoom: "Hier ist schon ein Raum",
     hintOpening: "Auf eine Wand klicken, um die Öffnung zu setzen",
     hintOpenWall: "Auf die Wand zwischen zwei Räumen klicken – sie verschwindet ganz, beide bleiben eigene Räume (offene Küche, Wohn-Ess-Bereich)",
     hintSelect: "Element anklicken · Ecken ziehen · Doppelklick auf eine Kante fügt eine Ecke ein · Rechtsklick auf eine Ecke löscht sie · Entf löscht das Element",
@@ -38,7 +42,7 @@ const T = {
     planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesem Label ignorieren", north: "Norden (Grad, 0 = oben)",
     northAlign: "Nach Norden ausrichten", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
     cWall: "Wände", cEdge: "Kanten", reset: "zurücksetzen",
-    room: "Raum", outline: "Außenwand", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
+    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
@@ -54,11 +58,15 @@ const T = {
     del: "Delete", delPlan: "Really delete floor plan “%s”?", importJson: "Import JSON", exportJson: "Export JSON",
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
-    tools: { select: "Select / edit", room: "Draw room", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
+    tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
       line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", openWall: "No wall (open plan)",
       image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", straighten: "Straighten background (two points)", pan: "Pan (view)" },
     hintDraw: "Click to add points · click the first point or Enter to close · Backspace removes the last · Esc cancels · Shift: free angle",
-    hintLine: "Click to add points · Enter finishes · Esc cancels",
+    hintLine: "Click to add points · Enter or clicking the last point again finishes · Esc cancels",
+    hintWall: "Inner wall: click to add points, they snap to wall corners and walls · Enter or clicking the last point again finishes · clicking the first point closes it · Shift: free angle",
+    hintRoomGen: "Click into an area enclosed by walls – the room fills it up to the walls",
+    hintSplit: "Draw a line across a room: start and end on its edge, points in between for bends · Enter or clicking the last point again splits", noSplit: "The line has to start and end on the edge of a room and cross it",
+    noFace: "No closed area here – is a piece of wall missing?", haveRoom: "There is a room here already",
     hintOpening: "Click on a wall to place the opening",
     hintOpenWall: "Click the wall between two rooms – it disappears completely, both stay rooms of their own (open kitchen, living-dining area)",
     hintSelect: "Click an element · drag corners · double-click an edge to add a corner · right-click a corner to remove it · Del deletes the element",
@@ -77,7 +85,7 @@ const T = {
     planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with this label", north: "North (degrees, 0 = up)",
     northAlign: "Turn so north is up", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
     cWall: "Walls", cEdge: "Edges", reset: "reset",
-    room: "Room", outline: "Outer wall", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
+    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
@@ -93,10 +101,11 @@ const ENT_FIELDS = [["licht", "light"], ["hauptlicht", "light"], ["praesenz", "b
 const SINGLE = ["temp", "hauptlicht"];  // one entity, not a list
 const OPENING_TOOLS = ["door", "window", "passage", "garage"];
 const POLY_TOOLS = ["room", "outline", "outdoor"];
+const SHAPES = ["rooms", "outlines", "walls", "lines"];  // elements with a poly
 const PDFJS = "/floorplan_lite_static/vendor/pdfjs/";  // pdf.js, loaded only when a PDF is chosen
 const WALLS = { wall_width: 0.2, outer_width: 0.5 };  // wall thickness in metres (style keys), as in the card
 const DEFAULT_STYLE = { background: "#131b30", floor: ["#2a3657", "#1c2541"], wall: "#4d5a7d", edge: "#8d9cc4" };
-const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", outline: "mdi:wall", outdoor: "mdi:tree",
+const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", roomGen: "mdi:format-color-fill", split: "mdi:content-cut", wall: "mdi:vector-polyline-edit", outline: "mdi:wall", outdoor: "mdi:tree",
   line: "mdi:vector-polyline", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
   garage: "mdi:garage", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", straighten: "mdi:format-rotate-90", pan: "mdi:pan" };
 
@@ -148,6 +157,94 @@ const openingRect = (o) => {
   const P = (a, b) => [x + dx * a - dy * b, y + dy * a + dx * b];
   return [P(-w, -d), P(w, -d), P(w, d), P(-w, d)];
 };
+
+const area = (p) => p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0) / 2;
+
+/* Smallest closed area around p formed by wall centre lines (segments [[a, b], …]). Walls are split where they meet
+   or cross (2 cm tolerance), loose ends are pruned, then the faces of the resulting graph are walked. */
+function faceAt(segs, p) {
+  const T = 0.02, nodes = [], node = (q) => {
+    for (let i = 0; i < nodes.length; i++) if (dist(nodes[i], q) < T) return i;
+    nodes.push(q); return nodes.length - 1;
+  };
+  const cuts = segs.map(() => [0, 1]);
+  segs.forEach(([a, b], i) => segs.forEach(([c, d], j) => {
+    if (j <= i) return;
+    const r = sub(b, a), s2 = sub(d, c), den = r[0] * s2[1] - r[1] * s2[0], ac = sub(c, a);
+    if (Math.abs(den) > 1e-9) {  // crossing
+      const t = (ac[0] * s2[1] - ac[1] * s2[0]) / den, u = (ac[0] * r[1] - ac[1] * r[0]) / den;
+      const lr = len(r), ls = len(s2);
+      if (t > -T / lr && t < 1 + T / lr && u > -T / ls && u < 1 + T / ls) { cuts[i].push(Math.min(1, Math.max(0, t))); cuts[j].push(Math.min(1, Math.max(0, u))); }
+    }
+    [[c, i, a, b], [d, i, a, b], [a, j, c, d], [b, j, c, d]].forEach(([q, k, e, f2]) => {  // an end touching the other wall
+      const pr = proj(q, e, f2);
+      if (dist(q, pr.p) < T) cuts[k].push(pr.t);
+    });
+  }));
+  const adj = {}, link = (u, v) => {
+    if (u === v) return;
+    (adj[u] = adj[u] || []); (adj[v] = adj[v] || []);
+    if (adj[u].indexOf(v) < 0) { adj[u].push(v); adj[v].push(u); }
+  };
+  segs.forEach(([a, b], i) => {
+    const ts = cuts[i].sort((x, y) => x - y);
+    let prev = null;
+    ts.forEach((t) => { const n = node([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); if (prev !== null) link(prev, n); prev = n; });
+  });
+  let pruned = true;  // loose ends (a wall that stops in the room) do not bound an area
+  while (pruned) {
+    pruned = false;
+    Object.keys(adj).forEach((u) => {
+      if (adj[u].length === 1) { const v = adj[u][0]; adj[v] = adj[v].filter((x) => x !== +u); delete adj[u]; pruned = true; }
+      else if (!adj[u].length) delete adj[u];
+    });
+  }
+  const ang = (u, v) => Math.atan2(nodes[v][1] - nodes[u][1], nodes[v][0] - nodes[u][0]);
+  Object.keys(adj).forEach((u) => adj[u].sort((v, w) => ang(+u, v) - ang(+u, w)));
+  const seen = {};
+  let best = null;
+  Object.keys(adj).forEach((u0) => adj[u0].forEach((v0) => {
+    let u = +u0, v = v0;
+    const face = [];
+    for (let guard = 0; guard < 2000 && !seen[u + ">" + v]; guard++) {
+      seen[u + ">" + v] = 1; face.push(nodes[u]);
+      const list = adj[v], k = list.indexOf(u), w = list[(k - 1 + list.length) % list.length];  // next edge clockwise
+      u = v; v = w;
+    }
+    if (face.length < 3) return;
+    const A = Math.abs(area(face));
+    if (A > 0.05 && inside(p, face) && (!best || A < best.A)) best = { A, face };
+  }));
+  if (!best) return null;
+  const f = best.face.filter((q, i, arr) => {  // drop points on a straight line
+    const a = arr[(i - 1 + arr.length) % arr.length], b = arr[(i + 1) % arr.length], r = sub(b, a);
+    return Math.abs((q[0] - a[0]) * r[1] - (q[1] - a[1]) * r[0]) / (len(r) || 1) > 0.005;
+  });
+  return f.map((q) => [R3(q[0]), R3(q[1])]);
+}
+
+/* Cut a polygon along a path whose ends lie on its edges → two polygons, or null. */
+function splitPoly(poly, path) {
+  const n = poly.length, onEdge = (q) => {
+    let best = null;
+    poly.forEach((a, j) => { const pr = proj(q, a, poly[(j + 1) % n]), d = dist(q, pr.p); if (d < 0.03 && (!best || d < best.d)) best = { d, j, t: pr.t }; });
+    return best;
+  };
+  const a = path[0], b = path[path.length - 1], ea = onEdge(a), eb = onEdge(b);
+  if (!ea || !eb || (ea.j === eb.j && Math.abs(ea.t - eb.t) < 1e-6)) return null;
+  const mid = path.slice(1, -1);
+  const walk = (from, to) => {  // corners after edge `from` up to and including the start of edge `to`
+    const out = [];
+    let j = from.j;
+    if (from.j === to.j && to.t > from.t) return out;
+    do { j = (j + 1) % n; out.push(poly[j]); } while (j !== to.j);
+    return out;
+  };
+  const p1 = [a].concat(walk(ea, eb), [b], mid.slice().reverse());
+  const p2 = [b].concat(walk(eb, ea), [a], mid);
+  if (p1.length < 3 || p2.length < 3 || Math.abs(area(p1)) < 0.05 || Math.abs(area(p2)) < 0.05) return null;
+  return [p1, p2];
+}
 
 class FloorplanLitePanel extends HTMLElement {
   constructor() {
@@ -227,7 +324,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _setPlan(plan) {
     plan.levels = plan.levels || []; plan.rooms = plan.rooms || []; plan.outlines = plan.outlines || [];
-    plan.lines = plan.lines || []; plan.openings = plan.openings || []; plan.buildings = plan.buildings || [];
+    plan.lines = plan.lines || []; plan.walls = plan.walls || []; plan.openings = plan.openings || []; plan.buildings = plan.buildings || [];
     plan.entities = plan.entities || {}; plan.style = plan.style || {};
     this._plan = plan;
     this._level = (plan.levels[0] && plan.levels[0].id) || null;
@@ -249,7 +346,7 @@ class FloorplanLitePanel extends HTMLElement {
     this._setPlan({ id, name, rotation: 0, north: 0, align_levels: true, style: {},
       buildings: [{ id: de ? "haus" : "house", name: de ? "Haus" : "House" }],
       levels: [{ id: de ? "eg" : "gf", name: de ? "Erdgeschoss" : "Ground floor", short: de ? "EG" : "GF" }],
-      outlines: [], lines: [], rooms: [], openings: [], entities: {} });
+      outlines: [], walls: [], lines: [], rooms: [], openings: [], entities: {}, room_walls: false });
     this._storedId = null;
     this._dirty = true;
     this._renderAll();
@@ -442,11 +539,11 @@ class FloorplanLitePanel extends HTMLElement {
 
   _renderTools() {
     const t = this.t, nav = this.shadowRoot.querySelector(".tools");
-    const groups = [["select", "pan"], ["room", "outline", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "straighten", "alignWall"]];
+    const groups = [["select", "pan"], ["outline", "wall", "roomGen", "room", "split", "outdoor", "line"], OPENING_TOOLS.concat(["openWall"]), ["image", "scale", "straighten", "alignWall"]];
     nav.innerHTML = groups.map((g) => `<div class="grp">${g.map((k) =>
       `<button class="tool${this._tool === k ? " on" : ""}" data-t="${k}" title="${esc(t.tools[k])}"${!this._plan ? " disabled" : ""}><ha-icon icon="${ICONS[k]}"></ha-icon></button>`).join("")}</div>`).join("");
     nav.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => this._setTool(b.getAttribute("data-t"))));
-    const hint = { select: t.hintSelect, room: t.hintDraw, outline: t.hintDraw, outdoor: t.hintDraw, line: t.hintLine,
+    const hint = { select: t.hintSelect, wall: t.hintWall, roomGen: t.hintRoomGen, split: t.hintSplit, room: t.hintDraw, outline: t.hintDraw, outdoor: t.hintDraw, line: t.hintLine,
       image: t.hintImage, openWall: t.hintOpenWall, scale: t.hintScale, straighten: t.hintStraighten, alignWall: t.hintAlign, pan: "" };
     this.shadowRoot.querySelector(".hint").textContent = this._plan ? (hint[this._tool] !== undefined ? hint[this._tool] : t.hintOpening) : t.none;
   }
@@ -510,7 +607,7 @@ class FloorplanLitePanel extends HTMLElement {
   _selHtml() {
     const t = this.t, s = this._sel, el = this._plan[s.kind][s.i];
     if (!el) { this._sel = null; return ""; }
-    let h = `<section><h3>${esc({ rooms: el.outdoor ? t.tools.outdoor : t.room, outlines: t.outline, lines: t.line, openings: t.opening }[s.kind])}` +
+    let h = `<section><h3>${esc({ rooms: el.outdoor ? t.tools.outdoor : t.room, outlines: t.outline, walls: t.wallEl, lines: t.line, openings: t.opening }[s.kind])}` +
       `<button class="mini danger" data-act="delsel">${esc(t.del)}</button></h3>`;
     if (s.kind === "rooms") {
       const others = [];
@@ -529,6 +626,8 @@ class FloorplanLitePanel extends HTMLElement {
       void part;
     } else if (s.kind === "outlines") {
       h += this._field(t.building, this._buildingSel("building", el.building));
+    } else if (s.kind === "walls") {
+      h += this._field(t.wallWidth, this._num("width", el.width || this._wall("wall_width"), 0.01)) + this._field(t.closedF, this._chk("closed", el.closed));
     } else if (s.kind === "lines") {
       h += this._field(t.open, this._chk("open", el.open));
     } else if (s.kind === "openings") {
@@ -604,6 +703,7 @@ class FloorplanLitePanel extends HTMLElement {
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
       `<label class="cur">${esc(t.building)}: ${this._buildingSel("__cur", this._building)}</label></div>` +
+      this._field(t.roomWalls, `<input type="checkbox" data-p="room_walls"${p.room_walls !== false ? " checked" : ""}>`) +
       this._field(t.wallInner, `<input type="number" min="5" max="150" step="1" data-wall="wall_width" value="${Math.round(this._wall("wall_width") * 100)}">`) +
       this._field(t.wallOuter, `<input type="number" min="5" max="150" step="1" data-wall="outer_width" value="${Math.round(this._wall("outer_width") * 100)}">`) +
       `<h4>${esc(t.colors)}</h4>` +
@@ -721,7 +821,7 @@ class FloorplanLitePanel extends HTMLElement {
       if (!lv || p.levels.length < 2 || !(await this._dialog(t.delLevel.replace("%s", lv.name)))) return;
       return this._change(() => {
         p.levels = p.levels.filter((l) => l.id !== lv.id);
-        ["rooms", "outlines", "lines", "openings"].forEach((k) => { p[k] = p[k].filter((x) => x.level !== lv.id); });
+        SHAPES.concat(["openings"]).forEach((k) => { p[k] = p[k].filter((x) => x.level !== lv.id); });
         this._level = p.levels[0].id; this._sel = null;
       });
     }
@@ -742,7 +842,7 @@ class FloorplanLitePanel extends HTMLElement {
         if (lv.view) copy.view = lv.view.slice();
         p.levels.splice(p.levels.indexOf(lv) + 1, 0, copy);
         const map = {};  // old room id → new one, so parts of a room (name: null) stay together
-        ["outlines", "lines", "openings", "rooms"].forEach((k) => p[k].filter((x) => x.level === lv.id).forEach((x) => {
+        ["outlines", "walls", "lines", "openings", "rooms"].forEach((k) => p[k].filter((x) => x.level === lv.id).forEach((x) => {
           const c = Object.assign(clone(x), { level: id });
           if (k === "rooms") { c.id = map[x.id] || (map[x.id] = rid(x.id)); delete c.key; }
           p[k].push(c);
@@ -850,11 +950,11 @@ class FloorplanLitePanel extends HTMLElement {
     const p = this._plan;
     if (!c) {
       const all = [];
-      ["rooms", "outlines", "lines"].forEach((k) => p[k].forEach((x) => x.poly.forEach((q) => all.push(q))));
+      SHAPES.forEach((k) => p[k].forEach((x) => x.poly.forEach((q) => all.push(q))));
       const b = all.length ? bbox(all) : [0, 0, 0, 0];
       c = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
     }
-    ["rooms", "outlines", "lines"].forEach((k) => p[k].forEach((x) => {
+    SHAPES.forEach((k) => p[k].forEach((x) => {
       x.poly = x.poly.map((q) => rotP(q, deg, c));
       if (x.label_at) x.label_at = rotP(x.label_at, deg, c);
     }));
@@ -883,7 +983,7 @@ class FloorplanLitePanel extends HTMLElement {
   _fit() {
     if (!this._plan) return;
     const all = [];
-    ["rooms", "outlines", "lines"].forEach((k) => this._of(k).forEach((e) => e.x.poly.forEach((q) => all.push(q))));
+    SHAPES.forEach((k) => this._of(k).forEach((e) => e.x.poly.forEach((q) => all.push(q))));
     const lv = this._lv(), b = lv && lv.background;
     if (b && b.image) { all.push([b.x || 0, b.y || 0]); all.push([(b.x || 0) + b.width, (b.y || 0) + (b.height || b.width * 0.66)]); }
     const svg = this._svg(), W = svg.clientWidth || 800, H = svg.clientHeight || 600;
@@ -943,20 +1043,25 @@ class FloorplanLitePanel extends HTMLElement {
     if (this._ghost) {
       const below = this._below();
       if (below) {
-        ["outlines", "rooms"].forEach((k) => p[k].filter((x) => x.level === below).forEach((x) =>
-          { h += `<polygon class="ghost" points="${pts(x.poly)}" stroke-width="${2 * px}"/>`; }));
+        ["outlines", "rooms", "walls"].forEach((k) => p[k].filter((x) => x.level === below).forEach((x) =>
+          { h += `<poly${k === "walls" && !x.closed ? "line" : "gon"} class="ghost" points="${pts(x.poly)}" stroke-width="${2 * px}"/>`; }));
       }
     }
-    const S = this._sel;
+    const S = this._sel, rw = p.room_walls !== false;
     this._of("rooms").forEach(({ x, i }) => {
       const sel = S && S.kind === "rooms" && S.i === i;
       h += `<polygon class="room${x.outdoor ? " out" : ""}${sel ? " sel" : ""}" data-k="rooms" data-i="${i}" points="${pts(x.poly)}" ` +
-        `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(st.wall)}" stroke-width="${x.outdoor ? 2 * px : this._wall("wall_width")}"/>`;
+        `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(rw ? st.wall : st.edge)}" stroke-width="${x.outdoor || !rw ? 2 * px : this._wall("wall_width")}"${rw ? "" : ` stroke-opacity=".5"`}/>`;
     });
     const opening = ({ x, i }) => {
       const sel = S && S.kind === "openings" && S.i === i;
       h += `<polygon class="op${sel ? " sel" : ""}" data-k="openings" data-i="${i}" points="${pts(openingRect(x))}" fill="${x.type === "open" ? "url(#fl)" : esc(st.background)}"/>` + this._openingSym(x, px);
     };
+    this._of("walls").forEach(({ x, i }) => {
+      const sel = S && S.kind === "walls" && S.i === i;
+      h += `<poly${x.closed ? "gon" : "line"} class="wall${sel ? " sel" : ""}" data-k="walls" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.wall)}" ` +
+        `stroke-width="${x.width || this._wall("wall_width")}"/>`;
+    });
     this._of("openings").filter(({ x }) => x.type === "open").forEach(opening);  // under the outer walls, which stay whole
     this._of("outlines").forEach(({ x, i }) => {
       const sel = S && S.kind === "outlines" && S.i === i;
@@ -1044,12 +1149,12 @@ class FloorplanLitePanel extends HTMLElement {
   _snap(p, from, free) {
     const tol = 10 * this._scale();
     let best = null, bd = tol;
-    const polys = [];
-    ["rooms", "outlines", "lines"].forEach((k) => this._of(k).forEach(({ x }) => polys.push(x.poly)));
+    const polys = [], closed = (k, x) => (k === "walls" ? !!x.closed : k === "lines" ? !x.open : true);
+    SHAPES.forEach((k) => this._of(k).forEach(({ x }) => polys.push({ poly: x.poly, closed: closed(k, x) })));
     const below = this._ghost && this._below();
-    if (below) ["rooms", "outlines"].forEach((k) => this._plan[k].filter((x) => x.level === below).forEach((x) => polys.push(x.poly)));
-    if (this._draft) polys.push(this._draft);
-    polys.forEach((poly) => poly.forEach((q) => { const d = dist(p, q); if (d < bd) { bd = d; best = q; } }));
+    if (below) ["rooms", "outlines", "walls"].forEach((k) => this._plan[k].filter((x) => x.level === below).forEach((x) => polys.push({ poly: x.poly, closed: closed(k, x) })));
+    if (this._draft) polys.push({ poly: this._draft, closed: false });
+    polys.forEach(({ poly }) => poly.forEach((q) => { const d = dist(p, q); if (d < bd) { bd = d; best = q; } }));
     if (best) { this._snapMark = best; return best.slice(); }
     let q = p;
     if (from && !free) {  // 45° steps relative to the last point
@@ -1061,8 +1166,8 @@ class FloorplanLitePanel extends HTMLElement {
     }
     // onto an edge
     let eb = null; bd = tol;
-    polys.forEach((poly) => poly.forEach((a, j) => {
-      if (poly === this._draft && j === poly.length - 1) return;
+    polys.forEach(({ poly, closed: c }) => poly.forEach((a, j) => {
+      if (!c && j === poly.length - 1) return;
       const b = poly[(j + 1) % poly.length], pr = proj(q, a, b), d = dist(q, pr.p);
       if (d < bd) { bd = d; eb = pr.p; }
     }));
@@ -1079,11 +1184,12 @@ class FloorplanLitePanel extends HTMLElement {
   _nearestWall(p) {  // nearest edge of a room or outer wall on this level
     const tol = 14 * this._scale();
     let best = null;
-    ["outlines", "rooms"].forEach((k) => this._of(k).forEach(({ x }) => {
-      if (k === "rooms" && x.outdoor) return;
+    ["outlines", "walls", "rooms"].forEach((k) => this._of(k).forEach(({ x }) => {
+      if (k === "rooms" && (x.outdoor || this._plan.room_walls === false)) return;
       x.poly.forEach((a, j) => {
+        if (k === "walls" && !x.closed && j === x.poly.length - 1) return;
         const b = x.poly[(j + 1) % x.poly.length], pr = proj(p, a, b), d = dist(p, pr.p);
-        if (d < tol && (!best || d < best.d)) best = { d, p: pr.p, a, b, outer: k === "outlines" };
+        if (d < tol && (!best || d < best.d)) best = { d, p: pr.p, a, b, outer: k === "outlines", width: k === "walls" ? x.width : undefined };
       });
     }));
     return best;
@@ -1108,14 +1214,15 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (e.button !== 0) return;
     const tool = this._tool;
-    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line") return this._draftClick(this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey), e);
+    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "wall" || tool === "split") return this._draftClick(this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey), e);
+    if (tool === "roomGen") return this._roomAt(p);
     if (OPENING_TOOLS.indexOf(tool) >= 0) {
       const w = this._nearestWall(p);
       if (!w) return;
       const ang = Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI;
       const width = { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool];
       return this._change(() => {
-        this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3(this._wall(w.outer ? "outer_width" : "wall_width") + 0.04) });
+        this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3((w.width || this._wall(w.outer ? "outer_width" : "wall_width")) + 0.04) });
         this._openingPreview = null;
       });
     }
@@ -1261,7 +1368,7 @@ class FloorplanLitePanel extends HTMLElement {
       this._dirty = true; return this._renderCanvas();
     }
     const tool = this._tool;
-    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line") {
+    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "wall" || tool === "split") {
       this._hover = this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey);
       return this._renderCanvas();
     }
@@ -1269,7 +1376,7 @@ class FloorplanLitePanel extends HTMLElement {
     if (OPENING_TOOLS.indexOf(tool) >= 0) {
       const w = this._nearestWall(p);
       this._openingPreview = w ? { type: tool, at: w.p, angle: Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI,
-        width: { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool], depth: R3(this._wall(w.outer ? "outer_width" : "wall_width") + 0.04) } : null;
+        width: { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool], depth: R3((w.width || this._wall(w.outer ? "outer_width" : "wall_width")) + 0.04) } : null;
       return this._renderCanvas();
     }
   }
@@ -1289,7 +1396,7 @@ class FloorplanLitePanel extends HTMLElement {
     const el = this._plan[this._sel.kind][this._sel.i], p = this._pt(e), tol = 10 * this._scale();
     let best = null;
     el.poly.forEach((a, j) => {
-      if (this._sel.kind === "lines" && el.open && j === el.poly.length - 1) return;
+      if (((this._sel.kind === "lines" && el.open) || (this._sel.kind === "walls" && !el.closed)) && j === el.poly.length - 1) return;
       const b = el.poly[(j + 1) % el.poly.length], pr = proj(p, a, b), d = dist(p, pr.p);
       if (d < tol && (!best || d < best.d)) best = { d, j, p: pr.p };
     });
@@ -1301,24 +1408,29 @@ class FloorplanLitePanel extends HTMLElement {
     const hit = this._hit(e);
     if (this._draft) { this._draft.pop(); if (!this._draft.length) this._draft = null; return this._renderCanvas(); }
     if (!hit || hit.v === undefined || !this._sel) return;
-    const el = this._plan[this._sel.kind][this._sel.i], min = this._sel.kind === "lines" ? 2 : 3;
+    const el = this._plan[this._sel.kind][this._sel.i], min = this._sel.kind === "lines" || this._sel.kind === "walls" ? 2 : 3;
     if (el.poly.length <= min) return;
     this._change(() => { el.poly.splice(hit.v, 1); });
   }
 
   _draftClick(p) {
-    const d = this._draft || (this._draft = []);
-    if (d.length >= 3 && this._tool !== "line" && dist(p, d[0]) < 1e-6) return this._finish();
-    if (d.length && dist(p, d[d.length - 1]) < 1e-6) return;
+    const d = this._draft || (this._draft = []), open = this._tool === "line" || this._tool === "wall" || this._tool === "split";
+    if (d.length >= 3 && dist(p, d[0]) < 1e-6) { if (open) this._closed = true; return this._finish(); }
+    if (d.length && dist(p, d[d.length - 1]) < 1e-6) { if (open && d.length >= 2) this._finish(); return; }
     d.push(p);
     this._renderCanvas();
   }
 
   _finish() {
-    const d = this._draft, tool = this._tool;
-    this._draft = null; this._hover = null; this._snapMark = null;
-    if (!d || d.length < (tool === "line" ? 2 : 3)) return this._renderCanvas();
+    const d = this._draft, tool = this._tool, closedWall = !!this._closed;
+    this._draft = null; this._hover = null; this._snapMark = null; this._closed = false;
+    if (!d || d.length < (tool === "line" || tool === "wall" || tool === "split" ? 2 : 3)) return this._renderCanvas();
     const p = this._plan;
+    if (tool === "split") return this._split(d);
+    if (tool === "wall") {  // keep the tool: walls are drawn one after another
+      this._change(() => { const w = { level: this._level, poly: d }; if (closedWall) w.closed = true; p.walls.push(w); });
+      return;
+    }
     this._change(() => {
       if (tool === "outline") {
         const o = { level: this._level, poly: d };
@@ -1326,15 +1438,11 @@ class FloorplanLitePanel extends HTMLElement {
         p.outlines.push(o);
         this._sel = { kind: "outlines", i: p.outlines.length - 1 };
       } else if (tool === "line") {
-        p.lines.push({ level: this._level, poly: d, open: true });
+        p.lines.push({ level: this._level, poly: d, open: !closedWall });
         this._sel = { kind: "lines", i: p.lines.length - 1 };
       } else {
-        const base = tool === "outdoor" ? (this.t === T.de ? "Garten" : "Garden") : (this.t === T.de ? "Raum" : "Room");
-        let n = 1, name = base + " " + n;
-        while (p.rooms.some((r) => r.name === name)) name = base + " " + ++n;
-        let id = slug(name), k = 2;
-        while (p.rooms.some((r) => r.id === id)) id = slug(name) + "_" + k++;
-        const r = { id, level: this._level, name, poly: d };
+        const nm = this._newRoomName(tool === "outdoor");
+        const r = { id: nm.id, level: this._level, name: nm.name, poly: d };
         if (tool === "outdoor") r.outdoor = true;
         if (this._building && tool !== "outdoor") r.building = this._building;
         p.rooms.push(r);
@@ -1342,6 +1450,48 @@ class FloorplanLitePanel extends HTMLElement {
       }
     });
     this._setTool("select");
+  }
+
+  _newRoomName(outdoor) {
+    const p = this._plan, base = outdoor ? (this.t === T.de ? "Garten" : "Garden") : (this.t === T.de ? "Raum" : "Room");
+    let n = 1, name = base + " " + n;
+    while (p.rooms.some((r) => r.name === name)) name = base + " " + ++n;
+    let id = slug(name), k = 2;
+    while (p.rooms.some((r) => r.id === id)) id = slug(name) + "_" + k++;
+    return { id, name };
+  }
+
+  _roomAt(p) {  // "generate room": fill the area around p up to the walls
+    const pl = this._plan, have = this._of("rooms").find(({ x }) => !x.outdoor && inside(p, x.poly));
+    if (have) { this._sel = { kind: "rooms", i: have.i }; this._renderAll(); return this._status(this.t.haveRoom); }
+    const segs = [], add2 = (poly, closed) => poly.forEach((a, j) => { if (closed || j < poly.length - 1) segs.push([a, poly[(j + 1) % poly.length]]); });
+    this._of("outlines").forEach(({ x }) => add2(x.poly, true));
+    this._of("walls").forEach(({ x }) => add2(x.poly, !!x.closed));
+    this._of("rooms").forEach(({ x }) => { if (!x.outdoor) add2(x.poly, true); });
+    const face = faceAt(segs, p);
+    if (!face) return this._status(this.t.noFace, true);
+    const nm = this._newRoomName(false);
+    this._change(() => {
+      const r = { id: nm.id, level: this._level, name: nm.name, poly: face };
+      if (this._building) r.building = this._building;
+      pl.rooms.push(r);
+      this._sel = { kind: "rooms", i: pl.rooms.length - 1 };
+    });
+  }
+
+  _split(path) {  // cut the room the path crosses into two
+    const pl = this._plan, mid = path.length > 2 ? path[1] : [(path[0][0] + path[1][0]) / 2, (path[0][1] + path[1][1]) / 2];
+    const hit = this._of("rooms").find(({ x }) => inside(mid, x.poly) && splitPoly(x.poly, path));
+    if (!hit) { this._status(this.t.noSplit, true); return this._renderCanvas(); }
+    const r = hit.x, parts = splitPoly(r.poly, path), nm = this._newRoomName(r.outdoor);
+    this._change(() => {
+      const keep = r.label_at && inside(r.label_at, parts[1]) ? 1 : 0;
+      const other = Object.assign(clone(r), { id: nm.id, name: nm.name, poly: parts[1 - keep] });
+      delete other.label_at; delete other.key; delete other.color;
+      r.poly = parts[keep];
+      pl.rooms.push(other);
+      this._sel = { kind: "rooms", i: pl.rooms.length - 1 };
+    });
   }
 
   _key(e) {
@@ -1438,6 +1588,8 @@ const STYLES = `
   .grid line { stroke: rgba(160,182,230,.08); } .grid line.m { stroke: rgba(160,182,230,.18); }
   .room { stroke-linejoin: miter; cursor: pointer; } .room.out { stroke-dasharray: .3 .2; }
   .outline { fill: none; stroke-linejoin: miter; cursor: pointer; pointer-events: stroke; }
+  .wall { fill: none; stroke-linejoin: miter; stroke-linecap: square; cursor: pointer; pointer-events: stroke; }
+  .wall.sel { stroke: #4fc3ff; }
   .hline { fill: none; stroke-dasharray: .3 .22; cursor: pointer; pointer-events: stroke; opacity: .7; }
   .ghost { fill: none; stroke: rgba(255,255,255,.35); stroke-dasharray: .25 .2; pointer-events: none; }
   .sel { stroke: #4fc3ff !important; } .room.sel { filter: brightness(1.25); }

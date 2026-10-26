@@ -24,20 +24,30 @@ und CSS, kein WebGL, kein Framework.
 
 | | |
 |---|---|
-| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. Mit einem **Hauptlicht** je Raum (`hauptlicht`) füllt nur das Hauptlicht den Raum, alle anderen Lichter leuchten als Saum – Hauptlicht aus und andere an: nur der Saum, die Mitte bleibt dunkel. Weißlicht, das als RGB gemeldet wird (Warmweiß von RGBW-Controllern), zählt als Weiß. |
+| **Licht** | Der Raum füllt sich weich in der Lichtfarbe (Farbtemperatur oder RGB), Helligkeit = Stärke. Das Licht strahlt leicht durch die Wände in Nachbarräume. Farbige LEDs neben Weißlicht leuchten als Saum entlang der Wände. Mit einem **Hauptlicht** je Raum (`hauptlicht`) füllt nur das Hauptlicht den Raum, alle anderen Lichter leuchten als Saum – Hauptlicht aus und andere an: nur der Saum, die Mitte bleibt dunkel. Weißlicht, das als RGB gemeldet wird (Warmweiß von RGBW-Controllern), zählt als Weiß. Schalter lassen sich von Hand als Licht oder Hauptlicht wählen; Lichter und Schalter ohne eigene Farbe leuchten in der *Lichtfarbe* des Raums (Warmweiß, Neutralweiß, Kaltweiß, Bernstein oder eine eigene Farbe). |
 | **Präsenz** | ruhig atmender Lichtpunkt (Blau-Violett) |
 | **Bewegung** | Lichtpunkt in Aqua mit Wellen bis an die Wände |
 | **Temperatur** | aus einer `climate`-Entität (aktuelle Temperatur) oder einem Sensor |
 | **Marken** | Fenster offen, Beschattung zu, Musik läuft (als kleiner Equalizer) |
-| **Öffnungen** | Türen mit Schwenkbereich, Fenster, Dachfenster und Lichtkuppeln, Durchgänge ohne Tür, Garagentore – mit Entitäten (Kontakt, Cover, Schloss, Tor) leuchten offene orange, ein offenes Schloss rot; Antippen eines Fensters öffnet seinen Dialog, bei Tür und Tor wird mit oder ohne Rückfrage geöffnet/geschlossen/aufgeschlossen; gekippte Fenster (`tilted`/`gekippt`) erscheinen gelb |
+| **Öffnungen** | Türen mit Schwenkbereich, Fenster, Dachfenster und Lichtkuppeln, Durchgänge ohne Tür, Garagentore – mit Entitäten (Kontakt, Cover, Schloss, Tor) zeigt sich ein offenes Schloss rot; Antippen eines Fensters öffnet seinen Dialog, bei Tür und Tor wird mit oder ohne Rückfrage geöffnet/geschlossen/aufgeschlossen; offene erscheinen rot-orange, gekippte Fenster (`tilted`/`gekippt`) gestrichelt gelb – ebenso die Marke im Raum (offen geht vor gekippt) |
+| **Beschattung** | je Fenster ein Rollladen oder eine Jalousie, außen an der Wand gezeichnet: ein Balken für den geschlossenen Teil (`current_position`), Jalousien mit Lamellenwinkel als Lamellen, gedreht nach `current_tilt_position` (zu: längs der Wand, offen: quer); fahrende Beschattung pulsiert |
+| **Kurzanzeige** | nach lauter / leiser / Wiedergabe zeigt der Raum 3 s die Lautstärke, nach einem Szenenwechsel den Namen der Szene (statt der Temperatur) |
 | **Hintergrund** | je Stockwerk ein Bild unter dem Plan (z. B. Satellitenbild, damit der Garten ein Foto bleibt), darüber mit Transparenz oder ausgeblendet |
 
 Tippen auf einen Raum öffnet das [Bubble-Card](https://github.com/Clooos/Bubble-Card)-Pop-up mit dem Hash `#<raum>`.
-Mit Maus oder Fernseher-Fernbedienung (z. B. über Moonlight): Wiedergabe / Pause über einem Raum = seine Musik
-(Medientasten oder die Fernbedienungstasten des [TV Streamers](https://github.com/SebastianEitzert/TV-Streamer)),
-Rechtsklick (LG-Fernbedienung: Gelb) zweimal über einem Raum = Raum aus, Mausrad = Musik lauter/leiser, ↑/↓ über einem
-Raum = Lichtszenen – das ruft ein Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; Wiedergabe/Pause
-gehen ohne Skript direkt an die Musik-Player des Raums). ←/→ wechseln das Stockwerk.
+←/→ wechseln das Stockwerk. Alles andere über einem Raum – ↑/↓, Mausrad, Rechtsklick (LG-Fernbedienung: Gelb) ein- oder
+zweimal, Medientasten, die Farb- und Wiedergabetasten des [TV Streamers](https://github.com/SebastianEitzert/TV-Streamer),
+Doppel-/Dreifachtippen – geht an ein Skript (Kartenoption `script`, Standard `script.raum_klick`) mit `raum` (Bereich des
+Raums), `aktion` (`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `gelb2`, `play`, `pause`, `play_pause`, `stop`, `weiter`,
+`zurueck`, `blau`, `gruen`, `rot`, `tipp2`, `tipp3`) sowie `lichter` und `player` des Raums. Was passiert, entscheidet das Skript.
+
+Die Integration bringt dafür eine Vorlage mit: *Einstellungen → Automationen & Szenen → Blueprints → **Floorplan Lite –
+keys, clicks and wheel over a room** → Skript erstellen* und als `script.raum_klick` speichern. Je Ereignis wählst du:
+Szene weiter / zurück, Licht an/aus, Raum aus, Musik Start / Pause / Stopp, lauter / leiser (nur wenn Musik läuft oder
+immer), Titel weiter / zurück – oder nichts. Die Szenen eines Raums sind die seinem Bereich zugeordneten und die, deren
+Name mit dem Raumnamen beginnt; die Runde geht aus → erste Szenen → die übrigen → aus, ein Raum ohne Szenen schaltet seine
+Lichter an und aus. Namen der Aus- und Nachtszene, ein Nachtmodus-Schalter und Standard-Player je Raum sind Einstellungen.
+Ohne Skript gehen Wiedergabe / Pause direkt an die Musik-Player des Raums.
 
 ## Installation
 

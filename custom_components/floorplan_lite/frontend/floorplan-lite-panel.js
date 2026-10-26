@@ -59,6 +59,8 @@ const T = {
     types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)", skylight: "Dachfenster / Lichtkuppel" },
     opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Antippen schaltet Schloss, Cover (Tor, elektrisches Fenster) oder Taster – mit Sicherheitsabfrage nach Rückfrage, sonst sofort. Ohne schaltbare Entität öffnet sich die Karte der ersten Entität. Gekippte Fenster werden erkannt (Zustand/Attribut gekippt oder tilted).",
     lengthM: "Länge (m)", angleDeg: "Drehung (Grad)", roundF: "rund (Lichtkuppel)",
+    shadeF: "Rollladen / Jalousie davor", lightColour: "Lichtfarbe (Lichter und Schalter ohne eigene Farbe)",
+    lc: { warm: "Warmweiß", neutral: "Neutralweiß", cold: "Kaltweiß", amber: "Bernstein", red: "Rot", green: "Grün", blue: "Blau", purple: "Violett", own: "eigene Farbe →" },
     tiltF: "Gekippt erkennen", tiltAuto: "automatisch (gekippt/tilted)", tiltAttr: "aus einem Attribut", tiltEnt: "aus einer eigenen Entität",
     tiltAttrF: "Attribut", tiltValF: "Wert für gekippt", tiltEntF: "Entität für gekippt", tiltValPh: "z. B. gekippt",
     confirmF: "Sicherheitsabfrage", confirmText: "Text der Abfrage", confirmPh: "Standard: Aufschließen? / Öffnen?",
@@ -117,6 +119,8 @@ const T = {
     types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)", skylight: "Roof window / dome" },
     opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Tapping works the lock, cover (gate, electric window) or button – after a question if \"Ask first\" is ticked, otherwise at once. Without anything to switch, the first entity's dialog opens. Tilted windows are recognised (state or attribute tilted/gekippt).",
     lengthM: "Length (m)", angleDeg: "Rotation (degrees)", roundF: "round (dome)",
+    shadeF: "Roller shutter / blind in front", lightColour: "Light colour (lights and switches without a colour of their own)",
+    lc: { warm: "Warm white", neutral: "Neutral white", cold: "Cold white", amber: "Amber", red: "Red", green: "Green", blue: "Blue", purple: "Purple", own: "own colour →" },
     tiltF: "Detect tilted", tiltAuto: "automatic (tilted/gekippt)", tiltAttr: "from an attribute", tiltEnt: "from an entity of its own",
     tiltAttrF: "Attribute", tiltValF: "Value for tilted", tiltEntF: "Entity for tilted", tiltValPh: "e.g. tilted",
     confirmF: "Ask first", confirmText: "Question", confirmPh: "Default: Unlock? / Open?",
@@ -126,9 +130,11 @@ const T = {
   },
 };
 
-const ENT_FIELDS = [["licht", "light"], ["hauptlicht", "light"], ["praesenz", "binary_sensor"], ["bewegung", "binary_sensor"], ["temp", null],
+const ENT_FIELDS = [["licht", ["light", "switch"]], ["hauptlicht", ["light", "switch"]], ["praesenz", "binary_sensor"], ["bewegung", "binary_sensor"], ["temp", null],
   ["fenster", "binary_sensor"], ["beschattung", "cover"], ["musik", "media_player"]];
 const SINGLE = ["temp", "hauptlicht"];  // one entity, not a list
+const LIGHT_COLOURS = [["", "warm"], ["#fff1e0", "neutral"], ["#e4ecff", "cold"], ["#ffb347", "amber"], ["#ff5a4a", "red"],
+  ["#5adc78", "green"], ["#5a8cff", "blue"], ["#b07aff", "purple"]];
 const OPENING_TOOLS = ["door", "window", "passage", "garage"];
 const POLY_TOOLS = ["room", "outline", "outdoor"];
 const SHAPES = ["rooms", "outlines", "walls", "lines"];  // elements with a poly
@@ -718,6 +724,8 @@ class FloorplanLitePanel extends HTMLElement {
         (el.type === "passage" || el.type === "open" ? "" :
           this._field(t.opEntities, `<input type="text" list="fl-ents-op" data-oent="1" value="${esc(ents.join(", "))}" placeholder="${esc(t.entHint)}">`) +
           (el.type === "window" || sky ? this._tiltHtml(el, s.i, ents) : "") +
+          (el.type === "garage" ? "" : this._field(t.shadeF, `<input type="text" list="fl-ents-shade" data-k="shade" value="${esc(el.shade || "")}" placeholder="cover.…">`) +
+            `<datalist id="fl-ents-shade">${this._entityOptions(["cover"])}</datalist>`) +
           this._field(t.tapF, `<select data-otap="1"><option value="auto">${esc(t.tapAuto)}</option><option value="info"${el.tap === "info" ? " selected" : ""}>${esc(t.tapInfo)}</option></select>`) +
           this._field(t.confirmF, `<input type="checkbox" data-oconf="1"${(el.confirm !== undefined ? el.confirm : el.type === "door" || el.type === "garage") ? " checked" : ""}>`) +
           this._field(t.confirmText, `<input type="text" data-k="confirm_text" value="${esc(el.confirm_text || "")}" placeholder="${esc(t.confirmPh)}">`) +
@@ -748,7 +756,17 @@ class FloorplanLitePanel extends HTMLElement {
       const v = e[f];
       const val = Array.isArray(v) ? v.join(", ") : (v || "");
       return this._field(t.ent[f], `<input type="text" list="fl-ents-${f}" data-ent="${f}" data-key="${esc(key)}" value="${esc(val)}" placeholder="${esc(t.entHint)}">`);
-    }).join("") + ENT_FIELDS.map(([f, dom]) => `<datalist id="fl-ents-${f}">${this._entityOptions(f === "temp" ? ["climate", "sensor"] : [dom])}</datalist>`).join("");
+    }).join("") + ENT_FIELDS.map(([f, dom]) => `<datalist id="fl-ents-${f}">${this._entityOptions(f === "temp" ? ["climate", "sensor"] : [].concat(dom))}</datalist>`).join("") +
+      this._lightColourHtml(key, e.lichtfarbe);
+  }
+
+  /* Colour of the room's lights and switches that report none (a switched circuit, a dimmer): warm white by default */
+  _lightColourHtml(key, cur) {
+    const t = this.t, preset = LIGHT_COLOURS.some((c) => c[0] === (cur || ""));
+    return this._field(t.lightColour, `<div class="row"><select data-lfarbe="${esc(key)}">` +
+      LIGHT_COLOURS.map(([v, n]) => `<option value="${v}"${(cur || "") === v ? " selected" : ""}>${esc(t.lc[n])}</option>`).join("") +
+      `<option value="own"${preset ? "" : " selected"}>${esc(t.lc.own)}</option></select>` +
+      `<input type="color" data-lfarbe-c="${esc(key)}" value="${esc(cur || "#ffd098")}"></div>`);
   }
 
   _labelOptions(cur) {
@@ -850,6 +868,15 @@ class FloorplanLitePanel extends HTMLElement {
         if (SINGLE.indexOf(f) >= 0) { if (list[0]) e[f] = list[0]; else delete e[f]; } else e[f] = list;
       });
     }));
+    const setColour = (key, v) => this._change(() => {
+      const e = this._plan.entities[key] || (this._plan.entities[key] = {});
+      if (v) e.lichtfarbe = v; else delete e.lichtfarbe;
+    });
+    side.querySelectorAll("[data-lfarbe]").forEach((inp) => inp.addEventListener("change", () => {
+      const key = inp.getAttribute("data-lfarbe"), c = side.querySelector(`[data-lfarbe-c="${key}"]`);
+      setColour(key, inp.value === "own" ? (c ? c.value : "") : inp.value);
+    }));
+    side.querySelectorAll("[data-lfarbe-c]").forEach((inp) => inp.addEventListener("change", () => setColour(inp.getAttribute("data-lfarbe-c"), inp.value)));
     side.querySelectorAll("[data-lv]").forEach((inp) => inp.addEventListener("change", () => {
       const lv = this._lv(); this._change(() => { lv[inp.getAttribute("data-lv")] = inp.value; });
     }));
@@ -1509,6 +1536,28 @@ class FloorplanLitePanel extends HTMLElement {
     return best;
   }
 
+  /* Openings on the same wall keep a small gap (5 cm) and never overlap: a placed or dragged one stops at its neighbour. */
+  _keepGap(op, self) {
+    if (op.type === "skylight") return op;
+    const r = (op.angle || 0) * Math.PI / 180, u = [Math.cos(r), Math.sin(r)], GAP = 0.05;
+    const others = this._plan.openings.filter((o) => o !== self && o.level === op.level && o.type !== "skylight");
+    for (let pass = 0; pass < 4; pass++) {
+      let moved = false;
+      others.forEach((o) => {
+        const da = Math.abs((((o.angle || 0) - (op.angle || 0)) % 180 + 180) % 180);
+        if (Math.min(da, 180 - da) > 3) return;  // not the same wall direction
+        const v = [o.at[0] - op.at[0], o.at[1] - op.at[1]], along = v[0] * u[0] + v[1] * u[1], across = Math.abs(v[0] * u[1] - v[1] * u[0]);
+        const need = ((op.width || 0.9) + (o.width || 0.9)) / 2 + GAP;
+        if (across > 0.2 || Math.abs(along) >= need - 1e-4) return;
+        const k = (along >= 0 ? -1 : 1) * (need - Math.abs(along));
+        op.at = [R3(op.at[0] + u[0] * k), R3(op.at[1] + u[1] * k)];
+        moved = true;
+      });
+      if (!moved) break;
+    }
+    return op;
+  }
+
   _hit(e) {  // element under the pointer: handle, label handle or element
     const t = e.target;
     if (t.hasAttribute && t.hasAttribute("data-v")) return { v: +t.getAttribute("data-v") };
@@ -1536,7 +1585,7 @@ class FloorplanLitePanel extends HTMLElement {
       const ang = Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI;
       const width = { door: 0.9, window: 1.2, passage: 0.9, garage: 2.5 }[tool];
       return this._change(() => {
-        this._plan.openings.push({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3((w.width || this._wall(w.outer ? "outer_width" : "wall_width")) + 0.04) });
+        this._plan.openings.push(this._keepGap({ level: this._level, type: tool, at: [R3(w.p[0]), R3(w.p[1])], angle: R3(ang), width, depth: R3((w.width || this._wall(w.outer ? "outer_width" : "wall_width")) + 0.04) }));
         this._openingPreview = null;
         this._sel = { kind: "openings", i: this._plan.openings.length - 1 };  // its fields (entities …) show right away
       });
@@ -1688,6 +1737,7 @@ class FloorplanLitePanel extends HTMLElement {
         if (w) {
           el.at = [R3(w.p[0]), R3(w.p[1])];
           el.angle = R3(Math.atan2(w.b[1] - w.a[1], w.b[0] - w.a[0]) * 180 / Math.PI);
+          this._keepGap(el, el);
         }
       } else {
         let mx = dx, my = dy;

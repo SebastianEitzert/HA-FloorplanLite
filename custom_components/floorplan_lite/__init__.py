@@ -21,6 +21,7 @@ from .store import PlanStore
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 FRONTEND_DIR = Path(__file__).parent / "frontend"
+BLUEPRINT_DIR = Path(__file__).parent / "blueprints"
 
 
 def _version() -> str:
@@ -28,6 +29,17 @@ def _version() -> str:
     import json
 
     return json.loads((Path(__file__).parent / "manifest.json").read_text())["version"]
+
+
+def _install_blueprints(config_dir: str) -> None:
+    """Copy the bundled blueprints to <config>/blueprints/<domain>/floorplan_lite/ – again whenever a release changed them."""
+    for src in BLUEPRINT_DIR.glob("*/*.yaml"):
+        dst = Path(config_dir) / "blueprints" / src.parent.name / DOMAIN / src.name
+        text = src.read_text(encoding="utf-8")
+        if dst.exists() and dst.read_text(encoding="utf-8") == text:
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(text, encoding="utf-8")
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -40,6 +52,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # the card is available in every dashboard without adding a resource by hand
     frontend.add_extra_js_url(hass, f"{STATIC_URL}/{CARD_FILE}?v={version}")
     hass.data[f"{DOMAIN}_version"] = version
+    # the script blueprint behind the card's keys, clicks and wheel (script.raum_klick by default)
+    await hass.async_add_executor_job(_install_blueprints, hass.config.config_dir)
     return True
 
 

@@ -28,10 +28,14 @@
  *   tap: none                     # optional: no pop-up on tap
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
- * Mouse / TV remote: left click = pop-up, right click (remote: yellow) twice within 0.5 s = room off (once: free),
- * mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes (script.raum_klick), ←/→ = level,
- * play / pause over a room (media keys, or the TV Streamer's tv-streamer-key event) = its music.
- * Touch (tablet/phone): double/triple tap = light scene / room off.
+ *   script: script.raum_klick     # optional: the script that gets every key, click and wheel step over a room
+ * Tapping a room (left click) opens the pop-up, ←/→ change the level. Everything else over a room goes to the script
+ * as {raum: <room id>, aktion: …} and the script decides what it does:
+ *   hoch / runter (↑/↓), lauter / leiser (mouse wheel), gelb / gelb2 (right click or yellow once / twice),
+ *   play / pause / play_pause / stop / weiter / zurueck (media keys), blau / gruen / rot (TV Streamer colour keys),
+ *   tipp2 / tipp3 (touch: double / triple tap).
+ * Without the script play / pause go straight to the room's media players. After an event the room's label shows the
+ * volume (louder / quieter / play) or the name of the scene that was switched for 3 s instead of the temperature.
  * Deliberately without ??, ?., aspect-ratio, clamp()/min(), inset, flex-gap and class fields: the browser of older
  * LG TVs (webOS 5) is about Chrome 68.
  */
@@ -71,6 +75,14 @@ const grow = (p, d) => {  // move a polygon outwards by d (mitred)
     return [+(q[0] + mx * k).toFixed(3), +(q[1] + my * k).toFixed(3)];
   });
 };
+const inside = (pt, poly) => {  // point in polygon (even-odd)
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > pt[1]) !== (b[1] > pt[1]) && pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
+};
 const rotator = (deg) => {
   if (!deg) return (p) => p;
   const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
@@ -101,6 +113,11 @@ const kelvinRgb = (k) => {
   return KELVIN[KELVIN.length - 1][1];
 };
 const WHITE_MODES = ["color_temp", "brightness", "onoff", "white"];
+const hexRgb = (h) => (typeof h === "string" && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16)) : null);
+const colourful = (rgb) => {  // a real colour, not one of the whites
+  const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]);
+  return mx > 0 && (mx - mn) / mx > 0.3 && !warmWhite(rgb);
+};
 const mix = (list) => {  // average weighted by brightness
   let r = 0, g = 0, b = 0, w = 0, top = 0;
   list.forEach((l) => { r += l.c[0] * l.b; g += l.c[1] * l.b; b += l.c[2] * l.b; w += l.b; if (l.b > top) top = l.b; });
@@ -122,7 +139,7 @@ const TEXT = {
     close: "Close", stop: "Stop", press: "Press", toggle: "Toggle" },
 };
 const chips = (t) => ({
-  w: `<span class="chip win" title="${t.win}"><ha-icon icon="mdi:window-open-variant"></ha-icon></span>`,
+  w: `<span class="chip win" title="${t.win}"><ha-icon icon="mdi:window-open"></ha-icon></span>`,
   k: `<span class="chip win tilt" title="${t.tilt}"><ha-icon icon="mdi:window-open-variant"></ha-icon></span>`,
   s: `<span class="chip shade" title="${t.shade}"><ha-icon icon="mdi:window-shutter"></ha-icon></span>`,
   m: `<span class="chip music" title="${t.music}"><i></i><i></i><i></i></span>`,
@@ -167,7 +184,20 @@ function areaEntities(hass, areaId, hidden) {
   return out;
 }
 
-const CARDS = [];  // floorplan cards on the page – the remote's arrow keys go to one of them
+const CARDS = [];
+/* Remote keys → aktion for the script: the TV Streamer's names (tv-streamer-key) and the browser's media keys */
+const TV_KEYS = { blue: "blau", green: "gruen", red: "rot", yellow: "gelb", play: "play", pause: "pause", stop: "stop",
+  next: "weiter", previous: "zurueck" };
+const MEDIA_KEYS = { MediaPlay: "play", MediaPause: "pause", MediaPlayPause: "play_pause", MediaStop: "stop",
+  MediaTrackNext: "weiter", MediaTrackPrevious: "zurueck" };
+/* "Wohnzimmer-Viel Licht" → "Viel Licht": without the room's name (or anything before the first dash) */
+const sceneLabel = (name, room) => {
+  let n = String(name);
+  if (room && n.toLowerCase().indexOf(room.toLowerCase()) === 0) n = n.slice(room.length);
+  else if (n.indexOf("-") > 0) n = n.slice(n.indexOf("-") + 1);
+  n = n.replace(/^[\s\-\u2013:]+/, "");
+  return n || String(name);
+};  // floorplan cards on the page – the remote's arrow keys go to one of them
 
 const planLabels = (plan) => ((plan && plan.hide_labels) || []).concat(plan && plan.hide_label ? [plan.hide_label] : []);
 
@@ -191,6 +221,12 @@ function prepare(plan, align) {
       const q = Object.assign({}, o, { at: rot(o.at), angle: (o.angle || 0) + (plan.rotation || 0) });
       q.ents = (o.entities || []).concat(o.entity && (o.entities || []).indexOf(o.entity) < 0 ? [o.entity] : []);
       q.rect = openingRect(q);
+      if (q.shade) {  // the shade hangs on the outside: the side of the wall that is in no room (else the +normal side)
+        const r = q.angle * Math.PI / 180, d = (q.depth || 0.24) / 2 + 0.25;
+        const probe = (k) => [q.at[0] - Math.sin(r) * d * k, q.at[1] + Math.cos(r) * d * k];
+        const inRoom = (p) => rooms.some((rm) => !rm.outdoor && inside(p, rm.poly));
+        q.out = inRoom(probe(1)) && !inRoom(probe(-1)) ? -1 : 1;
+      }
       return q;
     });
     let view = lv.view && !plan.rotation ? lv.view : null;
@@ -269,7 +305,7 @@ class FloorplanLiteCard extends HTMLElement {
     if (!this._onKey) {
       this._onKey = (e) => this._key(e);
       window.addEventListener("keydown", this._onKey);
-      this._onTvKey = (e) => this._media(e.detail && e.detail.key);  // TV Streamer: remote keys the page itself does not get
+      this._onTvKey = (e) => this._remote(TV_KEYS[e.detail && e.detail.key]);  // TV Streamer: remote keys the page itself does not get
       window.addEventListener("tv-streamer-key", this._onTvKey);
     }
     this._subscribe();
@@ -352,6 +388,7 @@ class FloorplanLiteCard extends HTMLElement {
     Object.keys(this._floors || {}).forEach((k) => this._floors[k].openings.forEach((o) => {
       o.ents.forEach((id) => ids.push(id));
       if (o.tilt_entity) ids.push(o.tilt_entity);
+      if (o.shade) ids.push(o.shade);
     }));
     return ids;
   }
@@ -388,8 +425,8 @@ class FloorplanLiteCard extends HTMLElement {
       const s = hass.states[id];
       if (!s) return "x";
       const a = s.attributes || {};
-      return `${s.state}|${v(a.current_temperature)}|${v(a.current_position)}|${v(a.brightness)}|${v(a.rgb_color)}|${v(a.color_mode)}|${v(a.color_temp_kelvin)}|${v(a.zustand)}|${v(a.state)}|${v(a.schloss)}`;
-    }).join(";");
+      return `${s.state}|${v(a.current_temperature)}|${v(a.current_position)}|${v(a.current_tilt_position)}|${v(a.volume_level)}|${v(a.brightness)}|${v(a.rgb_color)}|${v(a.color_mode)}|${v(a.color_temp_kelvin)}|${v(a.zustand)}|${v(a.state)}|${v(a.schloss)}`;
+    }).join(";") + "#" + this._flashText();
     if (sig === this._sig) return;
     this._sig = sig;
     this._update();
@@ -401,17 +438,16 @@ class FloorplanLiteCard extends HTMLElement {
     const st = this._hass.states;
     const get = (id) => (id && !this._hidden(id) ? st[id] : undefined);
     const any = (list, fn) => (list || []).some((id) => { const s = get(id); return !!s && fn(s); });
-    const light = (id) => {  // {c: rgb, b: brightness, col: colour light} of a light that is on
+    const own = hexRgb(r.lichtfarbe);  // the room's colour for lights (and switches) that report none
+    const light = (id) => {  // {c: rgb, b: brightness, col: colour light} of a light or switch that is on
       const s = get(id);
       if (!s || s.state !== "on") return null;
       const a = s.attributes || {};
       const b = typeof a.brightness === "number" ? Math.max(0.15, a.brightness / 255) : 1;
       const rgb = Array.isArray(a.rgb_color) && a.rgb_color.length >= 3 ? a.rgb_color : null;
-      if (rgb && WHITE_MODES.indexOf(a.color_mode) < 0) {
-        const mx = Math.max(rgb[0], rgb[1], rgb[2]), mn = Math.min(rgb[0], rgb[1], rgb[2]);
-        return { c: rgb, b: b, col: mx > 0 && (mx - mn) / mx > 0.3 && !warmWhite(rgb) };
-      }
-      return { c: typeof a.color_temp_kelvin === "number" ? kelvinRgb(a.color_temp_kelvin) : WARM, b: b, col: false };
+      if (rgb && WHITE_MODES.indexOf(a.color_mode) < 0) return { c: rgb, b: b, col: colourful(rgb) };
+      if (typeof a.color_temp_kelvin === "number") return { c: kelvinRgb(a.color_temp_kelvin), b: b, col: false };
+      return own ? { c: own, b: b, col: colourful(own) } : { c: WARM, b: b, col: false };
     };
     const main = light(r.hauptlicht);
     const lights = (r.licht || []).filter((id) => id !== r.hauptlicht).map(light).filter((l) => !!l);
@@ -504,7 +540,7 @@ class FloorplanLiteCard extends HTMLElement {
         `style="left:${X(lx)};top:${Y(ly)}"><div class="name">${esc(room.name)}</div><div class="temp"></div><div class="chips"></div></div>`;
     });
     f.openings.forEach((o, i) => {  // windows, doors and gates with entities can be tapped (above the rooms)
-      if (o.ents.length) hits += `<polygon class="ohit" data-o="${i}" points="${pts(openingRect(Object.assign({}, o, { width: Math.max(o.width || 0.9, 0.6), depth: Math.max(o.depth || 0.24, 0.6) })))}"/>`;
+      if (o.ents.length || o.shade) hits += `<polygon class="ohit" data-o="${i}" points="${pts(openingRect(Object.assign({}, o, { width: Math.max(o.width || 0.9, 0.6), depth: Math.max(o.depth || 0.24, 0.6) })))}"/>`;
     });
     const mask = cuts.length ? ` mask="url(#${n("dm")})"` : "";
     const omask = !outerCuts.length ? "" : outerCuts.length < cuts.length ? ` mask="url(#${n("dmo")})"` : mask;
@@ -555,7 +591,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* Symbols of doors, windows and garage doors (passages are only cut out of the walls). */
   _openingsHtml(list) {
-    return list.map((o, i) => `<g class="os" data-o="${i}">${this._openingSym(o)}</g>`).join("");
+    return list.map((o, i) => `<g class="os" data-o="${i}">${this._openingSym(o)}</g>` + (o.shade ? `<g class="shd" data-sh="${i}"></g>` : "")).join("");
   }
 
   _openingSym(o) {
@@ -620,7 +656,8 @@ class FloorplanLiteCard extends HTMLElement {
         });
       });
       this._floors[key].openings.forEach((o, i) => {
-        if (o.ents.length || o.tilt_entity) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`), cls: "" });
+        if (o.ents.length || o.tilt_entity || o.shade) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`),
+          sh: plan.querySelector(`.op .shd[data-sh="${i}"]`), cls: "", sk: null });
       });
     }
 
@@ -633,10 +670,9 @@ class FloorplanLiteCard extends HTMLElement {
         const now = Date.now();
         if (this._wheelT && now - this._wheelT < 250) return;   // at most 4 steps per second
         this._wheelT = now;
-        const id = el.getAttribute("data-room");
-        if (id && this._hass) this._hass.callService("script", "raum_klick", { raum: id, aktion: e.deltaY < 0 ? "lauter" : "leiser" });
+        this._send(el.getAttribute("data-room"), e.deltaY < 0 ? "lauter" : "leiser");
       }, { passive: false });
-      el.addEventListener("contextmenu", (e) => {   // right click / yellow – twice within 0.5 s room off; once is left free
+      el.addEventListener("contextmenu", (e) => {   // right click / yellow: once = gelb, twice within 0.5 s = gelb2
         e.preventDefault();
         el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 280);
         const id = el.getAttribute("data-room");
@@ -646,8 +682,7 @@ class FloorplanLiteCard extends HTMLElement {
         this._rkN = (this._rkN || 0) + 1;
         this._rkT = setTimeout(() => {
           const n = this._rkN; this._rkN = 0; this._rkRoom = null;
-          if (!id || !this._hass || n < 2) return;
-          this._hass.callService("script", "raum_klick", { raum: id, klicks: 3 });
+          this._send(id, n < 2 ? "gelb" : "gelb2");
         }, 500);
       });
     });
@@ -723,7 +758,10 @@ class FloorplanLiteCard extends HTMLElement {
         if (ref.fx.className !== cls) ref.fx.className = cls;
       }
       if (ref.lbl) {
-        if (ref.temp.textContent !== s.temp) ref.temp.textContent = s.temp;
+        const fl = this._flash && this._flash.text && this._flash.key === ref.key ? this._flash.text : "";
+        const tx = fl || s.temp;
+        if (ref.temp.textContent !== tx) ref.temp.textContent = tx;
+        if (o.fl !== !!fl) { o.fl = !!fl; ref.temp.classList.toggle("flash", !!fl); }
         const ink = !!pool && this._bright(pool.rgb, +lop);
         if (o.ink !== ink) { o.ink = ink; ref.lbl.classList.toggle("ink", ink); }
         const ck = (s.win === "open" ? "w" : s.win === "tilted" ? "k" : "") + (s.shade ? "s" : "") + (s.music ? "m" : "");
@@ -733,7 +771,34 @@ class FloorplanLiteCard extends HTMLElement {
     (this._orefs || []).forEach((r) => {  // open windows, doors and gates light up, an unlocked lock shows red
       const cls = "os" + this._opState(r.o.ents, r.o);
       if (r.cls !== cls && r.g) { r.cls = cls; r.g.setAttribute("class", cls); }
+      if (r.sh) this._shade(r);
     });
+  }
+
+  /* Roller shutter or blind in front of a window, seen from above: a faint track over the whole width, a bar for the
+     closed part (current_position 0 = closed). Blinds that report a tilt show slats instead, turned by the tilt:
+     along the wall when shut, across it when open. Moving shades pulse. */
+  _shade(r) {
+    const o = r.o, s = !this._hidden(o.shade) && this._hass.states[o.shade], a = (s && s.attributes) || {};
+    const pos = typeof a.current_position === "number" ? a.current_position : s && s.state === "closed" ? 0 : 100;
+    const tilt = typeof a.current_tilt_position === "number" ? a.current_tilt_position : null;
+    const key = s ? `${s.state}|${pos}|${tilt}` : "";
+    if (r.sk === key) return;
+    r.sk = key;
+    r.sh.setAttribute("class", "shd" + (s && (s.state === "opening" || s.state === "closing") ? " moving" : ""));
+    if (!s) { r.sh.innerHTML = ""; return; }
+    const ang = o.angle * Math.PI / 180, ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * o.out, ny = ux * o.out;
+    const w = (o.width || 0.9) / 2, d = (o.depth || 0.24) / 2 + 0.1, cx = o.at[0] + nx * d, cy = o.at[1] + ny * d;
+    const P = (t, k) => [cx + ux * t + nx * (k || 0), cy + uy * t + ny * (k || 0)];
+    const L = (p, q, cls) => `<line class="${cls}" x1="${p[0].toFixed(3)}" y1="${p[1].toFixed(3)}" x2="${q[0].toFixed(3)}" y2="${q[1].toFixed(3)}"/>`;
+    const shut = Math.max(0, Math.min(1, 1 - pos / 100)), end = -w + 2 * w * shut;
+    let html = L(P(-w), P(w), "trk");
+    if (shut > 0.01 && tilt === null) html += L(P(-w), P(end), "bar");
+    else if (shut > 0.01) {
+      const th = (tilt / 100) * Math.PI / 2, c = Math.cos(th) * 0.07, k = Math.sin(th) * 0.07;
+      for (let t = -w + 0.06; t <= end - 0.02; t += 0.12) html += L(P(t - c, -k), P(t + c, k), "sl");
+    }
+    r.sh.innerHTML = html;
   }
 
   _opState(ents, o) {
@@ -772,9 +837,10 @@ class FloorplanLiteCard extends HTMLElement {
   _opTap(o) {
     if (this._config.tap === "none" || !this._hass) return;
     const st = this._hass.states, ents = o.ents.filter((id) => !this._hidden(id) && st[id]);
-    if (!ents.length) return;
+    const shade = o.shade && !this._hidden(o.shade) && st[o.shade] ? o.shade : "";
+    if (!ents.length) { if (shade) this._moreInfo(shade); return; }
     const ctl = o.tap === "info" ? null : ents.filter((id) => /^(lock|cover|button|switch)\./.test(id))[0];
-    if (!ctl) return this._moreInfo(ents[0]);
+    if (!ctl) return this._moreInfo(shade || ents[0]);  // a window with only a contact: its shade is what can be operated
     const t = this._t, s = st[ctl], d = ctl.split(".")[0], v = s.state, acts = [];  // acts[0] is what a tap means
     if (d === "lock") {
       acts.push(v === "locked" || v === "locking" ? [t.unlock, "unlock"] : [t.lock, "lock"]);
@@ -839,7 +905,7 @@ class FloorplanLiteCard extends HTMLElement {
       const n = this._ckN;
       this._ckN = 0; this._ckRoom = null;
       if (n <= 1) { this._open(id); return; }  // single tap: pop-up
-      if (id && this._hass) this._hass.callService("script", "raum_klick", { raum: id, klicks: n > 3 ? 3 : n });
+      this._send(id, n === 2 ? "tipp2" : "tipp3");
     }, 300);
   }
 
@@ -855,22 +921,79 @@ class FloorplanLiteCard extends HTMLElement {
     window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
   }
 
-  /* Play / pause over a room: its music. With script.raum_klick (aktion play / pause) the script decides which players,
-     otherwise the room's media players directly. */
-  _media(cmd) {
-    if ((cmd !== "play" && cmd !== "pause") || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
+  /* Remote keys over a room (media keys, or the TV Streamer's tv-streamer-key event). */
+  _remote(aktion) {
+    if (!aktion || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
     if (location.hash && location.hash.length > 1) return false;  // a pop-up is open
-    const ref = (this._refs || []).filter((r) => r.lbl && r.lbl.getAttribute("data-room") === this._hover)[0];
-    const svc = this._hass.services || {};
-    if (svc.script && svc.script.raum_klick) {
-      this._hass.callService("script", "raum_klick", { raum: this._hover, aktion: cmd });
+    this._send(this._hover, aktion);
+    return true;
+  }
+
+  /* Every key, click, wheel step and tap over a room goes to the script (option script, default script.raum_klick) as
+     {raum, aktion} – the script decides what happens. Without the script only play / pause work, on the room's players. */
+  _send(room, aktion) {
+    if (!room || !aktion || !this._hass) return false;
+    const sc = String(this._config.script || "raum_klick").replace(/^script\./, ""), svc = this._hass.services || {};
+    if (aktion !== "pause" && aktion !== "stop") this._flashStart(room, aktion === "lauter" || aktion === "leiser" || aktion === "play" ? "vol" : "scene");
+    const st = this._hass.states, r = this._roomEnts(this._keyOf(room)), ok = (id) => !!st[id] && !this._hidden(id);
+    const players = (r.musik || []).filter(ok);
+    if (svc.script && svc.script[sc]) {  // with the room's lights and players from the plan, so the script needs no guessing
+      const pr = ((this._plan && this._plan.rooms) || []).filter((x) => x.id === room)[0];
+      const lights = (r.licht || []).concat(r.hauptlicht && (r.licht || []).indexOf(r.hauptlicht) < 0 ? [r.hauptlicht] : []).filter(ok);
+      this._hass.callService("script", sc, { raum: (pr && pr.area) || room, aktion: aktion, lichter: lights, player: players });
       return true;
     }
-    const st = this._hass.states, players = (this._roomEnts(ref ? ref.key : this._hover).musik || []).filter((id) => st[id] && !this._hidden(id));
+    if (aktion !== "play" && aktion !== "pause") return false;
     const playing = players.filter((id) => st[id].state === "playing");
-    const target = cmd === "pause" ? playing : playing.length ? playing : players.slice(0, 1);
-    if (target.length) this._hass.callService("media_player", cmd === "pause" ? "media_pause" : "media_play", { entity_id: target });
+    const target = aktion === "pause" ? playing : playing.length ? playing : players.slice(0, 1);
+    if (target.length) this._hass.callService("media_player", aktion === "pause" ? "media_pause" : "media_play", { entity_id: target });
     return true;
+  }
+
+  _keyOf(room) {  // entity set of a room (several polygons can share one)
+    const ref = (this._refs || []).filter((r) => r.lbl && r.lbl.getAttribute("data-room") === room)[0];
+    return ref ? ref.key : room;
+  }
+
+  /* Short display in the room label instead of the temperature (3 s): the volume after louder / quieter / play while
+     music plays, the scene's name after a scene was switched (a scene's state is the time it was last activated). */
+  _flashStart(room, kind) {
+    const f = this._flash, st = this._hass.states, scenes = {};
+    if (f && f.room === room && f.kind === kind) { f.until = Math.max(f.until, Date.now() + 3000); return; }
+    if (kind === "scene") Object.keys(st).forEach((id) => { if (id.indexOf("scene.") === 0) scenes[id] = st[id].state; });
+    this._flash = { room: room, key: this._keyOf(room), kind: kind, scenes: scenes, text: "", until: Date.now() + 5000 };
+    this._flashLater(5000);
+  }
+
+  _flashLater(ms) {
+    clearTimeout(this._flashT);
+    this._flashT = setTimeout(() => { this._sig = null; if (this._hass) this.hass = this._hass; }, ms + 50);
+  }
+
+  _flashText() {
+    const f = this._flash;
+    if (!f || !this._hass) return "";
+    if (Date.now() > f.until) { this._flash = null; return ""; }
+    const st = this._hass.states;
+    let text = "";
+    if (f.kind === "vol") {
+      const vol = (this._roomEnts(f.key).musik || []).filter((id) => st[id] && !this._hidden(id) && st[id].state === "playing")
+        .map((id) => st[id].attributes.volume_level).filter((v) => typeof v === "number");
+      if (vol.length) text = "\u266a " + Math.round(vol[0] * 100) + " %";
+    } else {
+      let best = "";
+      Object.keys(st).forEach((id) => {
+        if (id.indexOf("scene.") === 0 && st[id].state !== f.scenes[id] && (!best || st[id].state > st[best].state)) best = id;
+      });
+      if (best) text = sceneLabel(st[best].attributes.friendly_name || best, this._roomName(f.room));
+    }
+    if (text && text !== f.text) { f.text = text; f.until = Date.now() + 3000; this._flashLater(3000); }
+    return text;
+  }
+
+  _roomName(id) {
+    const r = ((this._plan && this._plan.rooms) || []).filter((x) => x.id === id)[0];
+    return (r && r.name) || "";
   }
 
   _visible() {
@@ -889,13 +1012,12 @@ class FloorplanLiteCard extends HTMLElement {
   _key(e) {  // ← / → change the level; ↑ / ↓ over a room switch light scenes; media keys over a room: its music
     if (!this._config || !this._refs) return;
     if (e.defaultPrevented && !this._over) return;  // another card took it – unless the pointer is over this one
-    const mk = e.key === "MediaPlay" ? "play" : e.key === "MediaPause" ? "pause" : "";
-    if (mk && this._media(mk)) { e.preventDefault(); return; }
+    if (MEDIA_KEYS[e.key] && this._remote(MEDIA_KEYS[e.key])) { e.preventDefault(); return; }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const v = e.key === "ArrowUp" || e.keyCode === 38 ? "hoch" : e.key === "ArrowDown" || e.keyCode === 40 ? "runter" : "";
     if (v && this._hover && !(location.hash && location.hash.length > 1)) {
       e.preventDefault();
-      if (this._hass) this._hass.callService("script", "raum_klick", { raum: this._hover, aktion: v });
+      this._send(this._hover, v);
       return;
     }
     if (this._config.mode !== "swipe" || !this._track) return;
@@ -1033,11 +1155,18 @@ FloorplanLiteCard.styles = `
   .op .sky { fill: rgba(159, 211, 255, .2); stroke: #9fd3ff; stroke-width: .06; opacity: .85; }
   .op .skybar { stroke: #9fd3ff; stroke-width: .04; opacity: .6; }
   .op .os { transition: opacity .3s; }
-  .op .os.open .win, .op .os.open .gar, .op .os.open .leaf, .op .os.open .skybar { stroke: #ffb74d; opacity: 1; }
-  .op .os.open .sky { fill: rgba(255, 183, 77, .3); stroke: #ffb74d; opacity: 1; }
+  .op .os.open .win, .op .os.open .gar, .op .os.open .leaf, .op .os.open .swing, .op .os.open .skybar { stroke: var(--c-window); opacity: 1; }
+  .op .os.open .sky { fill: rgba(255, 141, 126, .3); stroke: var(--c-window); opacity: 1; }
   .op .os.unlocked .leaf { stroke: #ff8a80; opacity: 1; }
-  .op .os.tilted .win, .op .os.tilted .skybar { stroke: #ffd166; stroke-dasharray: .12 .1; opacity: 1; }
+  .op .os.tilted .win, .op .os.tilted .gar, .op .os.tilted .leaf, .op .os.tilted .skybar { stroke: #ffd166; stroke-dasharray: .12 .1; opacity: 1; }
   .op .os.tilted .sky { fill: rgba(255, 209, 102, .22); stroke: #ffd166; stroke-dasharray: .12 .1; opacity: 1; }
+  /* Shade in front of a window: track (whole width), bar = closed part, ticks = slats turned by the tilt */
+  .op .shd line { stroke: var(--c-shade); stroke-linecap: butt; }
+  .op .shd .trk { stroke-width: .05; opacity: .25; }
+  .op .shd .bar { stroke-width: .11; opacity: .85; }
+  .op .shd .sl { stroke-width: .035; opacity: .9; }
+  .op .shd.moving .bar, .op .shd.moving .sl { animation: shmove 1s ease-in-out infinite alternate; }
+  @keyframes shmove { from { opacity: .35; } }
   .cfm { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
     background: rgba(8, 12, 24, .55); border-radius: inherit; }
   .cbox { background: #1d2742; color: var(--n-text); border-radius: 14px; padding: 16px 18px; max-width: 86%; box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
@@ -1072,6 +1201,7 @@ FloorplanLiteCard.styles = `
   .name { font-size: .8em; font-weight: 500; letter-spacing: .02em; color: rgba(232, 238, 251, .84); }
   .temp { font-size: 1.14em; font-weight: 300; color: #fff; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
   .temp:empty, .chips:empty { display: none; }
+  .temp.flash { font-size: .95em; font-weight: 400; color: #fff6d8; }
   .name, .temp { text-shadow: 0 1px 2px rgba(3, 7, 18, .9), 0 0 10px rgba(3, 7, 18, .6); }
   .lbl.small { font-size: .78em; }
   .name, .temp { transition: color .8s ease, text-shadow .8s ease; }
@@ -1141,12 +1271,14 @@ const ED = {
     start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten",
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
+    script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest." },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
     start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
+    script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar." },
 };
@@ -1198,7 +1330,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "background", selector: { boolean: {} } },
       { name: "intro", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
-      { name: "hide_label", selector: { label: { multiple: true } } });
+      { name: "hide_label", selector: { label: { multiple: true } } },
+      { name: "script", selector: { entity: { filter: { domain: "script" } } } });
     return sc;
   }
 
@@ -1207,7 +1340,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
       align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
-      tap: c.tap === "none" ? "none" : "popup", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
+      tap: c.tap === "none" ? "none" : "popup", script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
 
@@ -1222,6 +1355,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("background", false, v.background === false);
     set("intro", false, v.intro === false);
     set("tap", "none", v.tap === "none");
+    set("script", v.script, v.script && v.script !== "script.raum_klick");
     const hl = (v.hide_label || []).slice().sort();
     set("hide_label", hl, !planChanged && hl.join() !== this._planLabels.slice().sort().join());
     this._config = c;

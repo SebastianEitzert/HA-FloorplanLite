@@ -23,20 +23,30 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 
 | | |
 |---|---|
-| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. With a **main light** per room (`hauptlicht`) only the main light fills the room and all other lights glow as the seam – main light off and others on: just the seam, the middle stays dark. White light reported as RGB (warm white from RGBW controllers) counts as white. |
+| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. With a **main light** per room (`hauptlicht`) only the main light fills the room and all other lights glow as the seam – main light off and others on: just the seam, the middle stays dark. White light reported as RGB (warm white from RGBW controllers) counts as white. Switches can be chosen as lights or main light by hand; lights and switches without a colour of their own glow in the room's *light colour* (warm white, neutral, cold, amber or a colour of your own). |
 | **Presence** | a calmly breathing dot (blue-violet) |
 | **Motion** | an aqua dot with ripples up to the walls |
 | **Temperature** | from a `climate` entity (current temperature) or a sensor |
 | **Chips** | window open, shade closed, music playing (as a small equaliser) |
-| **Openings** | doors with their swing, windows, roof windows and domes, passages without a door, garage doors – with entities (contact, cover, lock, gate) open ones glow orange, an unlocked lock red; tap a window for its dialog, tap a door or gate to open/close/unlock it, with or without a confirmation; tilted windows (`tilted`/`gekippt`) show in yellow |
+| **Openings** | doors with their swing, windows, roof windows and domes, passages without a door, garage doors – with entities (contact, cover, lock, gate) an unlocked lock shows red; tap a window for its dialog, tap a door or gate to open/close/unlock it, with or without a confirmation; open ones show in red-orange, tilted windows (`tilted`/`gekippt`) dashed in yellow – the chip in the room's label too (open wins over tilted) |
+| **Shades** | a roller shutter or blind per window, drawn on the outside of the wall: a bar for the closed part (`current_position`), blinds with a tilt as slats turned by `current_tilt_position` (along the wall when shut, across when open); moving shades pulse |
+| **Short display** | after louder / quieter / play the room's label shows the volume for 3 s, after a scene was switched the scene's name (instead of the temperature) |
 | **Background** | per level an image under the plan (e.g. a satellite view, so the garden stays a photo) or over it with transparency, or hidden |
 
 Tap a room to open the [Bubble Card](https://github.com/Clooos/Bubble-Card) pop-up with the hash `#<room>`.
-With a mouse or a TV remote (e.g. through Moonlight): play / pause over a room = its music (media keys, or the
-[TV Streamer](https://github.com/SebastianEitzert/TV-Streamer) remote keys), right click (LG remote: yellow) twice over a
-room = room off, mouse wheel = music louder/quieter, ↑/↓ over a room = light scenes – these call a script
-`script.raum_klick` with `raum`, `aktion`/`klicks` (optional; play/pause work without it on the room's media players).
-←/→ switch the level.
+←/→ switch the level. Everything else over a room – ↑/↓, mouse wheel, right click (LG remote: yellow) once or twice,
+media keys, the [TV Streamer](https://github.com/SebastianEitzert/TV-Streamer)'s colour and play keys, double / triple
+tap – goes to a script (card option `script`, default `script.raum_klick`) with `raum` (the room's area), `aktion`
+(`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `gelb2`, `play`, `pause`, `play_pause`, `stop`, `weiter`, `zurueck`,
+`blau`, `gruen`, `rot`, `tipp2`, `tipp3`) and the room's `lichter` and `player`. The script decides what happens.
+
+The integration installs a blueprint for it: *Settings → Automations & scenes → Blueprints → **Floorplan Lite – keys,
+clicks and wheel over a room** → Create script*, and save it as `script.raum_klick`. Per event you choose: next /
+previous scene, light on/off, room off, music play / pause / stop, louder / quieter (only while music plays, or always),
+next / previous track – or nothing. A room's scenes are those assigned to its area and those whose name starts with the
+room's name; the cycle runs off → first scenes → the others → off, and a room without scenes switches its lights on and
+off. Names of the off and night scenes, a night-mode switch and standard players per room are settings. Without a
+script, play / pause go straight to the room's media players.
 
 ## Installation
 

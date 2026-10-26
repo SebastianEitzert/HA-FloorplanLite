@@ -102,6 +102,7 @@ OPENING = vol.Schema(
         vol.Optional("tilt_attribute"): vol.All(str, vol.Length(max=64)),  # tilted when this attribute of a contact …
         vol.Optional("tilt_value"): vol.All(str, vol.Length(max=64)),  # … (or tilt_entity's state) has this value
         vol.Optional("tilt_entity"): vol.All(str, vol.Length(max=255)),  # own entity for "tilted" (binary_sensor: on)
+        vol.Optional("shade"): vol.All(str, vol.Length(max=255)),  # roller shutter or blind in front of it (cover)
     }
 )
 
@@ -115,6 +116,7 @@ ROOM_ENTITIES = vol.Schema(
         vol.Optional("fenster"): ENTITY_LIST,
         vol.Optional("beschattung"): ENTITY_LIST,
         vol.Optional("musik"): ENTITY_LIST,
+        vol.Optional("lichtfarbe"): vol.All(str, vol.Match(r"^#[0-9a-fA-F]{6}$")),  # colour of lights that report none
     }
 )
 

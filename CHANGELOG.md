@@ -2,6 +2,23 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## Unreleased
+- All keys, clicks, wheel steps and taps over a room go to a script (card option `script`, default
+  `script.raum_klick`) as `{raum, aktion, lichter, player}` – the card itself only opens the pop-up and changes the
+  level. New event names: `gelb` / `gelb2` (right click or yellow once / twice), `tipp2` / `tipp3`, `play_pause`,
+  `stop`, `weiter`, `zurueck`, `blau`, `gruen`, `rot`. `raum` is the room's area when it has one.
+- Script blueprint *Floorplan Lite – keys, clicks and wheel over a room*, installed with the integration: what each event
+  does is a setting; scenes of a room by area or name (no fixed names), rooms without scenes switch their lights on and
+  off, louder / quieter only while music plays (or always), standard players per room, night mode. Older cards
+  (`klicks`, `aktion: musik`) still work with it.
+- Short display in the room's label: the volume after louder / quieter / play, the scene's name after a scene change.
+- Roller shutter or blind per window (`shade`): drawn outside the wall, closed part as a bar, blinds with their slats
+  turned by the tilt; moving shades pulse; tapping a window with only a contact opens the shade.
+- Open windows, doors and gates in the chip's red-orange, tilted ones dashed yellow; the open chip has its own icon.
+- Switches can be chosen as lights and main light (by hand – the area fill still takes lights only); per room a light
+  colour for lights and switches without one (warm white, neutral, cold, amber, red, green, blue, purple or own).
+- Editor: openings on the same wall keep 5 cm apart and never overlap when placed or dragged.
+
 ## 0.4.3 – 2026-10-26
 - Fix "configuration error" in place of the card: another dashboard plugin can swap the browser's custom-element
   registry for a polyfilled one right after start-up, after this card had registered (it loads first). The card now

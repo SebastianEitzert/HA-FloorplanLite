@@ -1,0 +1,292 @@
+blueprint:
+  name: Floorplan Lite – keys, clicks and wheel over a room
+  description: >-
+    The Floorplan Lite card sends every key, click, wheel step and tap over a room to this script as
+    `{raum, aktion, lichter, player}`. Here you choose what each of them does – or nothing.
+
+
+    **Scenes of a room** are the scenes assigned to its area and (optionally) the scenes whose name starts with the
+    room's name, e.g. „Kitchen Evening“ or „Kitchen-Bright“. ↑/↓ step through them: off → first scenes → the others
+    (alphabetical) → off. A scene named like one of the *off names* stands for „off“; without one the room's lights
+    are switched off. A room without scenes simply switches its lights on and off.
+
+
+    **Music** goes to the room's players that are playing; play starts the standard players of the room (or all of
+    them) when none is playing.
+  domain: script
+  source_url: https://github.com/SebastianEitzert/HA-FloorplanLite/blob/main/custom_components/floorplan_lite/blueprints/script/room_click.yaml
+  input:
+    keys:
+      name: Keys and clicks
+      description: What each event over a room does.
+      input:
+        hoch:
+          name: "↑ (hoch)"
+          default: scene_next
+          selector: &actions
+            select:
+              mode: dropdown
+              options:
+                - { value: nothing, label: "Nothing" }
+                - { value: scene_next, label: "Next scene (without scenes: light on/off)" }
+                - { value: scene_previous, label: "Previous scene (without scenes: light on/off)" }
+                - { value: light_toggle, label: "Light on/off (first scene / off)" }
+                - { value: light_on, label: "Light on (first scene)" }
+                - { value: light_off, label: "Light off" }
+                - { value: room_off, label: "Room off (light off, music stop)" }
+                - { value: music_play, label: "Music play" }
+                - { value: music_pause, label: "Music pause" }
+                - { value: music_toggle, label: "Music play/pause" }
+                - { value: music_stop, label: "Music stop" }
+                - { value: volume_up, label: "Louder" }
+                - { value: volume_down, label: "Quieter" }
+                - { value: next_track, label: "Next track" }
+                - { value: previous_track, label: "Previous track" }
+        runter: { name: "↓ (runter)", default: scene_previous, selector: *actions }
+        lauter: { name: "Mouse wheel up (lauter)", default: volume_up, selector: *actions }
+        leiser: { name: "Mouse wheel down (leiser)", default: volume_down, selector: *actions }
+        gelb: { name: "Right click / yellow once (gelb)", default: nothing, selector: *actions }
+        gelb2: { name: "Right click / yellow twice (gelb2)", default: room_off, selector: *actions }
+        play: { name: "Play key (play)", default: music_play, selector: *actions }
+        pause: { name: "Pause key (pause)", default: music_pause, selector: *actions }
+        play_pause: { name: "Play/pause key (play_pause)", default: music_toggle, selector: *actions }
+        stop: { name: "Stop key (stop)", default: music_stop, selector: *actions }
+        weiter: { name: "Next track key (weiter)", default: next_track, selector: *actions }
+        zurueck: { name: "Previous track key (zurueck)", default: previous_track, selector: *actions }
+        blau: { name: "Blue (blau, TV Streamer)", default: nothing, selector: *actions }
+        gruen: { name: "Green (gruen, TV Streamer)", default: nothing, selector: *actions }
+        rot: { name: "Red (rot, TV Streamer)", default: nothing, selector: *actions }
+        tipp2: { name: "Touch: double tap (tipp2)", default: light_toggle, selector: *actions }
+        tipp3: { name: "Touch: triple tap (tipp3)", default: room_off, selector: *actions }
+    music:
+      name: Music
+      input:
+        volume_mode:
+          name: Louder / quieter
+          default: only_playing
+          selector:
+            select:
+              options:
+                - { value: only_playing, label: "Only while music plays (never starts it)" }
+                - { value: always, label: "Always (players that play, else the standard players)" }
+        standard_players:
+          name: Standard players per area
+          description: "Players that play starts when none is playing, e.g. `living_room: [media_player.ceiling]`. Without an entry: all players of the room."
+          default: {}
+          selector: { object: {} }
+        music_integration:
+          name: Only players of this integration (optional)
+          description: e.g. `loxone` – leaves TVs and other players alone.
+          default: ""
+          selector: { text: {} }
+    scenes:
+      name: Scenes and light
+      collapsed: true
+      input:
+        scenes_by_name:
+          name: Scenes whose name starts with the room's name belong to it
+          default: true
+          selector: { boolean: {} }
+        room_names:
+          name: Scene name of a room (if it differs from the area's name)
+          description: "e.g. `kids_room_1: Kid 1`"
+          default: {}
+          selector: { object: {} }
+        off_names:
+          name: Names of the „off“ scene
+          default: [Off, Aus]
+          selector: { text: { multiple: true } }
+        first_names:
+          name: Scenes that come first (in this order)
+          default: []
+          selector: { text: { multiple: true } }
+        night_switch:
+          name: Night mode (optional)
+          description: While it is on, the night scene comes first.
+          default: ""
+          selector: { entity: { domain: [switch, input_boolean, binary_sensor] } }
+        night_names:
+          name: Names of the night scene
+          default: [Night, Nacht]
+          selector: { text: { multiple: true } }
+        light_integration:
+          name: Only lights of this integration count (optional)
+          description: e.g. `loxone` – a status LED in the room then does not keep it „on“.
+          default: ""
+          selector: { text: {} }
+
+mode: parallel
+max: 10
+icon: mdi:gesture-tap-button
+fields:
+  raum:
+    name: Room
+    description: Area of the room
+    required: true
+    selector: { area: {} }
+  aktion:
+    name: Event
+    description: hoch, runter, lauter, leiser, gelb, gelb2, play, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3
+    selector: { text: {} }
+  lichter:
+    name: Lights
+    description: The room's lights from the floor plan (default – the area's lights)
+    selector: { entity: { multiple: true } }
+  player:
+    name: Players
+    description: The room's media players from the floor plan (default – the area's players)
+    selector: { entity: { multiple: true, domain: media_player } }
+  klicks:
+    name: Clicks (older cards)
+    selector: { number: { min: 2, max: 3, mode: box } }
+
+variables:
+  settings:
+    hoch: !input hoch
+    runter: !input runter
+    lauter: !input lauter
+    leiser: !input leiser
+    gelb: !input gelb
+    gelb2: !input gelb2
+    play: !input play
+    pause: !input pause
+    play_pause: !input play_pause
+    stop: !input stop
+    weiter: !input weiter
+    zurueck: !input zurueck
+    blau: !input blau
+    gruen: !input gruen
+    rot: !input rot
+    tipp2: !input tipp2
+    tipp3: !input tipp3
+  volume_mode: !input volume_mode
+  standard_players: !input standard_players
+  music_integration: !input music_integration
+  scenes_by_name: !input scenes_by_name
+  room_names: !input room_names
+  off_names: !input off_names
+  first_names: !input first_names
+  night_switch: !input night_switch
+  night_names: !input night_names
+  light_integration: !input light_integration
+
+sequence:
+  - variables:
+      event: >-
+        {% set a = aktion if aktion is defined and aktion else '' %}
+        {% set k = (klicks if klicks is defined else 0) | int(0) %}
+        {{ 'play_pause' if a == 'musik' else a if a else 'tipp3' if k >= 3 else 'tipp2' if k == 2 else '' }}
+      todo: "{{ settings.get(event, 'nothing') }}"
+  - condition: template
+    value_template: "{{ todo != 'nothing' }}"
+  - variables:
+      lights: >-
+        {% set l = lichter if lichter is defined and lichter else area_entities(raum) | select('match', 'light\.') | list %}
+        {{ l | select('in', integration_entities(light_integration)) | list if light_integration else l }}
+      players: >-
+        {% set p = player if player is defined and player else area_entities(raum) | select('match', 'media_player\.')
+           | reject('is_state_attr', 'device_class', 'tv') | list %}
+        {{ p | select('in', integration_entities(music_integration)) | list if music_integration else p }}
+      prefix: "{{ room_names.get(raum, area_name(raum) or raum) }}"
+      # [entity_id, short name] of the room's scenes
+      scenes: >-
+        {% set n = prefix | length %}
+        {% set ns = namespace(l=[]) %}
+        {% for s in states.scene | sort(attribute='name') %}
+          {% if s.entity_id in area_entities(raum) %}
+            {% set ns.l = ns.l + [[s.entity_id, s.name[n:] | trim(' -–:') if s.name[:n] | lower == prefix | lower else s.name]] %}
+          {% elif scenes_by_name and n and s.name[:n] | lower == prefix | lower and s.name[n:n+1] in [' ', '-', '–', ':', '_'] %}
+            {% set ns.l = ns.l + [[s.entity_id, s.name[n:] | trim(' -–:_')]] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.l }}
+  - variables:
+      low_off: "{{ off_names | map('lower') | list }}"
+      low_night: "{{ night_names | map('lower') | list }}"
+  - variables:
+      # the cycle: off (scene, else „lights off“) → [night] → first scenes → the others; without scenes: off ↔ on
+      order: >-
+        {% set ns = namespace(off='', night='', first=[], rest=[]) %}
+        {% for s in scenes %}
+          {% if s[1] | lower in low_off and not ns.off %}{% set ns.off = s[0] %}
+          {% elif s[1] | lower in low_night and not ns.night %}{% set ns.night = s[0] %}
+          {% elif s[1] | lower in first_names | map('lower') | list %}{% set ns.first = ns.first + [s] %}
+          {% else %}{% set ns.rest = ns.rest + [s[0]] %}{% endif %}
+        {% endfor %}
+        {% set fl = first_names | map('lower') | list %}
+        {% set first = ns.first | sort(attribute='1') | list %}
+        {% set ns2 = namespace(f=[]) %}
+        {% for name in fl %}{% for s in first %}{% if s[1] | lower == name %}{% set ns2.f = ns2.f + [s[0]] %}{% endif %}{% endfor %}{% endfor %}
+        {% set night_on = night_switch != '' and is_state(night_switch, 'on') %}
+        {% set night = [ns.night] if ns.night else [] %}
+        {% set mid = (night + ns2.f) if night_on else (ns2.f + night) %}
+        {% set on = mid + ns.rest %}
+        {{ [ns.off or 'lights_off'] + (on if on else ['lights_on']) }}
+      light_on: >-
+        {{ lights | select('is_state', 'on') | list | count > 0 }}
+  - variables:
+      current: >-
+        {% set ns = namespace(id='', t='') %}
+        {% for e in order if e.startswith('scene.') and has_value(e) and states(e) > ns.t %}
+          {% set ns.t = states(e) %}{% set ns.id = e %}
+        {% endfor %}
+        {% set on = light_on if lights | count > 0 else (ns.id != '' and ns.id != order[0]) %}
+        {% if not on %}0{% elif ns.id in order and ns.id != order[0] %}{{ order.index(ns.id) }}{% else %}1{% endif %}
+      target: >-
+        {% set n = order | count %}
+        {% set i = current | int(0) %}
+        {% if todo == 'scene_next' %}{{ order[(i + 1) % n] }}
+        {% elif todo == 'scene_previous' %}{{ order[(i - 1 + n) % n] }}
+        {% elif todo == 'light_toggle' %}{{ order[0] if i > 0 else order[1] }}
+        {% elif todo == 'light_on' %}{{ order[1] if i == 0 else '' }}
+        {% elif todo in ['light_off', 'room_off'] %}{{ order[0] }}
+        {% endif %}
+      playing: "{{ players | select('is_state', 'playing') | list }}"
+      standard: >-
+        {% set s = standard_players.get(raum, []) | select('in', players) | list %}
+        {{ s if s else players }}
+  - choose:
+      - conditions: "{{ target.startswith('scene.') }}"
+        sequence:
+          - action: scene.turn_on
+            target: { entity_id: "{{ target }}" }
+      - conditions: "{{ target == 'lights_off' and lights | count > 0 }}"
+        sequence:
+          - action: homeassistant.turn_off
+            target: { entity_id: "{{ lights }}" }
+      - conditions: "{{ target == 'lights_on' and lights | count > 0 }}"
+        sequence:
+          - action: homeassistant.turn_on
+            target: { entity_id: "{{ lights }}" }
+  - choose:
+      - conditions: "{{ todo in ['room_off', 'music_stop'] and players | count > 0 }}"
+        sequence:
+          - action: media_player.media_stop
+            continue_on_error: true
+            target: { entity_id: "{{ players }}" }
+      - conditions: "{{ todo == 'music_play' or (todo == 'music_toggle' and playing | count == 0) }}"
+        sequence:
+          - condition: template
+            value_template: "{{ (playing or standard) | count > 0 }}"
+          - action: media_player.media_play
+            continue_on_error: true
+            target: { entity_id: "{{ playing if playing else standard }}" }
+      - conditions: "{{ todo in ['music_pause', 'music_toggle'] and playing | count > 0 }}"
+        sequence:
+          - action: media_player.media_pause
+            continue_on_error: true
+            target: { entity_id: "{{ playing }}" }
+      - conditions: "{{ todo in ['volume_up', 'volume_down'] }}"
+        sequence:
+          - variables:
+              to: "{{ playing if playing or volume_mode == 'only_playing' else standard }}"
+          - condition: template
+            value_template: "{{ to | count > 0 }}"
+          - action: "media_player.{{ todo }}"
+            continue_on_error: true
+            target: { entity_id: "{{ to }}" }
+      - conditions: "{{ todo in ['next_track', 'previous_track'] and playing | count > 0 }}"
+        sequence:
+          - action: "media_player.media_{{ todo }}"
+            continue_on_error: true
+            target: { entity_id: "{{ playing }}" }

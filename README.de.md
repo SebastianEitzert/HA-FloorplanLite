@@ -51,7 +51,10 @@ Skript `script.raum_klick` mit `raum`, `aktion`/`klicks` auf (optional; ohne das
    Die Entitäten je Raum in der Seitenleiste eintragen. Räume ohne Wand dazwischen (offener Bereich): Werkzeug *Keine
    Wand*, dann die gemeinsame Wand anklicken. Ein Stockwerk lässt sich samt Inhalt als Grundlage des nächsten kopieren. Wandstärken und den Namen des Grundrisses (✎ neben der Auswahl) gibt es in
    der Seitenleiste. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
-4. Die Karte ins Dashboard einfügen:
+   Wähle für jeden Raum einen Home-Assistant-Bereich: Name, ID und die dort gefundenen Entitäten werden übernommen
+   (oder jedes Mal live aus dem Bereich gelesen). *Pop-up-YAML erzeugen* baut je Raum ein Bubble-Card-Pop-up (`#raum`) –
+   zum Kopieren oder direkt in ein Dashboard eingetragen.
+4. Die Karte ins Dashboard einfügen – mit dem grafischen Karten-Editor oder in YAML:
 
 ```yaml
 type: custom:floorplan-lite-card
@@ -62,7 +65,7 @@ floors: [eg, og]      # optional: nur diese Stockwerke
 background: false     # optional: Hintergrundbilder ausblenden
 align: true           # optional: Stockwerke aneinander ausrichten – das DG bleibt beim Wischen über dem Haus
 tap: none             # optional: kein Pop-up beim Tippen
-hide_label: no_dboard # optional: Entitäten mit diesem Label ignorieren (Vorgabe: Einstellung des Grundrisses)
+hide_label: [no_dboard] # optional: Entitäten mit diesen Labels ignorieren (Vorgabe: Einstellung des Grundrisses)
 intro: false          # optional: keine Aufbau-Animation
 rooms:                # optional: Entitäten je Raum – ersetzen die im Grundriss gespeicherten
   kuche:
@@ -85,14 +88,14 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `id`, `name` | ID (`a-z0-9_`) und Name |
 | `rotation` | dreht den ganzen Plan auf dem Bildschirm (Grad); `north` gibt die Nordrichtung an |
 | `align_levels` | `true`: alle Stockwerke im selben Ausschnitt, obere liegen genau über den unteren (Kartenoption `align`) |
-| `hide_label` | Entitäten mit diesem Label werden ignoriert (z. B. ein Label, mit dem du Entitäten schon aus Dashboards heraushältst) |
+| `hide_labels` | Entitäten mit einem dieser Labels werden ignoriert (z. B. ein Label, mit dem du Entitäten schon aus Dashboards heraushältst) |
 | `style` | Farben: `background`, `floor` (zwei Farben des Verlaufs), `wall`, `edge`, `text`; Wandstärke in Metern: `wall_width` (innen, 0,2), `outer_width` (0,5) |
 | `buildings` | `[{id, name}]` – z. B. Haus, Stall, Garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | Außenwände je Stockwerk und Gebäude: `{level, building, poly}` |
 | `walls` | Innenwände (Mittellinie): `{level, poly, width?, closed?}` – `width` in Metern, sonst `style.wall_width` |
 | `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls` |
-| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
+| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |

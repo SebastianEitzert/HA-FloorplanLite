@@ -24,7 +24,7 @@
  *   background: false             # optional: hide the background images of all levels
  *   align: true                   # optional: all levels in one frame, so upper levels stay above the ones below
  *                                 #   (default: the plan's setting align_levels)
- *   hide_label: no_dboard         # optional: ignore entities with this label (default: the plan's hide_label)
+ *   hide_label: [no_dboard]       # optional: ignore entities with one of these labels (default: the plan's setting)
  *   tap: none                     # optional: no pop-up on tap
  *   rooms: {kuche: {licht: [...]}}  # optional: entities per room, override the ones stored with the plan
  * Tapping a room opens the Bubble Card pop-up with the hash #<room>.
@@ -142,6 +142,32 @@ const lockAttr = (s) => {  // lock state reported by a contact (Loxone: schloss 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /* Plan from the store → per level everything the drawing needs, rotated and with a view box. */
+/* Entities of a Home Assistant area sorted into the room fields – the same rules as the editor's "take entities". */
+function areaEntities(hass, areaId, hidden) {
+  const reg = hass.entities || {}, dev = hass.devices || {}, st = hass.states || {};
+  const out = { licht: [], praesenz: [], bewegung: [], fenster: [], beschattung: [], musik: [] };
+  let climate = null, sensor = null;
+  Object.keys(reg).sort().forEach((id) => {
+    const e = reg[id], s = st[id];
+    if (!s || e.hidden || e.entity_category || hidden(id)) return;
+    const area = e.area_id || (e.device_id && dev[e.device_id] && dev[e.device_id].area_id);
+    if (area !== areaId) return;
+    const d = id.split(".")[0], dc = s.attributes.device_class;
+    if (d === "light") out.licht.push(id);
+    else if (d === "binary_sensor" && (dc === "occupancy" || dc === "presence")) out.praesenz.push(id);
+    else if (d === "binary_sensor" && dc === "motion") out.bewegung.push(id);
+    else if (d === "binary_sensor" && ["window", "door", "opening", "garage_door"].indexOf(dc) >= 0) out.fenster.push(id);
+    else if (d === "cover" && ["garage", "door", "gate", "window"].indexOf(dc) < 0) out.beschattung.push(id);
+    else if (d === "media_player" && dc !== "tv") out.musik.push(id);
+    else if (d === "climate" && !climate) climate = id;
+    else if (d === "sensor" && dc === "temperature" && !sensor) sensor = id;
+  });
+  if (climate || sensor) out.temp = climate || sensor;
+  return out;
+}
+
+const planLabels = (plan) => ((plan && plan.hide_labels) || []).concat(plan && plan.hide_label ? [plan.hide_label] : []);
+
 function prepare(plan, align) {
   const rot = rotator(plan.rotation || 0), st = plan.style || {};
   const ow = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
@@ -268,7 +294,11 @@ class FloorplanLiteCard extends HTMLElement {
     this._fl = (cfg.floors || keys).filter((k) => this._floors && this._floors[k]);
     if (this._idx === undefined || this._idx >= this._fl.length) this._idx = Math.max(0, this._fl.indexOf(cfg.start || this._fl[0]));
     this._rooms = Object.assign({}, plan && plan.entities || {}, cfg.rooms || {});
-    this._hideLabel = cfg.hide_label === undefined ? (plan && plan.hide_label) || "" : cfg.hide_label || "";
+    const list = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+    this._hideLabels = cfg.hide_label !== undefined ? list(cfg.hide_label) : planLabels(plan);
+    this._liveAreas = {};  // room key → area, for rooms that take their entities from the area every time
+    ((plan && plan.rooms) || []).forEach((r) => { if (r.area && r.area_live) this._liveAreas[r.key || r.id] = r.area; });
+    this._live = {}; this._liveSrc = null;
     this._idl = this._ids();
     this._refs = null;
     this._sig = null;
@@ -298,9 +328,9 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _ids() {
-    const ids = [], rooms = this._rooms || {};
+    const ids = [], rooms = Object.assign({}, this._live || {}, this._rooms || {});
     Object.keys(rooms).forEach((k) => {
-      const r = rooms[k] || {};
+      const r = this._roomEnts(k);
       ["praesenz", "bewegung", "licht", "fenster", "beschattung", "musik"].forEach((f) => { (r[f] || []).forEach((id) => ids.push(id)); });
       if (r.temp) ids.push(r.temp);
       if (r.hauptlicht) ids.push(r.hauptlicht);
@@ -312,9 +342,20 @@ class FloorplanLiteCard extends HTMLElement {
     return ids;
   }
 
+  _roomEnts(key) {  // stored entities of a room, plus those found in its area when it is live
+    const r = (key && this._rooms[key]) || {}, l = key && this._live && this._live[key];
+    if (!l) return r;
+    const m = Object.assign({}, r);
+    Object.keys(l).forEach((f) => {
+      if (f === "temp") { if (!m.temp) m.temp = l.temp; return; }
+      m[f] = (r[f] || []).concat(l[f].filter((id) => (r[f] || []).indexOf(id) < 0));
+    });
+    return m;
+  }
+
   _hidden(id) {  // entities with the hide label (e.g. no_dboard) count as not there
-    const label = this._hideLabel, reg = label && this._hass.entities && this._hass.entities[id];
-    return !!(reg && reg.labels && reg.labels.indexOf(label) >= 0);
+    const ls = this._hideLabels || [], reg = ls.length && this._hass.entities && this._hass.entities[id];
+    return !!(reg && reg.labels && reg.labels.some((l) => ls.indexOf(l) >= 0));
   }
 
   set hass(hass) {
@@ -323,6 +364,11 @@ class FloorplanLiteCard extends HTMLElement {
     if (first) this._subscribe();
     if (!this._config || !this.shadowRoot || !this._floors || !this._fl.length) return;
     if (!this._refs) this._build();
+    if (Object.keys(this._liveAreas || {}).length && (hass.entities !== this._liveSrc || hass.devices !== this._liveDev)) {
+      this._liveSrc = hass.entities; this._liveDev = hass.devices;  // registry changed: look for the areas' entities again
+      Object.keys(this._liveAreas).forEach((k) => { this._live[k] = areaEntities(hass, this._liveAreas[k], (id) => this._hidden(id)); });
+      this._idl = this._ids(); this._sig = null;
+    }
     const v = (x) => (x === undefined || x === null ? "" : x);  // without ?? for older webOS browsers
     const sig = this._idl.map((id) => {
       const s = hass.states[id];
@@ -337,7 +383,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* ---------- State of a room ---------- */
   _status(key) {
-    const r = (key && this._rooms[key]) || {};
+    const r = this._roomEnts(key);
     const st = this._hass.states;
     const get = (id) => (id && !this._hidden(id) ? st[id] : undefined);
     const any = (list, fn) => (list || []).some((id) => { const s = get(id); return !!s && fn(s); });
@@ -1047,13 +1093,13 @@ const ED = {
   de: { plan: "Grundriss", mode: "Darstellung", swipe: "Ein Stockwerk groß – wischen, Reiter, Pfeile", all: "Alle Stockwerke nebeneinander",
     start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten",
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
-    popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesem Label ignorieren",
+    popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest." },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
     start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
-    popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with this label",
+    popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar." },
 };
@@ -1087,7 +1133,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     if (id) { try { plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { plan = null; } }
     this._levels = plan ? plan.levels || [] : [];
     this._planAlign = !!(plan && plan.align_levels);
-    this._planLabel = (plan && plan.hide_label) || "";
+    this._planLabels = planLabels(plan);
     this._render();
   }
 
@@ -1105,7 +1151,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "background", selector: { boolean: {} } },
       { name: "intro", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
-      { name: "hide_label", selector: { label: {} } });
+      { name: "hide_label", selector: { label: { multiple: true } } });
     return sc;
   }
 
@@ -1114,7 +1160,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
       align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
-      tap: c.tap === "none" ? "none" : "popup", hide_label: c.hide_label === undefined ? this._planLabel : c.hide_label,
+      tap: c.tap === "none" ? "none" : "popup", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
 
@@ -1129,7 +1175,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("background", false, v.background === false);
     set("intro", false, v.intro === false);
     set("tap", "none", v.tap === "none");
-    set("hide_label", v.hide_label || "", !planChanged && (v.hide_label || "") !== this._planLabel);
+    const hl = (v.hide_label || []).slice().sort();
+    set("hide_label", hl, !planChanged && hl.join() !== this._planLabels.slice().sort().join());
     this._config = c;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: c }, bubbles: true, composed: true }));
     if (planChanged) this._loadPlan(); else this._render();

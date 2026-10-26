@@ -52,6 +52,7 @@ ROOM = vol.Schema(
         vol.Optional("outdoor", default=False): bool,
         vol.Optional("color"): vol.All(str, vol.Length(max=32)),
         vol.Optional("area"): vol.All(str, vol.Length(max=255)),  # Home Assistant area the room stands for
+        vol.Optional("area_live", default=False): bool,  # the card takes the area's entities itself, every time
     }
 )
 
@@ -125,7 +126,8 @@ PLAN = vol.Schema(
         vol.Optional("north", default=0): NUM,  # direction of north in plan coordinates (degrees, 0 = up)
         vol.Optional("align_levels", default=False): bool,
         vol.Optional("room_walls", default=True): bool,  # rooms draw walls along their edges (plans without inner walls)  # all levels in one frame (upper levels above lower ones)
-        vol.Optional("hide_label"): vol.All(str, vol.Length(max=255)),  # entities with this label are ignored
+        vol.Optional("hide_label"): vol.All(str, vol.Length(max=255)),  # older plans: one label
+        vol.Optional("hide_labels"): vol.All([vol.All(str, vol.Length(max=255))], vol.Length(max=30)),  # entities with one of these labels are ignored
         vol.Optional("style", default=dict): vol.Schema({vol.Optional(str): vol.Any(str, NUM, [str])}),
         vol.Optional("buildings", default=list): [vol.Schema({vol.Required("id"): ID, vol.Required("name"): str})],
         vol.Required("levels"): vol.All([LEVEL], vol.Length(min=1, max=30)),

@@ -49,7 +49,10 @@ start/pause, twice = room off, mouse wheel = music louder/quieter, ↑/↓ over 
    the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
    in the side panel. Rooms without a wall between them (open plan): tool *No wall*, then click the wall they share.
    A level can be copied with everything on it as the start of the next one. Wall thickness and the plan's name (✎ next to the plan list) are in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
-4. Add the card to a dashboard:
+   Choose a Home Assistant area for each room: name, id and the entities found there are filled in (or taken live
+   from the area every time). *Create pop-up YAML* builds a Bubble Card pop-up (`#room`) per room – to copy, or added
+   to a dashboard directly.
+4. Add the card to a dashboard – with the visual card editor, or in YAML:
 
 ```yaml
 type: custom:floorplan-lite-card
@@ -60,7 +63,7 @@ floors: [eg, og]      # optional: only these levels
 background: false     # optional: hide the background images
 align: true           # optional: all levels in one frame – the attic stays above the house when swiping
 tap: none             # optional: no pop-up on tap
-hide_label: no_dboard # optional: ignore entities with this label (default: the plan's setting)
+hide_label: [no_dboard] # optional: ignore entities with these labels (default: the plan's setting)
 intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
   kitchen:
@@ -83,14 +86,14 @@ Coordinates are in metres; `y` points down. A plan has:
 | `id`, `name` | id (`a-z0-9_`) and name |
 | `rotation` | turns the whole plan on screen (degrees); `north` gives the direction of north |
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
-| `hide_label` | entities with this label are ignored (e.g. a label you already use to keep entities off dashboards) |
+| `hide_labels` | entities with one of these labels are ignored (e.g. a label you already use to keep entities off dashboards) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text`; wall thickness in metres: `wall_width` (inner, 0.2), `outer_width` (0.5) |
 | `buildings` | `[{id, name}]` – e.g. house, barn, garage |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
 | `walls` | inner walls (centre line): `{level, poly, width?, closed?}` – `width` in metres, otherwise `style.wall_width` |
 | `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls` |
-| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
+| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |

@@ -2,7 +2,12 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.4.0 – 2026-10-26
+- Several labels to ignore (`hide_labels`, card option `hide_label` as a list); the older single label still works.
+- Rooms can take their entities live from their area (`area_live`): new devices in the area show up by themselves.
+- *Create pop-up YAML* per room or for all rooms: a Bubble Card pop-up (`#room`) either with auto-entities by area
+  (dynamic, like hand-made area pop-ups) or with fixed tiles; copy it, or add it to a dashboard view directly
+  (pop-ups whose hash is already there stay untouched).
 - Drawing snaps softly: within 4° of horizontal, vertical, 45°, parallel or square to any wall on the level, and with
   priority square to the wall a line starts on (also on slanted walls) or to the last drawn line; in between it draws
   freely (Shift: no angle snapping). Corners line up with other corners (dashed guide), a right-angle mark shows square

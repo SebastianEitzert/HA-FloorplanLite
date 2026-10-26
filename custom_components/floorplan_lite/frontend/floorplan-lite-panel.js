@@ -39,12 +39,18 @@ const T = {
     background: "Hintergrundbild", upload: "Bild oder PDF hochladen", removeImage: "Bild entfernen", opacity: "Deckkraft", mode: "Lage",
     modes: { under: "unter dem Plan", over: "über dem Plan", hidden: "ausgeblendet" }, rotation: "Drehung (Grad)", width: "Breite (m)",
     posX: "Links (m)", posY: "Oben (m)", uploading: "Wird hochgeladen …", rendering: "PDF wird umgewandelt …", pdfPage: "Die PDF hat %s Seiten – welche soll der Hintergrund werden?", page: "Seite",
-    planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesem Label ignorieren", north: "Norden (Grad, 0 = oben)",
+    planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesen Labels ignorieren (Strg/⌘ für mehrere)", north: "Norden (Grad, 0 = oben)",
     northAlign: "Nach Norden ausrichten", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
     cWall: "Wände", cEdge: "Kanten", reset: "zurücksetzen",
     area: "Bereich (Home Assistant)", areaNone: "– keiner –", areaUsed: "schon im Plan", fill: "Entitäten aus dem Bereich übernehmen",
     filled: "%s Entitäten übernommen", fillNone: "Im Bereich keine passenden Entitäten gefunden",
-    fillAll: "Alle Räume mit Bereich ausfüllen", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
+    fillAll: "Alle Räume mit Bereich ausfüllen", areaLive: "Entitäten live aus dem Bereich (neue Geräte erscheinen von selbst)",
+    popup: "Pop-up-YAML erzeugen", popupAll: "Pop-ups für alle Räume", popStyle: "Art",
+    popAuto: "Wie Bereichs-Pop-ups: Bubble Card + auto-entities (dynamisch nach Bereich)", popStatic: "Einfach: Bubble Card mit festen Kacheln",
+    copy: "Kopieren", copied: "Kopiert", dashboard: "Dashboard", view: "Ansicht", insert: "In Dashboard eintragen", close: "Schließen",
+    more: "Weitere", inserted: "%s Pop-ups eingetragen, %s schon vorhanden", insertAsk: "%s Pop-ups in „%d“ → „%v“ eintragen? Vorhandene Pop-ups mit gleichem Hash bleiben unverändert.",
+    strategy: "Dieses Dashboard wird automatisch erzeugt und kann nicht bearbeitet werden", noArea: "ohne Bereich → einfache Kacheln",
+    defaultDash: "Übersicht (Standard)", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
     room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
@@ -91,12 +97,18 @@ const T = {
     background: "Background image", upload: "Upload image or PDF", removeImage: "Remove image", opacity: "Opacity", mode: "Position",
     modes: { under: "under the plan", over: "over the plan", hidden: "hidden" }, rotation: "Rotation (degrees)", width: "Width (m)",
     posX: "Left (m)", posY: "Top (m)", uploading: "Uploading …", rendering: "Converting PDF …", pdfPage: "The PDF has %s pages – which one should be the background?", page: "Page",
-    planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with this label", north: "North (degrees, 0 = up)",
+    planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with these labels (Ctrl/⌘ for several)", north: "North (degrees, 0 = up)",
     northAlign: "Turn so north is up", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
     cWall: "Walls", cEdge: "Edges", reset: "reset",
     area: "Area (Home Assistant)", areaNone: "– none –", areaUsed: "already in the plan", fill: "Take entities from the area",
     filled: "%s entities taken over", fillNone: "No matching entities found in the area",
-    fillAll: "Fill all rooms that have an area", areaHint: "Choose the area – name, id and the entities found are taken over.",
+    fillAll: "Fill all rooms that have an area", areaLive: "Entities live from the area (new devices show up by themselves)",
+    popup: "Create pop-up YAML", popupAll: "Pop-ups for all rooms", popStyle: "Kind",
+    popAuto: "Like area pop-ups: Bubble Card + auto-entities (dynamic by area)", popStatic: "Simple: Bubble Card with fixed tiles",
+    copy: "Copy", copied: "Copied", dashboard: "Dashboard", view: "View", insert: "Add to dashboard", close: "Close",
+    more: "More", inserted: "%s pop-ups added, %s already there", insertAsk: "Add %s pop-ups to “%d” → “%v”? Existing pop-ups with the same hash stay as they are.",
+    strategy: "This dashboard is generated automatically and cannot be edited", noArea: "no area → simple tiles",
+    defaultDash: "Overview (default)", areaHint: "Choose the area – name, id and the entities found are taken over.",
     room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
@@ -249,6 +261,36 @@ function faceAt(segs, p) {
     return Math.abs((q[0] - a[0]) * r[1] - (q[1] - a[1]) * r[0]) / (len(r) || 1) > 0.005;
   });
   return f.map((q) => [R3(q[0]), R3(q[1])]);
+}
+
+/* Small YAML writer for the generated cards (maps, lists, strings, numbers, booleans). */
+function toYaml(v, ind) {
+  ind = ind || "";
+  const scalar = (x) => {
+    if (typeof x === "number" || typeof x === "boolean") return String(x);
+    const str = String(x);
+    return /^[\w./-][\w ./+-]*$/.test(str) && !/^(true|false|yes|no|on|off|null|~|\d[\d.]*)$/i.test(str) && !/\s$/.test(str) ? str : JSON.stringify(str);
+  };
+  if (Array.isArray(v)) {
+    if (!v.length) return "[]";
+    return v.map((x) => {
+      if (x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).length) {
+        const inner = toYaml(x, ind + "  ");
+        return ind + "- " + inner.slice(ind.length + 2);
+      }
+      return ind + "- " + (x && typeof x === "object" ? toYaml(x, ind + "  ").trim() : scalar(x));
+    }).join("\n");
+  }
+  if (v && typeof v === "object") {
+    const keys = Object.keys(v);
+    if (!keys.length) return "{}";
+    return keys.map((k) => {
+      const x = v[k];
+      if (x && typeof x === "object" && (Array.isArray(x) ? x.length : Object.keys(x).length)) return ind + k + ":\n" + toYaml(x, ind + "  ");
+      return ind + k + ": " + (x && typeof x === "object" ? (Array.isArray(x) ? "[]" : "{}") : scalar(x));
+    }).join("\n");
+  }
+  return ind + scalar(v);
 }
 
 /* Cut a polygon along a path whose ends lie on its edges → two polygons, or null. */
@@ -642,7 +684,9 @@ class FloorplanLitePanel extends HTMLElement {
       this._plan.rooms.forEach((r) => { if (r.area) used[r.area] = 1; });
       h += this._field(t.area, `<select data-area="1"><option value="">${esc(t.areaNone)}</option>` +
         areas.map((a) => `<option value="${esc(a.id)}"${el.area === a.id ? " selected" : ""}>${esc(a.name)}${used[a.id] && el.area !== a.id ? " (" + esc(t.areaUsed) + ")" : ""}</option>`).join("") + `</select>`) +
-        (el.area ? `<div class="row"><button class="mini" data-act="fill">${esc(t.fill)}</button></div>` : `<p class="small">${esc(t.areaHint)}</p>`);
+        (el.area ? this._field(t.areaLive, this._chk("area_live", el.area_live)) + `<div class="row"><button class="mini" data-act="fill">${esc(t.fill)}</button></div>`
+          : `<p class="small">${esc(t.areaHint)}</p>`) +
+        (el.name !== null ? `<div class="row"><button class="mini" data-act="popup">${esc(t.popup)}</button></div>` : "");
       const others = [];
       this._plan.rooms.forEach((r, i) => { if (i !== s.i && r.name && others.indexOf(r.id) < 0) others.push(r.id); });
       const part = el.name === null || el.name === undefined && false;
@@ -711,15 +755,20 @@ class FloorplanLitePanel extends HTMLElement {
     const ids = {};
     const reg = (this._hass && this._hass.entities) || {};
     Object.keys(reg).forEach((id) => (reg[id].labels || []).forEach((l) => { ids[l] = 1; }));
-    if (cur) ids[cur] = 1;
-    return Object.keys(ids).sort().map((l) => `<option value="${esc(l)}"${l === cur ? " selected" : ""}>${esc(l)}</option>`).join("");
+    cur.forEach((l) => { ids[l] = 1; });
+    return Object.keys(ids).sort().map((l) => `<option value="${esc(l)}"${cur.indexOf(l) >= 0 ? " selected" : ""}>${esc(l)}</option>`).join("");
+  }
+
+  _hideLabels() { const p = this._plan || {}; return (p.hide_labels || []).concat(p.hide_label ? [p.hide_label] : []); }
+  _isHidden(id, reg) {
+    const ls = this._hideLabels(), e = reg && reg[id];
+    return !!(ls.length && e && (e.labels || []).some((l) => ls.indexOf(l) >= 0));
   }
 
   _entityOptions(domains) {
     const st = (this._hass && this._hass.states) || {}, reg = (this._hass && this._hass.entities) || {};
-    const label = this._plan && this._plan.hide_label;
     return Object.keys(st).filter((id) => domains.indexOf(id.split(".")[0]) >= 0)
-      .filter((id) => !(label && reg[id] && (reg[id].labels || []).indexOf(label) >= 0)).sort()
+      .filter((id) => !this._isHidden(id, reg)).sort()
       .map((id) => `<option value="${esc(id)}">${esc((st[id].attributes && st[id].attributes.friendly_name) || "")}</option>`).join("");
   }
 
@@ -757,13 +806,13 @@ class FloorplanLitePanel extends HTMLElement {
       this._field(t.name, `<input type="text" data-p="name" value="${esc(p.name)}">`) +
       this._field("ID", `<input type="text" data-p="id" value="${esc(p.id)}">`) +
       this._field(t.alignLevels, `<input type="checkbox" data-p="align_levels"${p.align_levels ? " checked" : ""}>`) +
-      this._field(t.hideLabel, `<select data-p="hide_label"><option value="">–</option>${this._labelOptions(p.hide_label)}</select>`) +
+      this._field(t.hideLabel, `<select multiple size="5" data-hidel="1">${this._labelOptions(this._hideLabels())}</select>`) +
       this._field(t.north, `<span class="crow"><input type="number" step="1" data-p="north" value="${R3(p.north || 0)}"><button class="mini" data-act="northup">${esc(t.northAlign)}</button></span>`) +
       `<h4>${esc(t.buildings)}</h4>` +
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
       `<label class="cur">${esc(t.building)}: ${this._buildingSel("__cur", this._building)}</label></div>` +
-      `<div class="row"><button class="mini" data-act="fillall">${esc(t.fillAll)}</button></div>` +
+      `<div class="row"><button class="mini" data-act="fillall">${esc(t.fillAll)}</button><button class="mini" data-act="popupall">${esc(t.popupAll)}</button></div>` +
       this._field(t.roomWalls, `<input type="checkbox" data-p="room_walls"${p.room_walls !== false ? " checked" : ""}>`) +
       this._field(t.wallInner, `<input type="number" min="5" max="150" step="1" data-wall="wall_width" value="${Math.round(this._wall("wall_width") * 100)}">`) +
       this._field(t.wallOuter, `<input type="number" min="5" max="150" step="1" data-wall="outer_width" value="${Math.round(this._wall("outer_width") * 100)}">`) +
@@ -816,7 +865,7 @@ class FloorplanLitePanel extends HTMLElement {
     side.querySelectorAll("[data-p]").forEach((inp) => inp.addEventListener("change", () => {
       const k = inp.getAttribute("data-p");
       const v = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value;
-      this._change(() => { if (v === "" && k === "hide_label") delete this._plan[k]; else this._plan[k] = k === "id" ? slug(v) : v; });
+      this._change(() => { this._plan[k] = k === "id" ? slug(v) : v; });
     }));
     side.querySelectorAll("[data-area]").forEach((inp) => inp.addEventListener("change", () => {
       if (!el) return;
@@ -843,6 +892,10 @@ class FloorplanLitePanel extends HTMLElement {
         if (inp.value !== "attribute") delete el.tilt_attribute;
         if (inp.value === "auto") delete el.tilt_value;
       });
+    }));
+    side.querySelectorAll("[data-hidel]").forEach((inp) => inp.addEventListener("change", () => {
+      const v = Array.prototype.filter.call(inp.options, (o) => o.selected).map((o) => o.value);
+      this._change(() => { delete this._plan.hide_label; if (v.length) this._plan.hide_labels = v; else delete this._plan.hide_labels; });
     }));
     side.querySelectorAll("[data-oconf]").forEach((inp) => inp.addEventListener("change", () => {
       if (el) this._change(() => { el.confirm = inp.checked; });  // stored either way: the default differs by type
@@ -912,6 +965,13 @@ class FloorplanLitePanel extends HTMLElement {
   async _act(a, btn) {
     const t = this.t, p = this._plan;
     if (a === "delsel") return this._deleteSel();
+    if (a === "popup" || a === "popupall") {
+      const seen = {}, rooms = (a === "popup" ? [p[this._sel.kind][this._sel.i]] : p.rooms).filter((r) => {
+        if (!r || r.name === null || r.outdoor && !r.area || seen[r.id]) return false;
+        seen[r.id] = 1; return true;
+      });
+      return this._popupDialog(rooms);
+    }
     if (a === "fill" || a === "fillall") {
       let n = 0;
       const rooms = a === "fill" ? [this._plan[this._sel.kind][this._sel.i]] : p.rooms.filter((r) => r.area && r.name !== null);
@@ -1741,14 +1801,116 @@ class FloorplanLitePanel extends HTMLElement {
     return Object.keys(a).map((id) => ({ id, name: a[id].name || id })).sort((x, y) => x.name.localeCompare(y.name));
   }
 
+  /* ---------- Pop-up cards for the rooms (Bubble Card, hash #room) ---------- */
+  _popupCard(r, style) {
+    const t = this.t, areas = (this._hass && this._hass.areas) || {}, a = r.area && areas[r.area];
+    const head = { type: "custom:bubble-card", card_type: "pop-up", hash: "#" + r.id, name: r.name || r.id, icon: (a && a.icon) || "mdi:floor-plan" };
+    const hide = this._hideLabels().map((l) => ({ label: l }));
+    if (style === "auto" && r.area) {
+      const ar = r.area, grid = (include, exclude) => ({ type: "custom:auto-entities", show_empty: false, card: { type: "grid", columns: 2, square: false },
+        card_param: "cards", sort: { method: "name" }, filter: { include, exclude: hide.concat(exclude || []) } });
+      const contacts = ["window", "door", "opening", "garage_door"];
+      head.cards = [
+        grid([{ area: ar, domain: "light", options: { type: "tile", features: [{ type: "light-brightness" }], features_position: "inline" } }]),
+        grid([{ area: ar, domain: "cover", options: { type: "tile", features: [{ type: "cover-open-close" }, { type: "cover-position" }] } },
+          { area: ar, domain: "climate", options: { type: "tile", features: [{ type: "target-temperature" }] } }]),
+        grid(contacts.map((dc) => ({ area: ar, domain: "binary_sensor", attributes: { device_class: dc }, options: { type: "tile" } }))
+          .concat([{ area: ar, domain: "media_player", options: { type: "tile", features: [{ type: "media-player-volume-slider" }], features_position: "inline" } }])),
+        { type: "custom:auto-entities", show_empty: false, card: { type: "entities", title: t.more }, sort: { method: "name" },
+          filter: { include: [{ area: ar }], exclude: hide.concat([{ state: "unavailable" }, { state: "unknown" }],
+            contacts.map((dc) => ({ domain: "binary_sensor", attributes: { device_class: dc } })),
+            ["light", "cover", "climate", "media_player", "camera", "update", "automation", "device_tracker", "notify", "event", "image",
+              "conversation", "stt", "tts", "assist_satellite", "ai_task", "wake_word", "button", "number", "select", "text", "time", "date",
+              "remote", "input_select", "input_number", "input_button"].map((d) => ({ domain: d }))) } },
+      ];
+      return head;
+    }
+    // fixed tiles from the room's entities (and those of its area)
+    const key = r.key || r.id, e = Object.assign({}, this._plan.entities[key] || {});
+    if (r.area) {
+      const tmp = { entities: {} }, keep = this._plan;
+      this._plan = Object.assign({}, keep, { entities: tmp.entities }); this._fill("x", r.area); const found = tmp.entities.x || {}; this._plan = keep;
+      Object.keys(found).forEach((f) => { if (f === "temp") e.temp = e.temp || found.temp; else e[f] = (e[f] || []).concat(found[f].filter((id) => (e[f] || []).indexOf(id) < 0)); });
+    }
+    const tile = (id, features, inline) => { const c = { type: "tile", entity: id }; if (features) c.features = features; if (inline) c.features_position = "inline"; return c; };
+    const cards = [].concat(
+      (e.licht || []).map((id) => tile(id, [{ type: "light-brightness" }], true)),
+      (e.beschattung || []).map((id) => tile(id, [{ type: "cover-open-close" }, { type: "cover-position" }])),
+      e.temp && e.temp.indexOf("climate.") === 0 ? [tile(e.temp, [{ type: "target-temperature" }])] : e.temp ? [tile(e.temp)] : [],
+      (e.fenster || []).map((id) => tile(id)),
+      (e.musik || []).map((id) => tile(id, [{ type: "media-player-volume-slider" }], true)),
+      (e.praesenz || []).concat(e.bewegung || []).map((id) => tile(id)));
+    head.cards = [{ type: "grid", columns: 2, square: false, cards: cards }];
+    return head;
+  }
+
+  async _popupDialog(rooms) {
+    const t = this.t, box = document.createElement("div");
+    let dashes = [];
+    try { dashes = (await this._hass.callWS({ type: "lovelace/dashboards/list" })).filter((d) => d.mode !== "yaml"); } catch (e) { dashes = []; }
+    dashes.unshift({ url_path: "", title: t.defaultDash });
+    box.className = "dlg";
+    box.innerHTML = `<form class="wide"><p><b>${esc(rooms.length === 1 ? t.popup : t.popupAll)}</b></p>` +
+      `<label><span>${esc(t.popStyle)}</span><select class="pst"><option value="auto">${esc(t.popAuto)}</option><option value="static">${esc(t.popStatic)}</option></select></label>` +
+      `<p class="dhint nar"></p><textarea class="yaml" rows="16" spellcheck="false"></textarea>` +
+      `<div class="btns"><button type="button" class="cpy">${esc(t.copy)}</button><span class="sp"></span>` +
+      `<select class="dsh">${dashes.map((d) => `<option value="${esc(d.url_path || "")}">${esc(d.title || d.url_path)}</option>`).join("")}</select>` +
+      `<select class="vw"></select><button type="button" class="ins primary">${esc(t.insert)}</button><button type="button" class="cls">${esc(t.close)}</button></div></form>`;
+    this.shadowRoot.querySelector(".app").appendChild(box);
+    const q = (c) => box.querySelector(c);
+    const cards = () => rooms.map((r) => this._popupCard(r, q(".pst").value));
+    const show = () => {
+      const list = cards();
+      q(".yaml").value = list.map((c) => toYaml(c)).join("\n# ---\n");
+      const without = rooms.filter((r) => !r.area).map((r) => r.name || r.id);
+      q(".nar").textContent = q(".pst").value === "auto" && without.length ? without.join(", ") + ": " + t.noArea : "";
+    };
+    let conf = null;
+    const loadViews = async () => {
+      const url = q(".dsh").value || null;
+      try { conf = await this._hass.callWS({ type: "lovelace/config", url_path: url }); } catch (e) { conf = null; }
+      const views = conf && conf.views ? conf.views : [];
+      q(".vw").innerHTML = views.map((v, i) => `<option value="${i}">${esc(v.title || v.path || "#" + (i + 1))}</option>`).join("");
+      q(".ins").disabled = !views.length;
+    };
+    q(".pst").addEventListener("change", show);
+    q(".dsh").addEventListener("change", loadViews);
+    q(".cls").addEventListener("click", () => box.remove());
+    q(".cpy").addEventListener("click", () => {
+      const ta = q(".yaml");
+      const ok = () => { q(".cpy").textContent = t.copied; setTimeout(() => { q(".cpy").textContent = t.copy; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(ok, () => { ta.select(); document.execCommand("copy"); ok(); });
+      else { ta.select(); document.execCommand("copy"); ok(); }
+    });
+    q(".ins").addEventListener("click", async () => {
+      if (!conf || !conf.views) return;
+      if (conf.strategy) return this._status(t.strategy, true);
+      const vi = +q(".vw").value, view = conf.views[vi], dn = q(".dsh").selectedOptions[0].textContent;
+      const text = t.insertAsk.replace("%s", rooms.length).replace("%d", dn).replace("%v", view.title || view.path || "#" + (vi + 1));
+      if (!(await this._dialog(text))) return;
+      const all = JSON.stringify(view), add = cards().filter((c) => all.indexOf(`"hash":"${c.hash}"`) < 0);
+      if (add.length) {
+        if (view.sections) {  // sections view: next to existing pop-ups, otherwise in a section of their own
+          const sec = view.sections.find((x) => (x.cards || []).some((c) => c.card_type === "pop-up"));
+          if (sec) sec.cards = sec.cards.concat(add); else view.sections.push({ type: "grid", cards: add });
+        } else view.cards = (view.cards || []).concat(add);
+        await this._hass.callWS({ type: "lovelace/config/save", url_path: q(".dsh").value || null, config: conf });
+      }
+      this._status(t.inserted.replace("%s", add.length).replace("%s", rooms.length - add.length));
+      box.remove();
+    });
+    show();
+    loadViews();
+  }
+
   /* Entities of an area, sorted into the room fields; adds what is missing, keeps what is there. Returns how many were added. */
   _fill(key, areaId) {
-    const H = this._hass, reg = H.entities || {}, dev = H.devices || {}, st = H.states || {}, label = this._plan.hide_label;
+    const H = this._hass, reg = H.entities || {}, dev = H.devices || {}, st = H.states || {};
     const found = { licht: [], praesenz: [], bewegung: [], fenster: [], beschattung: [], musik: [] };
     let climate = null, sensor = null;
     Object.keys(reg).sort().forEach((id) => {
       const e = reg[id], s = st[id];
-      if (!s || e.hidden || e.entity_category || (label && (e.labels || []).indexOf(label) >= 0)) return;
+      if (!s || e.hidden || e.entity_category || this._isHidden(id, reg)) return;
       const area = e.area_id || (e.device_id && dev[e.device_id] && dev[e.device_id].area_id);
       if (area !== areaId) return;
       const d = id.split(".")[0], dc = s.attributes.device_class;
@@ -1880,6 +2042,10 @@ class FloorplanLitePanel extends HTMLElement {
 const STYLES = `
   .dlg { position: fixed; inset: 0; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
     background: rgba(0, 0, 0, .45); }
+  .dlg form.wide { width: min(760px, calc(100vw - 32px)); }
+  .dlg textarea.yaml { font-family: monospace; font-size: 12px; white-space: pre; }
+  .dlg .btns select { max-width: 180px; }
+  .dlg .btns .sp { flex: 1; }
   .dlg form { background: var(--card-background-color, #1c1c1c); color: var(--primary-text-color); border-radius: 12px; padding: 18px;
     width: min(440px, calc(100vw - 32px)); box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
   .dlg p { margin: 0 0 12px; } .dlg .dhint { font-size: 12px; opacity: .7; }

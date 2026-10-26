@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1790 372">
+<g transform="translate(0 0) scale(0.7265625)">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="32%" r="78%"><stop offset="0" stop-color="#1e2946"/><stop offset=".6" stop-color="#141c32"/><stop offset="1" stop-color="#0d1427"/></radialGradient>
+    <linearGradient id="fl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a3657"/><stop offset="1" stop-color="#1c2541"/></linearGradient>
+    <radialGradient id="warm" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#ffcd91" stop-opacity="1"/><stop offset=".55" stop-color="#ffcd91" stop-opacity=".5"/><stop offset="1" stop-color="#ffcd91" stop-opacity=".1"/></radialGradient>
+    <radialGradient id="pink" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#ff5aa8" stop-opacity=".95"/><stop offset=".6" stop-color="#ff5aa8" stop-opacity=".4"/><stop offset="1" stop-color="#ff5aa8" stop-opacity=".08"/></radialGradient>
+    <radialGradient id="pres" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#8f9dff" stop-opacity=".95"/><stop offset=".45" stop-color="#8f9dff" stop-opacity=".4"/><stop offset=".7" stop-color="#8f9dff" stop-opacity=".12"/><stop offset=".85" stop-color="#8f9dff" stop-opacity=".55"/><stop offset="1" stop-color="#8f9dff" stop-opacity="0"/></radialGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+    <clipPath id="liv"><path d="M248 96 H420 V300 H248 Z"/></clipPath>
+    <clipPath id="bed"><path d="M92 96 H248 V214 H92 Z"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- light shining through the walls -->
+  <path d="M248 96 H420 V300 H248 Z" fill="#ffcd91" opacity=".35" filter="url(#blur)"/>
+  <path d="M92 96 H248 V214 H92 Z" fill="#ff5aa8" opacity=".3" filter="url(#blur)"/>
+  <!-- floors -->
+  <path d="M92 96 H420 V300 H330 V420 H92 Z" fill="url(#fl)"/>
+  <path d="M248 96 H420 V300 H248 Z" fill="url(#warm)" opacity=".92"/>
+  <path d="M92 96 H248 V214 H92 Z" fill="url(#pink)" opacity=".85"/>
+  <!-- presence dot and motion ripple -->
+  <circle cx="170" cy="318" r="44" fill="url(#pres)"/>
+  <circle cx="170" cy="318" r="66" fill="none" stroke="#48e2be" stroke-width="6" opacity=".55"/>
+  <circle cx="170" cy="318" r="12" fill="#48e2be" opacity=".9"/>
+  <!-- walls: inner, outer, door gap -->
+  <g fill="none" stroke="#4d5a7d" stroke-linejoin="miter">
+    <path d="M248 96 V170 M248 206 V300 H330 M92 214 H248" stroke-width="12"/>
+    <path d="M92 96 H420 V300 H330 V420 H92 Z" stroke-width="24"/>
+  </g>
+  <path d="M74 78 H438 V318 H348 V438 H74 Z" fill="none" stroke="#8d9cc4" stroke-width="3" opacity=".55"/>
+  <!-- door swing into the bedroom -->
+  <path d="M248 170 A36 36 0 0 0 212 206" fill="none" stroke="#8d9cc4" stroke-width="3" stroke-dasharray="6 5" opacity=".6"/>
+  <!-- window -->
+  <path d="M300 96 H380" stroke="#9fd3ff" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+</g>
+<text x="420" y="236" font-family="Helvetica Neue, Arial, sans-serif" font-size="168" font-weight="600" fill="#eef2fb" letter-spacing="-2">Floorplan <tspan fill="#ffcd91" font-weight="300">Lite</tspan></text>
+</svg>

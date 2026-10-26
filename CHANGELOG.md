@@ -2,6 +2,9 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.1.1 – 2026-10-26
+- Icon and logo (shown in Home Assistant under Settings → Devices & services and in the README).
+
 ## 0.1.0 – 2026-10-26
 - First version: integration with central storage of plans (buildings, levels, rooms, outer walls, helper lines,
   doors, windows, passages, garage doors, background image per level, colours, rotation), WebSocket API, the card

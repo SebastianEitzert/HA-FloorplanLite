@@ -29,7 +29,7 @@ und CSS, kein WebGL, kein Framework.
 | **Bewegung** | Lichtpunkt in Aqua mit Wellen bis an die Wände |
 | **Temperatur** | aus einer `climate`-Entität (aktuelle Temperatur) oder einem Sensor |
 | **Marken** | Fenster offen, Beschattung zu, Musik läuft (als kleiner Equalizer) |
-| **Öffnungen** | Türen mit Schwenkbereich, Fenster, Dachfenster und Lichtkuppeln, Durchgänge ohne Tür, Garagentore – mit Entitäten (Kontakt, Cover, Schloss, Tor) leuchten offene orange, ein offenes Schloss rot; Antippen eines Fensters öffnet seinen Dialog, bei Tür und Tor wird nach Rückfrage geöffnet/geschlossen/aufgeschlossen |
+| **Öffnungen** | Türen mit Schwenkbereich, Fenster, Dachfenster und Lichtkuppeln, Durchgänge ohne Tür, Garagentore – mit Entitäten (Kontakt, Cover, Schloss, Tor) leuchten offene orange, ein offenes Schloss rot; Antippen eines Fensters öffnet seinen Dialog, bei Tür und Tor wird mit oder ohne Rückfrage geöffnet/geschlossen/aufgeschlossen; gekippte Fenster (`tilted`/`gekippt`) erscheinen gelb |
 | **Hintergrund** | je Stockwerk ein Bild unter dem Plan (z. B. Satellitenbild, damit der Garten ein Foto bleibt), darüber mit Transparenz oder ausgeblendet |
 
 Tippen auf einen Raum öffnet das [Bubble-Card](https://github.com/Clooos/Bubble-Card)-Pop-up mit dem Hash `#<raum>`.
@@ -94,7 +94,7 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
-| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
+| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
 
 ## Entwicklung

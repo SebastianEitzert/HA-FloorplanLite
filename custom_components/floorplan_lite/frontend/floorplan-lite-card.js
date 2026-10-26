@@ -107,24 +107,38 @@ const mix = (list) => {  // average weighted by brightness
 };
 
 const TEXT = {
-  de: { win: "Fenster offen", shade: "Beschattung zu", music: "Musik läuft", presence: "Präsenz", motion: "Bewegung",
+  de: { tilt: "Fenster gekippt", win: "Fenster offen", shade: "Beschattung zu", music: "Musik läuft", presence: "Präsenz", motion: "Bewegung",
     light: "Licht in seiner Farbe", musicL: "Musik", prev: "Geschoss zurück", next: "Geschoss weiter",
     loading: "Grundriss wird geladen …", missing: "Grundriss „%s“ nicht gefunden – im Editor (Seitenleiste → Floorplan Lite) anlegen.",
     noPlan: "Bitte einen Grundriss wählen (plan: …).",
-    cancel: "Abbrechen", details: "Details", unlock: "Aufschließen", lock: "Abschließen", openDoor: "Öffnen", open: "Öffnen",
+    cancel: "Abbrechen", details: "Details", unlock: "Aufschließen", lock: "Abschließen", openDoor: "Türöffner", open: "Öffnen",
     close: "Schließen", stop: "Stopp", press: "Auslösen", toggle: "Umschalten" },
-  en: { win: "Window open", shade: "Shade closed", music: "Music playing", presence: "Presence", motion: "Motion",
+  en: { tilt: "Window tilted", win: "Window open", shade: "Shade closed", music: "Music playing", presence: "Presence", motion: "Motion",
     light: "Light in its colour", musicL: "Music", prev: "Previous level", next: "Next level",
     loading: "Loading floor plan …", missing: "Floor plan “%s” not found – create it in the editor (sidebar → Floorplan Lite).",
     noPlan: "Please choose a floor plan (plan: …).",
-    cancel: "Cancel", details: "Details", unlock: "Unlock", lock: "Lock", openDoor: "Open", open: "Open",
+    cancel: "Cancel", details: "Details", unlock: "Unlock", lock: "Lock", openDoor: "Open latch", open: "Open",
     close: "Close", stop: "Stop", press: "Press", toggle: "Toggle" },
 };
 const chips = (t) => ({
   w: `<span class="chip win" title="${t.win}"><ha-icon icon="mdi:window-open-variant"></ha-icon></span>`,
+  k: `<span class="chip win tilt" title="${t.tilt}"><ha-icon icon="mdi:window-open-variant"></ha-icon></span>`,
   s: `<span class="chip shade" title="${t.shade}"><ha-icon icon="mdi:window-shutter"></ha-icon></span>`,
   m: `<span class="chip music" title="${t.music}"><i></i><i></i><i></i></span>`,
 });
+/* Window state from a contact, sensor or cover: "open", "tilted" or "". Tilted is read from the state or an attribute
+   such as zustand/state (Loxone window monitor: zustand = gekippt, Homematic handle: tilted). */
+const TILTED = ["tilted", "tilt", "gekippt", "kipp", "angekippt"];
+const winState = (s) => {
+  const a = s.attributes || {}, vals = [s.state, a.zustand, a.state, a.status, a.window_state, a.position];
+  for (let i = 0; i < vals.length; i++) if (typeof vals[i] === "string" && TILTED.indexOf(vals[i].toLowerCase()) >= 0) return "tilted";
+  const v = String(s.state).toLowerCase();
+  return v === "on" || v === "open" || v === "offen" || v === "opening" || v === "closing" ? "open" : "";
+};
+const lockAttr = (s) => {  // lock state reported by a contact (Loxone: schloss = aufgeschlossen/abgeschlossen)
+  const a = s.attributes || {}, v = String(a.schloss || a.lock || "").toLowerCase();
+  return v === "aufgeschlossen" || v === "unlocked" ? "unlocked" : v === "abgeschlossen" || v === "locked" ? "locked" : "";
+};
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /* Plan from the store → per level everything the drawing needs, rotated and with a view box. */
@@ -302,7 +316,7 @@ class FloorplanLiteCard extends HTMLElement {
       const s = hass.states[id];
       if (!s) return "x";
       const a = s.attributes || {};
-      return `${s.state}|${v(a.current_temperature)}|${v(a.current_position)}|${v(a.brightness)}|${v(a.rgb_color)}|${v(a.color_mode)}|${v(a.color_temp_kelvin)}`;
+      return `${s.state}|${v(a.current_temperature)}|${v(a.current_position)}|${v(a.brightness)}|${v(a.rgb_color)}|${v(a.color_mode)}|${v(a.color_temp_kelvin)}|${v(a.zustand)}|${v(a.state)}|${v(a.schloss)}`;
     }).join(";");
     if (sig === this._sig) return;
     this._sig = sig;
@@ -353,7 +367,7 @@ class FloorplanLiteCard extends HTMLElement {
       pool: pool,
       tint: tint,
       edge: edge,
-      win: any(r.fenster, (s) => s.state === "on"),
+      win: any(r.fenster, (s) => winState(s) === "open") ? "open" : any(r.fenster, (s) => winState(s) === "tilted") ? "tilted" : "",
       shade: any(r.beschattung, (s) => s.state === "closed" || s.state === "closing" ||
         (typeof s.attributes.current_position === "number" && s.attributes.current_position < 95)),
       music: any(r.musik, (s) => s.state === "playing"),
@@ -640,7 +654,7 @@ class FloorplanLiteCard extends HTMLElement {
         if (ref.temp.textContent !== s.temp) ref.temp.textContent = s.temp;
         const ink = !!pool && this._bright(pool.rgb, +lop);
         if (o.ink !== ink) { o.ink = ink; ref.lbl.classList.toggle("ink", ink); }
-        const ck = (s.win ? "w" : "") + (s.shade ? "s" : "") + (s.music ? "m" : "");
+        const ck = (s.win === "open" ? "w" : s.win === "tilted" ? "k" : "") + (s.shade ? "s" : "") + (s.music ? "m" : "");
         if (o.ck !== ck) { o.ck = ck; ref.chips.innerHTML = ck.split("").map((c) => this._chips[c]).join(""); }
       }
     });
@@ -651,17 +665,23 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _opState(ents) {
-    let open = false, unlocked = false;
+    let open = false, tilted = false, unlocked = false;
+    const st = this._hass.states, contact = ents.some((id) => /^(binary_sensor|sensor)\./.test(id) && st[id]);
     ents.forEach((id) => {
-      const s = !this._hidden(id) && this._hass.states[id];
+      const s = !this._hidden(id) && st[id];
       if (!s) return;
-      const d = id.split(".")[0], v = s.state;
-      if (d === "binary_sensor" && v === "on") open = true;
-      if (d === "cover" && (v === "open" || v === "opening" || v === "closing")) open = true;
+      const d = id.split(".")[0], v = s.state, dc = s.attributes.device_class;
+      // a raised shutter or blind is no open window; a cover counts as window/gate/door, or when there is no contact
+      if (d === "cover" && (["shutter", "blind", "awning", "curtain", "shade"].indexOf(dc) >= 0 || (contact && ["window", "garage", "door", "gate"].indexOf(dc) < 0))) return;
+      if (d === "binary_sensor" || d === "sensor" || d === "cover") {
+        const w = winState(s);
+        if (w === "open") open = true; else if (w === "tilted") tilted = true;
+        if (lockAttr(s) === "unlocked") unlocked = true;
+      }
       if (d === "lock" && (v === "open" || v === "opening")) open = true;
       if (d === "lock" && (v === "unlocked" || v === "unlocking")) unlocked = true;
     });
-    return open ? " open" : unlocked ? " unlocked" : "";
+    return open ? " open" : tilted ? " tilted" : unlocked ? " unlocked" : "";
   }
 
   /* Tap on a window, door or gate: windows (and pure sensors) open the entity's dialog, doors and gates ask first. */
@@ -669,32 +689,33 @@ class FloorplanLiteCard extends HTMLElement {
     if (this._config.tap === "none" || !this._hass) return;
     const st = this._hass.states, ents = o.ents.filter((id) => !this._hidden(id) && st[id]);
     if (!ents.length) return;
-    const ctl = o.type === "door" || o.type === "garage" ? ents.filter((id) => /^(lock|cover|button|switch)\./.test(id))[0] : null;
+    const ctl = o.tap === "info" ? null : ents.filter((id) => /^(lock|cover|button|switch)\./.test(id))[0];
     if (!ctl) return this._moreInfo(ents[0]);
-    const t = this._t, s = st[ctl], d = ctl.split(".")[0], v = s.state, acts = [];
+    const t = this._t, s = st[ctl], d = ctl.split(".")[0], v = s.state, acts = [];  // acts[0] is what a tap means
     if (d === "lock") {
-      if (v === "locked") acts.push([t.unlock, "unlock"]); else acts.push([t.lock, "lock"]);
+      acts.push(v === "locked" || v === "locking" ? [t.unlock, "unlock"] : [t.lock, "lock"]);
       if ((s.attributes.supported_features || 0) & 1) acts.push([t.openDoor, "open"]);
     } else if (d === "cover") {
       if (v === "opening" || v === "closing") acts.push([t.stop, "stop_cover"]);
       acts.push(v === "open" || v === "opening" ? [t.close, "close_cover"] : [t.open, "open_cover"]);
     } else acts.push(d === "button" ? [t.press, "press"] : [t.toggle, "toggle"]);
-    const main = d === "cover" ? acts.length - 1 : 0;  // the question names the usual action, the others are extra buttons
-    this._confirm((s.attributes.friendly_name || ctl) + " – " + acts[main][0] + "?", acts, ctl);
+    const ask = o.confirm !== undefined ? o.confirm : o.type === "door" || o.type === "garage";
+    if (!ask) return this._hass.callService(d, acts[0][1], { entity_id: ctl });
+    this._confirm(s.attributes.friendly_name || ctl, o.confirm_text || acts[0][0] + "?", acts, ctl);
   }
 
   _moreInfo(id) {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: id }, bubbles: true, composed: true }));
   }
 
-  _confirm(text, acts, id) {  // small dialog inside the card – opening a door or gate needs a second tap
+  _confirm(title, text, acts, id) {  // small dialog inside the card – opening a door or gate needs a second tap
     const card = this.shadowRoot.querySelector("ha-card"), t = this._t;
     if (!card) return;
     const old = card.querySelector(".cfm");
     if (old) old.remove();
     const box = document.createElement("div");
     box.className = "cfm";
-    box.innerHTML = `<div class="cbox"><p>${esc(text)}</p><div class="cbtn"><button data-a="x">${esc(t.cancel)}</button>` +
+    box.innerHTML = `<div class="cbox"><div class="ctit">${esc(title)}</div><p>${esc(text)}</p><div class="cbtn"><button data-a="x">${esc(t.cancel)}</button>` +
       `<button data-a="i">${esc(t.details)}</button>` + acts.map((a, i) => `<button class="go" data-a="${i}">${esc(a[0])}</button>`).join("") + `</div></div>`;
     const done = () => { box.remove(); clearTimeout(this._cfmT); };
     box.addEventListener("click", (e) => {
@@ -898,10 +919,13 @@ FloorplanLiteCard.styles = `
   .op .os.open .win, .op .os.open .gar, .op .os.open .leaf, .op .os.open .skybar { stroke: #ffb74d; opacity: 1; }
   .op .os.open .sky { fill: rgba(255, 183, 77, .3); stroke: #ffb74d; opacity: 1; }
   .op .os.unlocked .leaf { stroke: #ff8a80; opacity: 1; }
+  .op .os.tilted .win, .op .os.tilted .skybar { stroke: #ffd166; stroke-dasharray: .12 .1; opacity: 1; }
+  .op .os.tilted .sky { fill: rgba(255, 209, 102, .22); stroke: #ffd166; stroke-dasharray: .12 .1; opacity: 1; }
   .cfm { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
     background: rgba(8, 12, 24, .55); border-radius: inherit; }
   .cbox { background: #1d2742; color: var(--n-text); border-radius: 14px; padding: 16px 18px; max-width: 86%; box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
-  .cbox p { margin: 0 0 14px; font-size: 15px; }
+  .cbox .ctit { font-size: 12px; opacity: .7; margin-bottom: 4px; }
+  .cbox p { margin: 0 0 14px; font-size: 17px; }
   .cbtn { display: flex; flex-wrap: wrap; justify-content: flex-end; }
   .cbtn button { font: inherit; font-size: 14px; margin: 4px 0 0 8px; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(160, 182, 230, .35);
     background: transparent; color: var(--n-text); cursor: pointer; }
@@ -942,6 +966,7 @@ FloorplanLiteCard.styles = `
     border-radius: 50%; background: rgba(8, 13, 27, .66); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
   .chip ha-icon { --mdc-icon-size: 1.05em; display: flex; }
   .chip.win { color: var(--c-window); box-shadow: inset 0 0 0 1px rgba(255, 141, 126, .45), 0 0 .7em rgba(255, 141, 126, .35); }
+  .chip.win.tilt { color: #ffd166; box-shadow: inset 0 0 0 1px rgba(255, 209, 102, .45), 0 0 .6em rgba(255, 209, 102, .3); }
   .chip.shade { color: var(--c-shade); }
   .chip.music i { display: block; width: .16em; height: .8em; margin: 0 .05em; border-radius: .08em; background: var(--c-music);
     transform-origin: 50% 100%; animation: eq .8s ease-in-out infinite alternate; }

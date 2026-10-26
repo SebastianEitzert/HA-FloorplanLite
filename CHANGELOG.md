@@ -18,6 +18,12 @@ All notable changes to this project. Versions follow the `version` in `custom_co
   orange, an unlocked lock red. Tapping a window opens the entity's dialog; tapping a door or gate asks first
   ("Garage door – open?", with *Details*) and then works the lock, cover or button.
 - Roof windows and domes (`skylight`, rectangular or `round`), placed anywhere in a room, with entities like windows.
+- Per opening: *Ask first* (`confirm`, default on for doors and gates), an own question (`confirm_text`, default
+  "Unlock?" / "Open?") and *Tap: only show details* (`tap: info`). Without the question a tap switches at once: the
+  lock unlocks (or locks), a gate or electric window opens or closes, a moving one stops.
+- Tilted windows: recognised from the state or an attribute (`zustand: gekippt`, `tilted`) – yellow window mark in the
+  room, dashed yellow line at the window. Lock state from a contact attribute (`schloss: aufgeschlossen`) shows too.
+  A raised shutter or blind no longer counts as an open window.
 
 ## 0.2.3 – 2026-10-26
 - No wall (`open`): the outer wall stays whole where the open part meets it, also at slanted corners; the open part

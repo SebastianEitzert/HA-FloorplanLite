@@ -93,6 +93,9 @@ OPENING = vol.Schema(
         vol.Optional("entity"): vol.All(str, vol.Length(max=255)),  # older plans: one entity
         vol.Optional("entities"): ENTITY_LIST,  # window contact, cover, lock, garage door, button …
         vol.Optional("round", default=False): bool,  # skylight: a dome instead of a rectangle
+        vol.Optional("confirm"): bool,  # ask before switching (default: doors and gates yes, windows no)
+        vol.Optional("confirm_text"): vol.All(str, vol.Length(max=120)),  # own question instead of "Unlock?" / "Open?"
+        vol.Optional("tap"): vol.In(["auto", "info"]),  # info: tapping only shows the entity's dialog
     }
 )
 

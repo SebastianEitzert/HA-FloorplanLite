@@ -48,8 +48,10 @@ const T = {
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
       fenster: "Fenster", beschattung: "Beschattung", musik: "Musik" },
     types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)", skylight: "Dachfenster / Lichtkuppel" },
-    opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Fenster: Antippen öffnet die erste Entität · Tür/Tor: Antippen fragt nach und schaltet Schloss, Cover oder Taster",
+    opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Antippen schaltet Schloss, Cover (Tor, elektrisches Fenster) oder Taster – mit Sicherheitsabfrage nach Rückfrage, sonst sofort. Ohne schaltbare Entität öffnet sich die Karte der ersten Entität. Gekippte Fenster werden erkannt (Zustand/Attribut gekippt oder tilted).",
     lengthM: "Länge (m)", angleDeg: "Drehung (Grad)", roundF: "rund (Lichtkuppel)",
+    confirmF: "Sicherheitsabfrage", confirmText: "Text der Abfrage", confirmPh: "Standard: Aufschließen? / Öffnen?",
+    tapF: "Antippen", tapAuto: "Schalten (Schloss, Cover, Taster)", tapInfo: "Nur Details zeigen",
     invalid: "Fehler beim Speichern: %s", grid: "Raster", ghost: "Stockwerk darunter zeigen", dims: "Maße zeigen",
     entHint: "Entity-IDs, durch Komma getrennt",
   },
@@ -93,8 +95,10 @@ const T = {
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
       fenster: "Window", beschattung: "Shade", musik: "Music" },
     types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)", skylight: "Roof window / dome" },
-    opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Window: tapping opens the first entity · door/gate: tapping asks and then works the lock, cover or button",
+    opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Tapping works the lock, cover (gate, electric window) or button – after a question if \"Ask first\" is ticked, otherwise at once. Without anything to switch, the first entity's dialog opens. Tilted windows are recognised (state or attribute tilted/gekippt).",
     lengthM: "Length (m)", angleDeg: "Rotation (degrees)", roundF: "round (dome)",
+    confirmF: "Ask first", confirmText: "Question", confirmPh: "Default: Unlock? / Open?",
+    tapF: "Tap", tapAuto: "Switch (lock, cover, button)", tapInfo: "Only show details",
     invalid: "Saving failed: %s", grid: "Grid", ghost: "Show level below", dims: "Show dimensions",
     entHint: "Entity ids, separated by commas",
   },
@@ -642,6 +646,9 @@ class FloorplanLitePanel extends HTMLElement {
         (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "") +
         (el.type === "passage" || el.type === "open" ? "" :
           this._field(t.opEntities, `<input type="text" list="fl-ents-op" data-oent="1" value="${esc(ents.join(", "))}" placeholder="${esc(t.entHint)}">`) +
+          this._field(t.tapF, `<select data-otap="1"><option value="auto">${esc(t.tapAuto)}</option><option value="info"${el.tap === "info" ? " selected" : ""}>${esc(t.tapInfo)}</option></select>`) +
+          this._field(t.confirmF, `<input type="checkbox" data-oconf="1"${(el.confirm !== undefined ? el.confirm : el.type === "door" || el.type === "garage") ? " checked" : ""}>`) +
+          this._field(t.confirmText, `<input type="text" data-k="confirm_text" value="${esc(el.confirm_text || "")}" placeholder="${esc(t.confirmPh)}">`) +
           `<p class="small">${esc(t.opEntHint)}</p><datalist id="fl-ents-op">${this._entityOptions(["binary_sensor", "cover", "lock", "button", "switch"])}</datalist>`);
     }
     return h + `</section>`;
@@ -765,6 +772,12 @@ class FloorplanLitePanel extends HTMLElement {
       const k = inp.getAttribute("data-p");
       const v = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? parseFloat(inp.value) || 0 : inp.value;
       this._change(() => { if (v === "" && k === "hide_label") delete this._plan[k]; else this._plan[k] = k === "id" ? slug(v) : v; });
+    }));
+    side.querySelectorAll("[data-oconf]").forEach((inp) => inp.addEventListener("change", () => {
+      if (el) this._change(() => { el.confirm = inp.checked; });  // stored either way: the default differs by type
+    }));
+    side.querySelectorAll("[data-otap]").forEach((inp) => inp.addEventListener("change", () => {
+      if (el) this._change(() => { if (inp.value === "info") el.tap = "info"; else delete el.tap; });
     }));
     side.querySelectorAll("[data-oent]").forEach((inp) => inp.addEventListener("change", () => {
       const list = inp.value.split(",").map((x) => x.trim()).filter(Boolean);

@@ -557,7 +557,7 @@ class FloorplanLitePanel extends HTMLElement {
   }
 
   _setTool(k) {
-    this._tool = k; this._draft = null; this._scaleA = null;
+    this._tool = k; this._draft = null; this._scaleA = null; this._guides = []; this._right = null; this._snapMark = null;
     if (k !== "select") this._sel = null;
     this._renderTools(); this._renderSide(); this._renderCanvas();
   }
@@ -1128,11 +1128,25 @@ class FloorplanLitePanel extends HTMLElement {
       this._draft.forEach((q, j) => { h += `<circle class="dpt${j === 0 ? " first" : ""}" cx="${q[0]}" cy="${q[1]}" r="${(j === 0 ? 6 : 4) * px}"/>`; });
       if (this._hover && this._draft.length) {
         const a = this._draft[this._draft.length - 1], m = [(a[0] + this._hover[0]) / 2, (a[1] + this._hover[1]) / 2];
-        h += `<text class="len" x="${m[0]}" y="${m[1] - 6 * px}" font-size="${12 * px}">${dist(a, this._hover).toFixed(2)} m</text>`;
+        let label = dist(a, this._hover).toFixed(2).replace(".", this.t === T.de ? "," : ".") + " m";
+        const b0 = this._draft.length >= 2 ? this._draft[this._draft.length - 2] : null;
+        if (b0) {  // angle between the last line and this one
+          const u = sub(b0, a), w = sub(this._hover, a), lu = len(u), lw = len(w);
+          if (lu > 0 && lw > 0) label += " · " + Math.round(Math.acos(Math.max(-1, Math.min(1, (u[0] * w[0] + u[1] * w[1]) / (lu * lw)))) * 180 / Math.PI) + "°";
+        }
+        h += `<text class="len" x="${m[0]}" y="${m[1] - 6 * px}" font-size="${12 * px}">${label}</text>`;
       }
     }
     if (this._scaleA) h += `<circle class="dpt first" cx="${this._scaleA[0]}" cy="${this._scaleA[1]}" r="${6 * px}"/>` +
       (this._hover ? `<line class="draft" x1="${this._scaleA[0]}" y1="${this._scaleA[1]}" x2="${this._hover[0]}" y2="${this._hover[1]}" stroke-width="${2 * px}"/>` : "");
+    (this._guides || []).forEach(([g, q]) => {
+      const L = Math.max(vw, vh), u = sub(q, g), l = len(u) || 1, e = [u[0] / l * L, u[1] / l * L];
+      h += `<line class="guide" x1="${g[0] - e[0]}" y1="${g[1] - e[1]}" x2="${q[0] + e[0]}" y2="${q[1] + e[1]}" stroke-width="${px}" stroke-dasharray="${4 * px} ${4 * px}"/>`;
+    });
+    (this._right || []).forEach(([c, u, w]) => {
+      const k = 10 * px, a2 = [c[0] + u[0] * k, c[1] + u[1] * k], b2 = [c[0] + w[0] * k, c[1] + w[1] * k], m = [a2[0] + w[0] * k, a2[1] + w[1] * k];
+      h += `<polyline class="right" points="${pts([a2, m, b2])}" stroke-width="${1.5 * px}"/>`;
+    });
     if (this._snapMark) h += `<circle class="snap" cx="${this._snapMark[0]}" cy="${this._snapMark[1]}" r="${8 * px}" stroke-width="${2 * px}"/>`;
     if (this._openingPreview) h += `<polygon class="op preview" points="${pts(openingRect(this._openingPreview))}"/>` + this._openingSym(this._openingPreview, px);
     // north arrow
@@ -1177,36 +1191,141 @@ class FloorplanLitePanel extends HTMLElement {
     return "";
   }
 
-  /* ---------- Snapping ---------- */
-  _snap(p, from, free) {
-    const tol = 10 * this._scale();
-    let best = null, bd = tol;
+  /* ---------- Snapping ----------
+     Order: a corner nearby → angle (soft: within 4° of horizontal/vertical/45°, of parallel or square to any wall on this
+     level, or square to the last drawn line) → lining up with another corner (dashed guide) → onto a wall → 5 cm grid.
+     `nb` are the neighbours of a dragged corner: both edges then snap the same way. */
+  _snapPolys() {
     const polys = [], closed = (k, x) => (k === "walls" ? !!x.closed : k === "lines" ? !x.open : true);
     SHAPES.forEach((k) => this._of(k).forEach(({ x }) => polys.push({ poly: x.poly, closed: closed(k, x) })));
     const below = this._ghost && this._below();
     if (below) ["rooms", "outlines", "walls"].forEach((k) => this._plan[k].filter((x) => x.level === below).forEach((x) => polys.push({ poly: x.poly, closed: closed(k, x) })));
     if (this._draft) polys.push({ poly: this._draft, closed: false });
-    polys.forEach(({ poly }) => poly.forEach((q) => { const d = dist(p, q); if (d < bd) { bd = d; best = q; } }));
+    return polys;
+  }
+
+  _dirs(polys) {  // directions worth snapping to (radians, 0…π)
+    const out = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4], addDir = (r) => {
+      r = ((r % Math.PI) + Math.PI) % Math.PI;
+      if (!out.some((x) => Math.abs(x - r) < 0.002 || Math.abs(x - r) > Math.PI - 0.002)) out.push(r);
+    };
+    polys.forEach(({ poly, closed }) => poly.forEach((a, j) => {
+      if (!closed && j === poly.length - 1) return;
+      const b = poly[(j + 1) % poly.length];
+      if (!isFinite(a[0]) || !isFinite(b[0]) || dist(a, b) < 0.3) return;
+      const r = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      addDir(r); addDir(r + Math.PI / 2);
+    }));
+    return out;
+  }
+
+  _angleTo(from, p, dirs, first) {  // the snapped unit direction from `from` towards p, or null; `first` wins when in reach
+    const v = sub(p, from), L = len(v);
+    if (L < 0.05) return null;
+    const ang = Math.atan2(v[1], v[0]), lim = 4 * Math.PI / 180;
+    const pick = (list) => {
+      let best = null, bd = lim;
+      list.forEach((r) => [r, r + Math.PI, r - Math.PI].forEach((c) => { const d = Math.abs(ang - c); if (d < bd) { bd = d; best = c; } }));
+      return best;
+    };
+    let best = first && first.length ? pick(first) : null;
+    if (best === null) best = pick(dirs);
+    return best === null ? null : [Math.cos(best), Math.sin(best)];
+  }
+
+  _ownDirs(a, polys) {  // square and parallel to the walls the point lies on
+    const out = [];
+    polys.forEach(({ poly, closed }) => poly.forEach((q, j) => {
+      if (!closed && j === poly.length - 1) return;
+      const b = poly[(j + 1) % poly.length];
+      if (!isFinite(q[0]) || !isFinite(b[0]) || dist(q, b) < 0.3 || dist(a, proj(a, q, b).p) > 0.02) return;
+      const r = Math.atan2(b[1] - q[1], b[0] - q[0]);
+      out.push(r, r + Math.PI / 2);
+    }));
+    return out;
+  }
+
+  _snap(p, from, free, nb) {
+    const px = this._scale(), tol = 10 * px;
+    this._guides = []; this._right = null; this._snapMark = null;
+    const polys = this._snapPolys();
+    let best = null, bd = tol;
+    polys.forEach(({ poly }) => poly.forEach((q) => { if (q === from) return; const d = dist(p, q); if (d < bd) { bd = d; best = q; } }));
     if (best) { this._snapMark = best; return best.slice(); }
+    const anchors = (nb || (from ? [from] : [])).filter((x) => x && isFinite(x[0]));
+    const lines = [];  // [point, unit direction] the result has to lie on
     let q = p;
-    if (from && !free) {  // 45° steps relative to the last point
-      const v = sub(p, from), L = len(v);
-      if (L > 0) {
-        const ang = Math.round(Math.atan2(v[1], v[0]) / (Math.PI / 4)) * (Math.PI / 4);
-        q = [from[0] + Math.cos(ang) * L, from[1] + Math.sin(ang) * L];
+    if (!free && anchors.length) {
+      const dirs = this._dirs(polys);
+      const d = this._draft, prev = d && d.length >= 2 && !nb ? d[d.length - 2] : null;
+      anchors.forEach((a) => {
+        const own = this._ownDirs(a, polys.filter((x) => x.poly !== d));
+        if (prev && a === from) { const r = Math.atan2(from[1] - prev[1], from[0] - prev[0]); own.unshift(r, r + Math.PI / 2); }
+        const u = this._angleTo(a, p, dirs, own);
+        if (u) lines.push([a, u]);
+      });
+      if (lines.length === 2) {  // a dragged corner: both edges snapped → where the two lines meet
+        const [[a, u], [c, w]] = lines, den = u[0] * w[1] - u[1] * w[0];
+        if (Math.abs(den) > 1e-6) { const t = ((c[0] - a[0]) * w[1] - (c[1] - a[1]) * w[0]) / den; q = [a[0] + u[0] * t, a[1] + u[1] * t]; } else lines.pop();
+      }
+      if (lines.length === 1) { const [a, u] = lines[0], t = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1]; q = [a[0] + u[0] * t, a[1] + u[1] * t]; }
+      // line up with other corners (horizontal / vertical guides)
+      if (lines.length < 2) {
+        let gx = null, gy = null, dx = tol, dy = tol;
+        polys.forEach(({ poly }) => poly.forEach((v) => {
+          if (!isFinite(v[0]) || anchors.indexOf(v) >= 0 && lines.length) return;
+          if (Math.abs(v[0] - q[0]) < dx) { dx = Math.abs(v[0] - q[0]); gx = v; }
+          if (Math.abs(v[1] - q[1]) < dy) { dy = Math.abs(v[1] - q[1]); gy = v; }
+        }));
+        const along = (fix, k) => {  // keep the snapped angle: slide along its line until x (k = 0) or y (k = 1) matches
+          const [a, u] = lines[0];
+          if (Math.abs(u[k]) < 0.05) return false;
+          const t = (fix - a[k]) / u[k]; q = [a[0] + u[0] * t, a[1] + u[1] * t]; return true;
+        };
+        if (gx && (!lines.length ? (q = [gx[0], q[1]], true) : along(gx[0], 0))) this._guides.push([gx, q.slice()]);
+        else if (gy && (!lines.length ? (q = [q[0], gy[1]], true) : along(gy[1], 1))) this._guides.push([gy, q.slice()]);
+        if (gx && gy && !lines.length) { q = [gx[0], gy[1]]; this._guides = [[gx, q.slice()], [gy, q.slice()]]; }
       }
     }
-    // onto an edge
+    // onto a wall: along the snapped line if there is one
     let eb = null; bd = tol;
     polys.forEach(({ poly, closed: c }) => poly.forEach((a, j) => {
       if (!c && j === poly.length - 1) return;
-      const b = poly[(j + 1) % poly.length], pr = proj(q, a, b), d = dist(q, pr.p);
-      if (d < bd) { bd = d; eb = pr.p; }
+      const b = poly[(j + 1) % poly.length];
+      if (!isFinite(a[0]) || !isFinite(b[0])) return;
+      let hit = proj(q, a, b).p;
+      if (lines.length === 1) {
+        const [o, u] = lines[0], e = sub(b, a), den = u[0] * e[1] - u[1] * e[0];
+        if (Math.abs(den) < 1e-6) return;
+        const t = ((a[0] - o[0]) * e[1] - (a[1] - o[1]) * e[0]) / den, s2 = ((a[0] - o[0]) * u[1] - (a[1] - o[1]) * u[0]) / den;
+        if (s2 < 0 || s2 > 1) return;
+        hit = [o[0] + u[0] * t, o[1] + u[1] * t];
+      } else if (lines.length === 2) return;
+      const dd = dist(q, hit);
+      if (dd < bd) { bd = dd; eb = hit; }
     }));
-    if (eb) { this._snapMark = eb; return [R3(eb[0]), R3(eb[1])]; }
-    this._snapMark = null;
-    const g = 0.05;  // 5 cm grid
-    return [R3(Math.round(q[0] / g) * g), R3(Math.round(q[1] / g) * g)];
+    if (eb) { this._snapMark = eb; q = eb; }
+    else if (!lines.length && !this._guides.length) {  // 5 cm grid
+      const g = 0.05; q = [Math.round(q[0] / g) * g, Math.round(q[1] / g) * g];
+    } else if (lines.length === 1 && !this._guides.length) {  // whole 5 cm along the line
+      const [a, u] = lines[0], t = Math.round(((q[0] - a[0]) * u[0] + (q[1] - a[1]) * u[1]) / 0.05) * 0.05;
+      q = [a[0] + u[0] * t, a[1] + u[1] * t];
+    }
+    // right angle marks: at each anchor whose edge now stands square to its other edge
+    const marks = [], sq = (c, x, y) => {
+      const u = sub(x, c), w = sub(y, c), lu = len(u), lw = len(w);
+      if (lu > 0.05 && lw > 0.05 && Math.abs((u[0] * w[0] + u[1] * w[1]) / (lu * lw)) < 0.01) marks.push([c, [u[0] / lu, u[1] / lu], [w[0] / lw, w[1] / lw]]);
+    };
+    if (from && !nb) {
+      const d = this._draft;
+      if (d && d.length >= 2) sq(from, d[d.length - 2], q);
+      else this._ownDirs(from, polys.filter((x) => x.poly !== d)).forEach((r, i) => {  // square to the wall it starts on
+        if (i % 2 === 0 && !marks.length) sq(from, [from[0] + Math.cos(r), from[1] + Math.sin(r)], q);
+      });
+    }
+    if (nb && nb[0] && nb[1]) sq(q, nb[0], nb[1]);
+    this._right = marks; this._lines = lines;
+    return [R3(q[0]), R3(q[1])];
   }
 
   _onOutline(q) {  // point on an outer wall of this level?
@@ -1385,7 +1504,9 @@ class FloorplanLitePanel extends HTMLElement {
       const el = this._plan[this._sel.kind][this._sel.i];
       const old = el.poly[d.vertex];
       el.poly[d.vertex] = [NaN, NaN];  // ignore itself while snapping
-      el.poly[d.vertex] = this._snap(p, null, true) || old;
+      const n = el.poly.length, open = (this._sel.kind === "walls" && !el.closed) || (this._sel.kind === "lines" && el.open);
+      const nb = [d.vertex > 0 || !open ? el.poly[(d.vertex - 1 + n) % n] : null, d.vertex < n - 1 || !open ? el.poly[(d.vertex + 1) % n] : null];
+      el.poly[d.vertex] = this._snap(p, null, e.shiftKey, nb) || old;
       this._dirty = true; return this._renderCanvas();
     }
     if (d && d.label) {
@@ -1431,7 +1552,7 @@ class FloorplanLitePanel extends HTMLElement {
     try { this._svg().releasePointerCapture(e.pointerId); } catch (x) { /* not captured */ }
     if (!d) return;
     if (d.body && !d.moved) this._undo.pop();
-    this._snapMark = null;
+    this._snapMark = null; this._guides = []; this._right = null;
     if (d.vertex !== undefined || d.body || d.label || d.img) { this._renderAll(); }
   }
 
@@ -1467,7 +1588,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _finish() {
     const d = this._draft, tool = this._tool, closedWall = !!this._closed;
-    this._draft = null; this._hover = null; this._snapMark = null; this._closed = false;
+    this._draft = null; this._hover = null; this._snapMark = null; this._closed = false; this._guides = []; this._right = null;
     if (!d || d.length < (tool === "line" || tool === "wall" || tool === "split" ? 2 : 3)) return this._renderCanvas();
     const p = this._plan;
     if (tool === "split") return this._split(d);
@@ -1646,6 +1767,8 @@ const STYLES = `
   .dim { fill: #ffd9a0; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3,7,18,.9); stroke-width: .05; }
   .handle { fill: #fff; stroke: #4fc3ff; cursor: move; } .lhandle { fill: #ffcd91; stroke: #4fc3ff; cursor: move; }
   .draft { fill: none; stroke: #4fc3ff; stroke-dasharray: .2 .12; pointer-events: none; }
+  .guide { stroke: #ffd166; opacity: .8; pointer-events: none; }
+  .right { fill: none; stroke: #ffd166; pointer-events: none; }
   .dpt { fill: #4fc3ff; pointer-events: none; } .dpt.first { fill: #fff; stroke: #4fc3ff; stroke-width: .05; }
   .snap { fill: none; stroke: #ffcd91; pointer-events: none; }
   .len { fill: #fff; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3,7,18,.9); stroke-width: .06; }

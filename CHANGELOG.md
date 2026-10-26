@@ -2,6 +2,12 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## Unreleased
+- Drawing snaps softly: within 4° of horizontal, vertical, 45°, parallel or square to any wall on the level, and with
+  priority square to the wall a line starts on (also on slanted walls) or to the last drawn line; in between it draws
+  freely (Shift: no angle snapping). Corners line up with other corners (dashed guide), a right-angle mark shows square
+  corners, the label shows length and angle. Dragging a corner snaps both of its edges the same way.
+
 ## 0.3.0 – 2026-10-26
 - Background from a PDF: the editor turns a page of the PDF (choose which, for multi-page plans) into an image, sharp
   enough for tracing an old blueprint. pdf.js (Apache-2.0) ships with the integration and only loads when a PDF is chosen.

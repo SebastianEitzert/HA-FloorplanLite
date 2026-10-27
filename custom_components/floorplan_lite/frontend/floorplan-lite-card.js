@@ -348,17 +348,20 @@ function stairGeo(st) {
     }
     return best === null ? null : [o[0] + dir[0] * best, o[1] + dir[1] * best];
   };
+  // square: the steps lie as in the round form (across the rounded walking line, in a turn towards its centre), but
+  // run to the straight strings – outwards to the outer string, inwards to the inner one (or its corner)
   const across = (s) => {
     const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2, plain = [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]];
     if (round) return plain;
     const tr = turns.filter((x) => q.i > x[0] && q.i <= x[1])[0];
     if (!tr) return plain;
-    // in a turn: from the inner corner through the walking line to the outer edge (winder)
     const c = P[tr[2]], a = P[tr[2] - 1], b = P[tr[2] + 1];
-    const cross = (c[0] - a[0]) * (b[1] - c[1]) - (c[1] - a[1]) * (b[0] - c[0]);  // > 0: turns to the left (y down: right)
-    const inner = cross > 0 ? sqL : sqR, outer = cross > 0 ? sqR : sqL, pv = inner[tr[2]];
-    const dir = [q.p[0] - pv[0], q.p[1] - pv[1]], end = hit(pv, dir, outer);
-    return end ? [pv, end] : plain;
+    const left = (c[0] - a[0]) * (b[1] - c[1]) - (c[1] - a[1]) * (b[0] - c[0]) > 0;
+    const inner = left ? sqL : sqR, outer = left ? sqR : sqL, pv = inner[tr[2]];
+    const dIn = left ? [nx, ny] : [-nx, -ny], dOut = [-dIn[0], -dIn[1]];
+    const o = hit(q.p, dOut, outer), i = hit(q.p, dIn, inner);
+    const iEnd = i && len(i, q.p) <= len(pv, q.p) + 1e-6 ? i : pv;
+    return o ? (left ? [iEnd, o] : [o, iEnd]) : plain;
   };
   const steps = [];
   for (let k = 0; k <= n; k++) steps.push(across(L * k / n));

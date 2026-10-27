@@ -19,7 +19,7 @@ const T = {
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
     stairHint: "Die gestrichelte Linie ist die Lauflinie: vom Antritt (Punkt) zum Austritt (Pfeil). Ecken werden gewendelt – Radius = Abstand der Lauflinie vom Wendelpunkt. Ecken ziehen wie bei Linien.",
-    stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairForm: "Form", formSquare: "eckig (gerade Wangen, Stufen fächern vom Kern)", formRound: "rund (Wangen folgen der Wendelung)", stairNext: "– nächstes Stockwerk –",
+    stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairForm: "Form", formSquare: "eckig (gerade Wangen)", formRound: "rund (Wangen folgen der Wendelung)", stairNext: "– nächstes Stockwerk –",
     stairLen: "Lauflinie %l m · Auftritt ≈ %s cm",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
       line: "Hilfslinie (Vordach …)", stair: "Treppe (Lauflinie von unten nach oben)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", skylight: "Dachfenster / Lichtkuppel (frei im Raum)", openWall: "Keine Wand (offener Bereich)",
@@ -85,7 +85,7 @@ const T = {
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
     stairHint: "The dashed line is the walking line: from the first step (dot) to the top (arrow). Corners are wound – radius = distance of the walking line from the turning point. Drag corners like with lines.",
-    stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairForm: "Shape", formSquare: "square (straight strings, winders from the core)", formRound: "round (strings follow the turn)", stairNext: "– next level –",
+    stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairForm: "Shape", formSquare: "square (straight strings)", formRound: "round (strings follow the turn)", stairNext: "– next level –",
     stairLen: "Walking line %l m · going ≈ %s cm",
     tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", stair: "Stair (walking line from bottom to top)", outdoor: "Area outside (garden, yard, terrace)",
       line: "Helper line (canopy …)", stair: "Stair (walking line from bottom to top)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", skylight: "Roof window / dome (anywhere in a room)", openWall: "No wall (open plan)",
@@ -212,17 +212,20 @@ function stairGeo(st) {
     }
     return best === null ? null : [o[0] + dir[0] * best, o[1] + dir[1] * best];
   };
+  // square: the steps lie as in the round form (across the rounded walking line, in a turn towards its centre), but
+  // run to the straight strings – outwards to the outer string, inwards to the inner one (or its corner)
   const across = (s) => {
     const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2, plain = [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]];
     if (round) return plain;
     const tr = turns.filter((x) => q.i > x[0] && q.i <= x[1])[0];
     if (!tr) return plain;
-    // in a turn: from the inner corner through the walking line to the outer edge (winder)
     const c = P[tr[2]], a = P[tr[2] - 1], b = P[tr[2] + 1];
-    const cross = (c[0] - a[0]) * (b[1] - c[1]) - (c[1] - a[1]) * (b[0] - c[0]);  // > 0: turns to the left (y down: right)
-    const inner = cross > 0 ? sqL : sqR, outer = cross > 0 ? sqR : sqL, pv = inner[tr[2]];
-    const dir = [q.p[0] - pv[0], q.p[1] - pv[1]], end = hit(pv, dir, outer);
-    return end ? [pv, end] : plain;
+    const left = (c[0] - a[0]) * (b[1] - c[1]) - (c[1] - a[1]) * (b[0] - c[0]) > 0;
+    const inner = left ? sqL : sqR, outer = left ? sqR : sqL, pv = inner[tr[2]];
+    const dIn = left ? [nx, ny] : [-nx, -ny], dOut = [-dIn[0], -dIn[1]];
+    const o = hit(q.p, dOut, outer), i = hit(q.p, dIn, inner);
+    const iEnd = i && len(i, q.p) <= len(pv, q.p) + 1e-6 ? i : pv;
+    return o ? (left ? [iEnd, o] : [o, iEnd]) : plain;
   };
   const steps = [];
   for (let k = 0; k <= n; k++) steps.push(across(L * k / n));

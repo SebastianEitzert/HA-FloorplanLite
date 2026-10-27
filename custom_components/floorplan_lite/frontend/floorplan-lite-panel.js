@@ -18,7 +18,7 @@ const T = {
     del: "Löschen", delPlan: "Grundriss „%s“ wirklich löschen?", importJson: "JSON importieren", exportJson: "JSON exportieren",
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
-    stairHint: "Die gestrichelte Linie ist die Lauflinie: vom Antritt (Punkt) zum Austritt (Pfeil). Ecken werden gewendelt – Radius = Abstand der Lauflinie vom Wendelpunkt. Ecken ziehen wie bei Linien.",
+    stairHint: "Die gestrichelte Linie ist die Lauflinie: vom Antritt (Punkt) zum Austritt (Pfeil). Ecken werden gewendelt – Radius = Abstand der Lauflinie vom Wendelpunkt. Ecken ziehen wie bei Linien. Punkte fangen auch die Laufmitte (halbe Breite von den Wänden).",
     stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairForm: "Form", formSquare: "eckig (gerade Wangen)", formRound: "rund (Wangen folgen der Wendelung)", stairNext: "– nächstes Stockwerk –",
     stairLen: "Lauflinie %l m · Auftritt ≈ %s cm",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
@@ -84,7 +84,7 @@ const T = {
     del: "Delete", delPlan: "Really delete floor plan “%s”?", importJson: "Import JSON", exportJson: "Export JSON",
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
-    stairHint: "The dashed line is the walking line: from the first step (dot) to the top (arrow). Corners are wound – radius = distance of the walking line from the turning point. Drag corners like with lines.",
+    stairHint: "The dashed line is the walking line: from the first step (dot) to the top (arrow). Corners are wound – radius = distance of the walking line from the turning point. Drag corners like with lines. Points also snap to the middle of a run (half the width from the walls).",
     stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairForm: "Shape", formSquare: "square (straight strings)", formRound: "round (strings follow the turn)", stairNext: "– next level –",
     stairLen: "Walking line %l m · going ≈ %s cm",
     tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", stair: "Stair (walking line from bottom to top)", outdoor: "Area outside (garden, yard, terrace)",
@@ -1596,6 +1596,11 @@ class FloorplanLitePanel extends HTMLElement {
       const c = this._centre(x);
       [c, grow(c, ow / 2), grow(c, -ow / 2)].forEach((poly) => polys.push({ poly, closed: true, src: x }));
     });
+    const S0 = this._sel, stairEl = S0 && S0.kind === "stairs" ? this._plan.stairs[S0.i] : null;
+    if (this._tool === "stair" || stairEl) {  // stairs: the middle of a run – half the stair's width from the walls of the room
+      const hw = ((stairEl && stairEl.width) || 1) / 2;
+      this._of("rooms").forEach(({ x }) => { if (!x.outdoor && x.poly.length > 2) polys.push({ poly: grow(x.poly, -hw), closed: true }); });
+    }
     const below = this._ghost && this._below();
     if (below) ["rooms", "outlines", "walls"].forEach((k) => this._plan[k].filter((x) => x.level === below).forEach((x) => polys.push({ poly: x.poly, closed: closed(k, x) })));
     if (this._draft) polys.push({ poly: this._draft, closed: false });

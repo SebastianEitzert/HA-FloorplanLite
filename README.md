@@ -172,7 +172,7 @@ editor), JSON import / export, delete and save (Ctrl+S).
 | Draw room / Split room | draw freely with snapping / a line from edge to edge cuts a room in two |
 | Area outside | garden, terrace, yard – drawn like a room, shown without walls |
 | Helper line | dashed lines (canopy, terrace edge) |
-| Stair | draw the **walking line** from the bottom step (dot) to the top one (arrow), a point at every turn; turns are wound with the *radius* (distance of the walking line from the turning point – e.g. 0.6 for a 1.00 m run around a 20 cm core, 0 = landing corner), the steps fan out there – *square* (default: straight strings, the steps lie as in the round form) or *round*. Side panel: width, risers, radius, shape, *leads to* (default: the next level, where it shows dashed); walking line length and going are shown |
+| Stair | draw the **walking line** from the bottom step (dot) to the top one (arrow), a point at every turn; turns are wound with the *radius* (distance of the walking line from the turning point – e.g. 0.6 for a 1.00 m run around a 20 cm core, 0 = landing corner), the steps fan out there – *square* (default: straight strings, the steps lie as in the round form) or *round*. Side panel: width, risers, radius, shape, *leads to* (default: the next level, where it shows dashed); walking line length and going are shown. Points snap like all lines (corners, edges, 45°/90° to the previous point, grid) and to the middle of a run (half the stair width from the walls) |
 | Door, window, passage, garage door | click onto a wall; width, swing (mirror), entities and confirmation in the side panel |
 | Skylight / dome | free inside a room, square or round |
 | No wall | click the wall between two rooms – it disappears, both stay rooms (open plan) |

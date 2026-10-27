@@ -261,7 +261,8 @@ fields:
     name: Event
     description: >-
       up, down, wheel_up, wheel_down, yellow, play, pause, play_pause, stop, next, previous, blue, green, red,
-      double_tap, triple_tap, the same with _twice for a key pressed twice (up_twice, yellow_twice …) – or config:
+      double_tap, triple_tap, the same with _twice for a key pressed twice (up_twice, yellow_twice …), off (the card's off
+      buttons: always room off) – or config:
       answers which keys use twice and the waiting time
     selector: { text: {} }
   lights:
@@ -336,7 +337,8 @@ sequence:
         response_variable: answer
   - variables:
       key: "{{ event if event is defined and event else '' }}"
-      todo: "{{ settings.get(key, 'nothing') }}"
+      # off: the card's off buttons – always „room off“ (the room's off scene, else its lights off; music stop)
+      todo: "{{ 'room_off' if key == 'off' else settings.get(key, 'nothing') }}"
   - condition: template
     value_template: "{{ todo != 'nothing' }}"
   - variables:

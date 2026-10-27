@@ -133,7 +133,7 @@ const TEXT = {
     noPlan: "Bitte einen Grundriss wählen (plan: …).",
     cancel: "Abbrechen", details: "Details", unlock: "Aufschließen", lock: "Abschließen", openDoor: "Türöffner", open: "Öffnen",
     close: "Schließen", stop: "Stopp", press: "Auslösen", toggle: "Umschalten",
-    site: "Grundstück", allOff: "Alles aus", bOff: "%s aus", really: "Wirklich? Nochmal drücken", offDone: "%n Geräte ausgeschaltet",
+    site: "Grundstück", allOff: "Alles aus", bOff: "%s aus", really: "Wirklich? Nochmal drücken", offDone: "%n Geräte ausgeschaltet", offRooms: "%n Räume ausgeschaltet",
     here: "Du bist hier", thisTv: "Dieser Fernseher", thisDevice: "Dieses Gerät", noSite: "Bitte Gebäude für das Grundstück angeben (site.buildings)." },
   en: { tilt: "Window tilted", win: "Window open", shade: "Shade closed", music: "Music playing", presence: "Presence", motion: "Motion",
     light: "Light in its colour", musicL: "Music", prev: "Previous level", next: "Next level",
@@ -141,7 +141,7 @@ const TEXT = {
     noPlan: "Please choose a floor plan (plan: …).",
     cancel: "Cancel", details: "Details", unlock: "Unlock", lock: "Lock", openDoor: "Open latch", open: "Open",
     close: "Close", stop: "Stop", press: "Press", toggle: "Toggle",
-    site: "Site", allOff: "All off", bOff: "%s off", really: "Sure? Press again", offDone: "%n devices switched off",
+    site: "Site", allOff: "All off", bOff: "%s off", really: "Sure? Press again", offDone: "%n devices switched off", offRooms: "%n rooms switched off",
     here: "You are here", thisTv: "This TV", thisDevice: "This device", noSite: "Please list the site's buildings (site.buildings)." },
 };
 const chips = (t) => ({
@@ -194,7 +194,7 @@ const CARDS = [];
 const DOUBLE = {};  // script → {keys: keys with an action for „twice“, ms: waiting time}
 /* English names for the card's options (YAML in English or German – both work; inside the card the German ones). */
 const OPT_EN = { off_buttons: "aus_schalter", music_off: "musik_aus", off_with_outside: "aus_mit_aussen", orientation: "ausrichtung",
-  compass: "kompass", other_floors: "andere_geschosse", neighbour_margin: "nachbar_rand", height: "hoehe", legend: "legende" };
+  compass: "kompass", other_floors: "andere_geschosse", neighbour_margin: "nachbar_rand", height: "hoehe", legend: "legende", frame: "rahmen" };
 const ROOM_EN = { light: "licht", lights: "licht", main_light: "hauptlicht", presence: "praesenz", motion: "bewegung", temperature: "temp",
   window: "fenster", windows: "fenster", shade: "beschattung", shades: "beschattung", music: "musik", light_colour: "lichtfarbe", light_color: "lichtfarbe" };
 const FOLLOW_EN = { type: "art", template: "vorlage", view: "ansicht", room: "raum", ble_last: "ble_letzter", max_age: "max_alter" };
@@ -1454,6 +1454,7 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _tap(el) {
+    if (this._swiped && Date.now() - this._swiped < 500) return;  // the end of a swipe is no tap
     el.classList.add("pressed");
     setTimeout(() => el.classList.remove("pressed"), 280);
     this._open(el.getAttribute("data-room"));
@@ -1638,10 +1639,11 @@ class FloorplanLiteCard extends HTMLElement {
     // one frame for all views (no jumps in height between site, buildings and levels): the tallest view's shape, at
     // most 1.25 × the width; flatter views are centred in it, taller ones narrower
     const ratio = (k) => { const v = this._floors[k] && this._floors[k].view; return v && v[2] > 0 ? v[3] / v[2] : 0.6; };
-    const R = Math.min(1.25, Math.max.apply(null, this._fl.map(ratio).concat([0.3])));
+    const R = Math.min(1, Math.max.apply(null, this._fl.map(ratio).concat([0.3])));
+    const frame = this._config.rahmen !== false;  // rahmen / frame: false = every view in its own size (the height changes)
     this._ratio = ratio;
     const fixedH = !!this._config.hoehe;  // height: a CSS length or „fill“ (the rest of the window): the views fit into it
-    const views = this._fl.map((k) => `<div class="view" data-v="${esc(k)}" hidden style="width:${fixedH ? 100 : Math.min(100, R / ratio(k) * 100).toFixed(2)}%">` +
+    const views = this._fl.map((k) => `<div class="view" data-v="${esc(k)}" hidden style="width:${fixedH || !frame ? 100 : Math.min(100, R / ratio(k) * 100).toFixed(2)}%">` +
       `${this._floorHtml(k, false, intro, true)}</div>`).join("");
     // site and buildings: icon and name (narrow cards: only the icon)
     const sgBtn = (go, icon, name) => `<button class="sg" data-go="${esc(go)}" role="tab" title="${esc(name)}" aria-label="${esc(name)}"><ha-icon icon="${esc(icon)}"></ha-icon><span>${esc(name)}</span></button>`;
@@ -1652,7 +1654,7 @@ class FloorplanLiteCard extends HTMLElement {
       `<span>${CHIP.w}${t.win}</span><span>${CHIP.s}${t.shade}</span><span>${CHIP.m}${t.musicL}</span></div>`;
     root.innerHTML = `<style>${FloorplanLiteCard.styles}${this._styleVars()}</style>` +
       `<ha-card class="night site${intro ? " intro" : ""}${fixedH ? " fixedh" : ""}"><div class="bar"><div class="lb"></div><div class="mid">${seg}</div><div class="rb"></div></div>` +
-      `<div class="ftabs" role="tablist"></div><div class="views">${fixedH ? "" : `<div class="vsz" style="padding-top:${(R * 100).toFixed(2)}%"></div>`}${views}</div>${legend}<div class="toast" role="status"></div></ha-card>`;
+      `<div class="ftabs" role="tablist"></div><div class="views${frame || fixedH ? "" : " free"}">${fixedH || !frame ? "" : `<div class="vsz" style="padding-top:${(R * 100).toFixed(2)}%"></div>`}${views}</div>${legend}<div class="toast" role="status"></div></ha-card>`;
     this._wire(root);
     this._track = null;
     this._sizeViews();
@@ -1769,6 +1771,7 @@ class FloorplanLiteCard extends HTMLElement {
     const h = v === "site" ? "" : "#plan=" + encodeURIComponent(v.split(":")[0]) + "&floor=" + encodeURIComponent(v.split(":")[1]);
     if (location.hash === h || (!h && location.hash.length < 2)) return;
     const url = location.pathname + location.search + h;
+    if (h && !/[#&]plan=/.test(location.hash)) push = true;  // from the site into a building: Back leads to the site again
     try {
       if (push) { history.pushState(history.state, "", url); this._pushed = true; } else history.replaceState(history.state, "", url);
     } catch (e) { /* not allowed here */ }
@@ -1802,10 +1805,22 @@ class FloorplanLiteCard extends HTMLElement {
     let d0 = 0, done = false;
     const ids = () => Object.keys(P);
     const dist = () => { const k = ids(); if (k.length < 2) return 0; const a = P[k[0]], b = P[k[1]]; return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])); };
+    let sw = null;  // one finger sideways in a building: the next / previous level
     el.addEventListener("pointerdown", (e) => {
       if (e.pointerType !== "touch") return;
       P[e.pointerId] = [e.clientX, e.clientY];
-      if (ids().length === 2) { d0 = dist(); done = false; }
+      if (ids().length === 2) { d0 = dist(); done = false; sw = null; }
+      else sw = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
+    });
+    el.addEventListener("pointerup", (e) => {
+      const s0 = sw;
+      sw = null;
+      if (!s0 || s0.id !== e.pointerId || Date.now() - s0.t > 800) return;
+      const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (this._view === "site") return;
+      this._swiped = Date.now();  // no tap on the room under the finger
+      this._stepFloor(dx < 0 ? 1 : -1);
     });
     el.addEventListener("pointermove", (e) => {
       if (!P[e.pointerId]) return;
@@ -1904,6 +1919,23 @@ class FloorplanLiteCard extends HTMLElement {
     const keys = Object.keys(Object.assign({}, this._live || {}, this._rooms || {})).filter((k) =>
       (floor ? onFloor[k] && (k.indexOf("site/") !== 0 || cfg.aus_mit_aussen === true) : level === "site" || k.indexOf(level + "/") === 0) ||
       (!floor && cfg.aus_mit_aussen === true && k.indexOf("site/") === 0));
+    if (this._scriptEn()) {  // the script switches each room off its own way: its off scene (Loxone presence lights too), else its lights; music stops
+      const area = {};
+      Object.keys(this._floors || {}).forEach((fk) => (this._floors[fk].rooms || []).forEach((r) => { if (r.key && r.area) area[r.key] = r.area; }));
+      Object.keys(this._live || {}).forEach((k) => { if (!area[k]) area[k] = this._live[k]; });
+      const ok = (id) => !!st[id] && !this._hidden(id);
+      let n = 0;
+      keys.forEach((k) => {
+        const r = this._roomEnts(k), a = area[k];
+        if (!a) return;
+        const ls = listOf(r.licht).concat(r.hauptlicht && listOf(r.licht).indexOf(r.hauptlicht) < 0 ? [r.hauptlicht] : []).filter(ok);
+        this._hass.callService("script", this._scriptName(), { room: a, event: "off", lights: ls, players: listOf(r.musik).filter(ok) });
+        n++;
+      });
+      this._toast(t.offRooms.replace("%n", n));
+      this._chrome();
+      return;
+    }
     const lights = [], players = [];
     keys.forEach((k) => {
       const r = this._roomEnts(k);
@@ -2358,6 +2390,7 @@ FloorplanLiteCard.styles = `
   ha-card.fixedh { display: flex; flex-direction: column; overflow: hidden; }
   ha-card.fixedh .views { flex: 1 1 auto; min-height: 0; }
   .site .view { position: absolute; top: 0; left: 0; right: 0; margin: 0 auto; }
+  .site .views.free .view { position: relative; }
   .view[hidden] { display: none; }
   .view.fadein .plan { animation: fadein .35s both; }
   .site .views, .site .hit, .site .bhit { touch-action: pan-y; }  /* two fingers: the card zooms, not the page */
@@ -2408,7 +2441,7 @@ FloorplanLiteCard.styles = `
 /* ---------- Visual editor of the card (dashboard → edit card) ---------- */
 const ED = {
   de: { plan: "Grundriss", mode: "Darstellung", swipe: "Ein Stockwerk groß – wischen, Reiter, Pfeile", all: "Alle Stockwerke nebeneinander",
-    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten", andere_geschosse: "Außenwände der anderen Stockwerke als Hilfslinien", hoehe: "Höhe der Karte (leer = automatisch, fill = bis zum Fensterende – Fernseher scrollen nie, oder z. B. 600px, 80vh)", legende: "Legende zeigen",
+    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten", andere_geschosse: "Außenwände der anderen Stockwerke als Hilfslinien", hoehe: "Höhe der Karte (leer = automatisch, fill = bis zum Fensterende – Fernseher scrollen nie, oder z. B. 600px, 80vh)", legende: "Legende zeigen", rahmen: "Gleiche Höhe für alle Ansichten (aus = jede Ansicht in ihrer eigenen Größe)",
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
@@ -2445,7 +2478,7 @@ const ED = {
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst). Englisch auch ?room=, ?view=site, ?device=.",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
-    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines", hoehe: "Height of the card (empty = automatic, fill = down to the bottom of the window – a TV never scrolls, or e.g. 600px, 80vh)", legende: "Show the legend",
+    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines", hoehe: "Height of the card (empty = automatic, fill = down to the bottom of the window – a TV never scrolls, or e.g. 600px, 80vh)", legende: "Show the legend", rahmen: "Same height for every view (off = every view in its own size)",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
@@ -3295,6 +3328,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "andere_geschosse", selector: { boolean: {} } },
       { name: "hoehe", selector: { text: {} } },
       { name: "legende", selector: { boolean: {} } },
+      { name: "rahmen", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
       { name: "hide_label", selector: { label: { multiple: true } } },
       { name: "script", selector: { entity: { filter: { domain: "script" } } } },
@@ -3307,7 +3341,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       building: c.building || "",
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
-      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false, andere_geschosse: c.andere_geschosse === true, hoehe: c.hoehe || "", legende: c.legende !== false,
+      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false, andere_geschosse: c.andere_geschosse === true, hoehe: c.hoehe || "", legende: c.legende !== false, rahmen: c.rahmen !== false,
       tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels || [] : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
@@ -3329,6 +3363,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("andere_geschosse", true, v.andere_geschosse === true);
     set("hoehe", v.hoehe, !!v.hoehe);
     set("legende", false, v.legende === false);
+    set("rahmen", false, v.rahmen === false);
     set("tap", "none", v.tap === "none");
     set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");

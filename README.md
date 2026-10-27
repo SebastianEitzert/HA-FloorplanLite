@@ -109,6 +109,7 @@ rooms:                # optional: entities per room – override the ones stored
 | `compass` | `false` (shown) | hides the compass rose |
 | `height` | `fill` / CSS length (automatic) | fixed height of the card (site cards): `fill` = from the card down to the bottom of the window – a TV or wall panel never scrolls; or e.g. `600px`, `80vh`. Every view is as large as fits |
 | `legend` | `false` (shown) | hides the legend – more room for the plan |
+| `frame` | `false` (on) | every view in its own size instead of one common height |
 | `other_floors` | `true` (`false`) | outer walls of the other levels as faint dashed helper lines – e.g. the attic shows where the ground floor ends; with `align: true` all levels share one frame so the lines are fully in view |
 | `tap` | `none` (pop-up + script) | `none`: no pop-up on tap and no events to the script |
 | `script` | script entity (`script.raum_klick`) | receives keys, clicks, wheel and taps over a room (see *Script blueprint*) |
@@ -388,7 +389,7 @@ off_buttons:              # off buttons (top right) – key: site, <plan id> (bu
 | `all` | „<building> off“ + one button per floor („EG off“, „OG off“ …), on every floor |
 | `false` | none |
 
-Every off button needs two presses within 3 s; it switches off the lights (lights, switches) and stops the music
+Every off button needs two presses within 3 s. With the Floorplan Lite script it calls the script per room (event `off` = room off: the room's off scene, else its lights; music stops) – so lights started by presence end too. Without it, it switches off the lights (lights, switches) and stops the music
 (`music_off`) of the rooms entered in the plan that are on or playing; areas outside only with `off_with_outside: true`.
 In the card editor: *Off button per level*, a choice per building.
 

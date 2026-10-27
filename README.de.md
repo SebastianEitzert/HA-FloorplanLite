@@ -110,6 +110,7 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
 | `kompass` | `false` (gezeigt) | blendet die Windrose aus |
 | `hoehe` | `fill` / CSS-Länge (automatisch) | feste Höhe der Karte (Grundstücks-Karten): `fill` = von der Karte bis zum Fensterende – Fernseher oder Wandpanel scrollen nie; oder z. B. `600px`, `80vh`. Jede Ansicht wird so groß wie sie hineinpasst |
 | `legende` | `false` (gezeigt) | blendet die Legende aus – mehr Platz für den Plan |
+| `rahmen` | `false` (an) | jede Ansicht in ihrer eigenen Größe statt einer gemeinsamen Höhe |
 | `andere_geschosse` | `true` (`false`) | Außenwände der anderen Stockwerke als feine gestrichelte Hilfslinien – z. B. zeigt das Dachgeschoss, wo das Erdgeschoss endet; mit `align: true` teilen alle Stockwerke einen Rahmen, dann sind die Linien ganz zu sehen |
 | `tap` | `none` (Pop-up + Skript) | `none`: kein Pop-up beim Antippen und keine Ereignisse an das Skript |
 | `script` | Skript-Entität (`script.raum_klick`) | bekommt Tasten, Klicks, Mausrad und Tippen über einem Raum (siehe *Skript-Vorlage*) |
@@ -397,7 +398,7 @@ aus_schalter:              # Aus-Schalter (oben rechts) – Schlüssel: site, <g
 | `alle` | „<Gebäude> aus“ + ein Schalter je Stockwerk („EG aus“, „OG aus“ …), auf jedem Stockwerk |
 | `false` | keiner |
 
-Jeder Aus-Schalter braucht zwei Drücke innerhalb von 3 s; er schaltet die Lichter (Lichter, Schalter) aus und stoppt
+Jeder Aus-Schalter braucht zwei Drücke innerhalb von 3 s. Mit dem Floorplan-Lite-Skript ruft er das Skript je Raum auf (Ereignis `off` = Raum aus: die Aus-Szene des Raums, sonst seine Lichter; Musik stoppt) – so gehen auch per Präsenz gestartete Lichter aus. Ohne Skript schaltet er die Lichter (Lichter, Schalter) aus und stoppt
 die Musik (`musik_aus`) der im Plan eingetragenen Räume, die an sind oder spielen; Außenbereiche nur mit
 `aus_mit_aussen: true`. Im Karten-Editor: *Aus-Schalter je Ebene*, eine Auswahl je Gebäude.
 - Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.

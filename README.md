@@ -393,6 +393,36 @@ Every off button needs two presses within 3 s. With the Floorplan Lite script it
 (`music_off`) of the rooms entered in the plan that are on or playing; areas outside only with `off_with_outside: true`.
 In the card editor: *Off button per level*, a choice per building.
 
+### Location with Bermuda (the phone follows you through the house)
+
+The card can start where the person is (`follow` with `type: location` / `art: standort`):
+
+1. **Away or at home?** A `person.*` or `device_tracker` as `geofence`: not at home → the card shows the property.
+2. **Which room?** [Bermuda BLE Trilateration](https://github.com/agittins/bermuda) (HACS) locates the phone by
+   Bluetooth receivers (ESPHome proxies, Shellys …) per Home Assistant area. Setup: install Bermuda with HACS, add the
+   integration, pick the phone in its options (the Companion app sends a BLE id, *iBeacon* or *Private BLE Device*).
+   Bermuda then creates, among others, two sensors:
+   - `sensor.<device>_area` – the area the phone is in now → `ble`
+   - `sensor.<device>_area_last_seen` – the last area it was seen in → `ble_last`
+3. The areas have to be the Home Assistant areas linked to the rooms and areas outside in the floor plan editor (area
+   name or id is enough).
+
+```yaml
+follow:
+  Sebastian:                       # user name or user id
+    type: location
+    geofence: person.sebastian
+    ble: [sensor.phone_area]
+    ble_last: [sensor.phone_area_last_seen]
+    max_age: 30                    # the last area counts for at most 30 minutes
+follow_hold: 120                   # no jumps for 120 s after own navigation
+```
+
+Order: address (`?room=` / `?view=`) → geofence (not at home → property) → current Bluetooth area → last area (if younger
+than `max_age`) → `start`. The room found is marked „You are here“. When the area changes, the card follows – except
+within `follow_hold` seconds after own navigation or while a pop-up is open. In the card editor: *Users: start view and
+location* (with a preview for fixed templates).
+
 ## Plan format
 
 Coordinates are in metres; `y` points down. A plan has:

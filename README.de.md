@@ -403,6 +403,37 @@ die Musik (`musik_aus`) der im Plan eingetragenen Räume, die an sind oder spiel
 `aus_mit_aussen: true`. Im Karten-Editor: *Aus-Schalter je Ebene*, eine Auswahl je Gebäude.
 - Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.
 
+### Standort mit Bermuda (Handy folgt dir durchs Haus)
+
+Die Karte kann je Benutzer dort starten, wo die Person gerade ist (`follow` mit `art: standort` / `type: location`):
+
+1. **Unterwegs oder zu Hause?** Eine `person.*` oder ein `device_tracker` als `geofence`: nicht zu Hause → die Karte
+   zeigt das Grundstück.
+2. **In welchem Raum?** [Bermuda BLE Trilateration](https://github.com/agittins/bermuda) (HACS) ortet das Handy über
+   Bluetooth-Empfänger (ESPHome-Proxys, Shellys …) je Home-Assistant-Bereich. Einrichtung: Bermuda über HACS
+   installieren, Integration hinzufügen, in den Optionen das Handy (die Companion-App sendet eine BLE-ID, *iBeacon*
+   bzw. *Private BLE Device*) auswählen. Bermuda legt dann u. a. zwei Sensoren an:
+   - `sensor.<gerät>_area` – der Bereich, in dem das Handy gerade ist → `ble`
+   - `sensor.<gerät>_area_last_seen` – der zuletzt gesehene Bereich → `ble_letzter`
+3. Die Bereiche müssen dieselben Home-Assistant-Bereiche sein, die im Grundriss-Editor den Räumen und Außenbereichen
+   zugeordnet sind (der Bereichsname oder die ID genügt).
+
+```yaml
+follow:
+  Sebastian:                       # Benutzername oder Benutzer-ID
+    art: standort                  # type: location
+    geofence: person.sebastian
+    ble: [sensor.handy_area]
+    ble_letzter: [sensor.handy_area_last_seen]   # ble_last
+    max_alter: 30                  # max_age: der letzte Bereich zählt höchstens 30 Minuten
+follow_hold: 120                   # nach eigener Bedienung 120 s nicht springen
+```
+
+Ablauf: Adresse (`?raum=` / `?ansicht=`) → Geofence (nicht zu Hause → Grundstück) → aktueller Bluetooth-Bereich →
+letzter Bereich (wenn jünger als `max_alter`) → `start`. Der gefundene Raum wird mit „Du bist hier“ markiert. Ändert sich
+der Bereich, folgt die Karte – außer in den `follow_hold` Sekunden nach eigener Bedienung oder solange ein Pop-up offen ist.
+Im Karten-Editor stellst du das unter *Benutzer: Startansicht und Standort* ein (mit Vorschau für feste Vorlagen).
+
 ## Format eines Grundrisses
 
 Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:

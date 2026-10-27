@@ -35,6 +35,8 @@ Grundstücks-Ebene mit Gebäuden, Außenbereichen, Startansicht/Standort, Aus-Sc
 
 **Halb fertig:** nichts offen im Code.
 
+**Doku:** README hat Abschnitte zu Grundstück, Standort mit Bermuda, Kiosk Mode (seit 27.10. abends).
+
 **Fehlt noch / offen:**
 - Nach dem nächsten Release: TV-Karte auf `tv-dashboard` ggf. auf `height: fill` und `legend: false` stellen (Sebastian hat noch nicht zugestimmt).
 - Prüfen am echten Gerät: Aus-Schalter schaltet Loxone-Präsenzlichter über die Aus-Szene wirklich aus; Höhe `fill` in HA (eigener Scrollbereich, evtl. `calc(100vh - 20px)` nötig).

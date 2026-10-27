@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Card editor (site): own buttons get their own list – level, icon picker, name and the standard HA tap action (navigate to a pop-up `#name` or a dashboard, URL, more info, action) – and the off button has a switch per level, instead of raw YAML fields.
 - Site editor: „Show dimensions“ (ruler in the tool bar) labels the edges of buildings and areas outside with their length; the choice is remembered.
 - Card: a site background image no longer enlarges the site view – the view follows the buildings and areas, the image is cut off.
 - Site editor: the background can be moved („Move background“: drag; Shift+wheel turns, Alt+wheel scales around the pointer) and turned to a line („Turn background“: two points on a boundary or wall, then the wanted direction).

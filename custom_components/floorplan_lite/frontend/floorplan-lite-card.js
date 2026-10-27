@@ -2126,7 +2126,7 @@ const ED = {
     alignQ2: "4. Denselben Punkt im Hintergrund anklicken.", bgScaleHint: "Zwei Punkte mit bekanntem Abstand im Hintergrund anklicken.", realLen: "Echte Länge",
     siteHint: "Lage der Gebäude und Außenbereiche legst du im Grundstück im Grundriss-Editor fest; hier nur, was diese Karte betrifft.",
     sView: "Darstellung", noBlds: "Noch keine Gebäude – „+ Gebäude“ wählt einen Grundriss.", part: "Nur dieser Gebäudeteil des Grundrisses",
-    sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sOpts: "Weitere Einstellungen",
+    sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sButtons: "Eigene Schaltflächen", addButton: "+ Schaltfläche", sOff: "Aus-Schalter je Ebene", bl: "Ebene", icon: "Symbol", tap_action: "Aktion beim Antippen", buttonsHint: "Oben links in der gewählten Ebene. Ein Pop-up (Bubble Card) öffnest du mit „Navigieren“ und dem Pfad #name (z. B. #kameras), ein Dashboard mit dem Pfad /dashboard-name/ansicht; auch URL, Mehr-Infos oder eine Aktion sind möglich.", sOpts: "Weitere Einstellungen",
     addBld: "+ Gebäude", addArea: "+ Außenbereich zeichnen", addUser: "+ Benutzer", del: "Entfernen", redraw: "Neu zeichnen", done: "Fertig", cancel: "Abbrechen",
     name: "Name", site_floor: "Geschoss in der Grundstücksansicht (Standard: unterstes)", x: "Lage x (m, leer = automatisch)", y: "Lage y (m)",
     rotation: "Drehung (°)", scale: "Maßstab", area: "Home-Assistant-Bereich", licht: "Licht", hauptlicht: "Hauptlicht", musik: "Musik",
@@ -2163,7 +2163,7 @@ const ED = {
     alignQ2: "4. Click the same point in the background.", bgScaleHint: "Click two points of known distance in the background.", realLen: "Real length",
     siteHint: "Where the buildings stand and the areas outside are set in the site in the floor plan editor; here only what this card needs.",
     sView: "Display", noBlds: "No buildings yet – „+ Building“ picks a floor plan.", part: "Only this building part of the plan",
-    sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sOpts: "More settings",
+    sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sButtons: "Own buttons", addButton: "+ Button", sOff: "Off button per level", bl: "Level", icon: "Icon", tap_action: "Tap action", buttonsHint: "Top left on the chosen level. Open a pop-up (Bubble Card) with „Navigate“ and the path #name (e.g. #cameras), a dashboard with /dashboard-name/view; URL, more info or an action work too.", sOpts: "More settings",
     addBld: "+ Building", addArea: "+ Draw an area outside", addUser: "+ User", del: "Remove", redraw: "Draw again", done: "Done", cancel: "Cancel",
     name: "Name", site_floor: "Level shown on the site (default: the lowest)", x: "Position x (m, empty = automatic)", y: "Position y (m)",
     rotation: "Rotation (°)", scale: "Scale", area: "Home Assistant area", licht: "Lights", hauptlicht: "Main light", musik: "Music",
@@ -3059,7 +3059,26 @@ class FloorplanLiteCardEditor extends HTMLElement {
       this._built = true;
       this._forms = [];
       host.innerHTML = `<h4>${esc(t.sUsers)}</h4><div class="fl-users"></div><button class="fl-btn" data-a="addu">${esc(t.addUser)}</button>` +
-        `<p class="fl-hint">${esc(t.params)}</p><h4>${esc(t.sOpts)}</h4><div class="fl-opts"></div>`;
+        `<p class="fl-hint">${esc(t.params)}</p>` +
+        `<h4>${esc(t.sButtons)}</h4><p class="fl-hint">${esc(t.buttonsHint)}</p><div class="fl-btns"></div><button class="fl-btn" data-a="addbtn">${esc(t.addButton)}</button>` +
+        `<h4>${esc(t.sOff)}</h4><div class="fl-off"></div>` +
+        `<h4>${esc(t.sOpts)}</h4><div class="fl-opts"></div>`;
+      host.querySelector('[data-a="addbtn"]').addEventListener("click", () => {
+        const c = JSON.parse(JSON.stringify(this._config)), b = c.buttons && typeof c.buttons === "object" ? c.buttons : {};
+        b.site = listOf(b.site).concat([{ icon: "mdi:gesture-tap-button", name: "", tap_action: { action: "navigate", navigation_path: "#popup" } }]);
+        c.buttons = b;
+        this._emit(c); this._renderSite();
+      });
+      const off = document.createElement("ha-form");
+      off.computeLabel = (sc) => sc.label || sc.name;
+      off.addEventListener("value-changed", (e) => {
+        const c = JSON.parse(JSON.stringify(this._config)), v = e.detail.value, a = {};
+        Object.keys(v).forEach((k) => { if (v[k] === false) a[k] = false; });
+        if (Object.keys(a).length) c.aus_schalter = a; else delete c.aus_schalter;
+        this._emit(c);
+      });
+      host.querySelector(".fl-off").appendChild(off);
+      this._offForm = off;
       host.querySelector('[data-a="addu"]').addEventListener("click", () => {
         const c = JSON.parse(JSON.stringify(this._config));
         const f = c.follow && !Array.isArray(c.follow) ? c.follow : {};
@@ -3077,7 +3096,46 @@ class FloorplanLiteCardEditor extends HTMLElement {
       this._opt = opt;
       this._subforms = (this._subforms || []).concat([opt]);
     }
-    this._subforms = (this._forms || []).concat([this._opt]);
+    this._subforms = (this._forms || []).concat([this._opt, this._offForm]);
+    // own buttons: one list over all levels, each with its level, icon, name and action (the standard HA actions)
+    const lvls = [{ value: "site", label: t.gsite }].concat((site.buildings || []).map((b) => ({ value: b.plan, label: b.name || b.plan })));
+    const bmap = cfg.buttons && typeof cfg.buttons === "object" ? cfg.buttons : {};
+    const btns = [];
+    Object.keys(bmap).forEach((lv) => listOf(bmap[lv]).forEach((b, j) => btns.push({ lv: lv, j: j, b: b })));
+    this._list(host.querySelector(".fl-btns"), btns,
+      (hd, x, i) => {
+        hd.innerHTML = `<b>${esc(x.b.name || x.b.icon || "?")}</b> <span class="fl-hint">${esc((lvls.filter((l) => l.value === x.lv)[0] || { label: x.lv }).label)}</span>` +
+          `<button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-del]").addEventListener("click", () => {
+          const c = JSON.parse(JSON.stringify(this._config));
+          c.buttons[x.lv].splice(x.j, 1);
+          if (!c.buttons[x.lv].length) delete c.buttons[x.lv];
+          if (!Object.keys(c.buttons).length) delete c.buttons;
+          this._emit(c); this._renderSite();
+        });
+      },
+      () => [{ name: "bl", selector: this._sel(lvls) }, { name: "icon", selector: { icon: {} } }, { name: "name", selector: { text: {} } },
+        { name: "tap_action", selector: { ui_action: {} } }],
+      (x) => ({ bl: x.lv, icon: x.b.icon || "", name: x.b.name || "", tap_action: x.b.tap_action || { action: "none" } }),
+      (i, v) => {
+        const c = JSON.parse(JSON.stringify(this._config)), x = btns[i], nb = {};
+        if (v.icon) nb.icon = v.icon;
+        if (v.name) nb.name = v.name;
+        if (v.tap_action) nb.tap_action = v.tap_action;
+        c.buttons[x.lv].splice(x.j, 1);
+        if (!c.buttons[x.lv].length) delete c.buttons[x.lv];
+        const lv = v.bl || x.lv;
+        c.buttons[lv] = listOf(c.buttons[lv]);
+        if (lv === x.lv) c.buttons[lv].splice(x.j, 0, nb); else c.buttons[lv].push(nb);
+        this._emit(c);
+        if (lv !== x.lv) this._renderSite();
+      });
+    // off button per level
+    this._offForm.hass = this._hass;
+    this._offForm.schema = lvls.map((l) => ({ name: l.value, label: l.label, selector: { boolean: {} } }));
+    const offData = {};
+    lvls.forEach((l) => { offData[l.value] = !(cfg.aus_schalter && cfg.aus_schalter[l.value] === false); });
+    this._offForm.data = offData;
     const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
     const fol = cfg.follow && !Array.isArray(cfg.follow) ? cfg.follow : {};
     const users = Object.keys(fol).map((k) => Object.assign({ user: k }, fol[k]));
@@ -3141,14 +3199,12 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "nachbar_rand", selector: { number: { mode: "slider", min: 0, max: 60, step: 5, unit_of_measurement: "%" } } },
       { name: "musik_aus", selector: this._sel([{ value: "pause", label: t.pause }, { value: "stop", label: t.stop }, { value: "off", label: t.off }]) },
       { name: "aus_mit_aussen", selector: { boolean: {} } },
-      { name: "aus_schalter", selector: { object: {} } },
-      { name: "buttons", selector: { object: {} } },
     ];
     this._opt.data = { sstart: cfg.start || "grundstueck", show: listOf(cfg.site && cfg.site.show), follow_floor: cfg.follow_floor !== false,
       ausrichtung: cfg.ausrichtung || "", kompass: cfg.kompass !== false,
       follow_hold: typeof cfg.follow_hold === "number" ? cfg.follow_hold : 120,
       nachbar_rand: Math.round((typeof cfg.nachbar_rand === "number" ? cfg.nachbar_rand : 0.15) * 100), musik_aus: cfg.musik_aus || "pause",
-      aus_mit_aussen: cfg.aus_mit_aussen === true, aus_schalter: cfg.aus_schalter || {}, buttons: cfg.buttons || {} };
+      aus_mit_aussen: cfg.aus_mit_aussen === true };
   }
 
   _optChanged(v) {
@@ -3163,7 +3219,6 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set(c, "nachbar_rand", v.nachbar_rand / 100, typeof v.nachbar_rand === "number" && v.nachbar_rand !== 15);
     set(c, "musik_aus", v.musik_aus, v.musik_aus && v.musik_aus !== "pause");
     set(c, "aus_mit_aussen", true, v.aus_mit_aussen === true);
-    ["aus_schalter", "buttons"].forEach((k) => set(c, k, v[k], v[k] && typeof v[k] === "object" && Object.keys(v[k]).length));
     this._emit(c);
     this._renderSite();
   }

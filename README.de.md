@@ -343,6 +343,19 @@ buttons:                    # eigene Schaltflächen links oben, je Ebene, mit de
   eingetragenen Räume, die an sind bzw. spielen; zweimal innerhalb von 3 s drücken, ein kurzer Hinweis nennt die Anzahl.
 - **Nur ein Gebäude:** `site.show: [ranch]` zeigt nur dieses Gebäude (mit den angrenzenden Außenbereichen). Innerhalb
   eines einzelnen Grundrisses mit mehreren `buildings` zeigt die Kartenoption `building: <id>` nur dieses Gebäude.
+- **Eigene Schaltfläche, die ein Pop-up oder Dashboard öffnet** – im Karten-Editor *+ Schaltfläche*, Ebene und Symbol
+  wählen, Aktion *Navigieren* mit dem Pfad `#kameras` (ein Bubble-Card-Pop-up mit diesem Hash) oder
+  `/dashboard-tv/kameras` (eine Dashboard-Ansicht). Den Aus-Schalter gibt es dort als Schalter je Ebene. In YAML:
+
+```yaml
+buttons:
+  site:
+    - {icon: mdi:cctv, name: Kameras, tap_action: {action: navigate, navigation_path: "#kameras"}}
+    - {icon: mdi:flash, name: Energie, tap_action: {action: navigate, navigation_path: /energy}}
+  ranch:
+    - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stall_temperatur}}
+aus_schalter: {site: true, ranch: false}   # Aus-Schalter je Ebene: site = Grundstück, <grundriss-id> = dieses Gebäude
+```
 - Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.
 
 ## Format eines Grundrisses

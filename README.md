@@ -333,7 +333,21 @@ buttons:                    # own buttons top left, per level, with the standard
   the card that are on or playing; press twice within 3 s, a short note tells how many devices were switched.
 - **Only one building:** `site.show: [ranch]` shows that building alone (with the shared areas next to it). Within a
   single plan with several `buildings`, the card option `building: <id>` shows only that building.
-- The visual card editor offers the users (with a live preview of the template) and all card options above.
+- The visual card editor offers the users (with a live preview of the template), **own buttons** (level, icon, name,
+  tap action) and the **off button per level** as switches, and all card options above.
+- **Own button that opens a pop-up or a dashboard** – in the card editor *+ Button*, choose level and icon, tap action
+  *Navigate* with the path `#cameras` (a Bubble Card pop-up with that hash) or `/dashboard-tv/cameras` (a dashboard view).
+  In YAML:
+
+```yaml
+buttons:
+  site:
+    - {icon: mdi:cctv, name: Cameras, tap_action: {action: navigate, navigation_path: "#cameras"}}
+    - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
+  ranch:
+    - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stable_temperature}}
+aus_schalter: {site: true, ranch: false}   # off button per level: site = site view, <plan id> = that building
+```
 
 ## Plan format
 

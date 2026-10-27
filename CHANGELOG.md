@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.10.0 – 2026-10-27
 - Card (site): swiping left / right with one finger changes the level of a building again.
 - Card (site): from the site into a building is a step in the browser history – Back (also the TV remote's) leads back to the site.
 - Card (site): the off buttons go through the script (event `off`, always „room off“): each room uses its off scene – e.g. Loxone's „Aus“, which also ends lights started by presence – else its lights go off; music stops. Without the Floorplan Lite script as before.

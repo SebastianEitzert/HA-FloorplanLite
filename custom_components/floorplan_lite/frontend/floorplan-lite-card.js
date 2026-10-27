@@ -2119,7 +2119,7 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
-    tMove: "Gebäude verschieben", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen",
+    tMove: "Gebäude verschieben", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen", tDims: "Maße anzeigen", dec: ",", tDims: "Maße anzeigen", dec: ",",
     cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", fixLink: "dauerhaft als Maßlinie", fixed: "Fest über Maßlinien – zum Lösen die Maßlinie anklicken.", delLink: "Diese Maßlinie löschen?", loop: "Die Gebäude hängen sonst im Kreis voneinander ab.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
     offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
     alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
@@ -2156,7 +2156,7 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
-    tMove: "Move buildings", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit",
+    tMove: "Move buildings", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit", tDims: "Show dimensions", dec: ".",
     cornerA: "1. Click a corner of the building to move.", fixLink: "keep as measure line", fixed: "Fixed by measure lines – click a measure line to release it.", delLink: "Delete this measure line?", loop: "The buildings would depend on each other in a circle.", cornerB: "2. Click the target corner on another building.",
     offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
     alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
@@ -2380,7 +2380,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     let html = btn("move", "mdi:cursor-move", t.tMove) + btn("edit", "mdi:vector-polygon", t.tEdit) + btn("newarea", "mdi:vector-square-plus", t.tDraw) +
       btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
       `<button class="fl-tb" data-t="upload" title="${esc(t.tUpload)}"><ha-icon icon="mdi:image-plus"></ha-icon><span>${esc(t.tUpload)}</span></button>` +
-      btn("bgmove", "mdi:arrow-all", t.tBgMove) + btn("bgturn", "mdi:rotate-left", t.tBgTurn) + btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
+      btn("bgmove", "mdi:arrow-all", t.tBgMove) + btn("bgturn", "mdi:rotate-left", t.tBgTurn) + btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb${this._dims ? " on" : ""}" data-t="dims" title="${esc(t.tDims)}"><ha-icon icon="mdi:ruler-square"></ha-icon><span>${esc(t.tDims)}</span></button>` +
+      `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
     let hint = k === "edit" ? t.editHint : k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? t.drawHint : "";
     if (k === "corner") hint = st.pts.length === 0 ? t.cornerA : st.pts.length === 1 ? t.cornerB : "";
     if (k === "align") hint = [t.alignP1, t.alignQ1, t.alignP2, t.alignQ2][st.pts.length] || "";
@@ -2409,6 +2410,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     box.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => {
       const id = b.getAttribute("data-t");
       if (id === "fit") { this._vb = null; this._canvas(); return; }
+      if (id === "dims") {
+        this._dims = !this._dims;
+        try { localStorage.setItem("floorplan_site_dims", this._dims ? "1" : ""); } catch (e) { /* private mode */ }
+        this._toolbar(); this._canvas(); return;
+      }
       if (id === "newarea") { this._sd.querySelector('[data-a="adda"]').click(); return; }
       if (id === "upload") { this.dispatchEvent(new CustomEvent("site-upload", { bubbles: true, composed: true })); return; }
       this._setTool(id);
@@ -2590,6 +2596,23 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         `<text x="${(p[0] + q[0]) / 2 + 6 * u}" y="${(p[1] + q[1]) / 2 - 6 * u}" font-size="${12 * u}">📏 ${lab}</text>` +
         `<line class="elh" x1="${q[0]}" y1="${q[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="${12 * u}"/></g>`;
     });
+    if (this._dims === undefined) { try { this._dims = !!localStorage.getItem("floorplan_site_dims"); } catch (e) { this._dims = false; } }
+    if (this._dims) {  // edge lengths of buildings and areas
+      const seen = {};
+      const dim = (poly, cls) => poly.forEach((a, i) => {
+        const b = poly[(i + 1) % poly.length], len = Math.sqrt(Math.pow(b[0] - a[0], 2) + Math.pow(b[1] - a[1], 2));
+        if (len < 0.5 || len < 30 * u) return;
+        const key = [a, b].map((q) => q[0].toFixed(1) + "," + q[1].toFixed(1)).sort().join(" ");
+        if (seen[key]) return;  // an edge two rooms share: once
+        seen[key] = 1;
+        let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+        if (ang > 90) ang -= 180; else if (ang < -90) ang += 180;
+        const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        g += `<text class="${cls}" x="${m[0]}" y="${m[1]}" font-size="${11 * u}" stroke-width="${2.5 * u}" transform="rotate(${ang.toFixed(1)} ${m[0]} ${m[1]})" dy="${-4 * u}">${len.toFixed(2).replace(".", t.dec)} m</text>`;
+      });
+      Object.keys(shapes).forEach((kk) => shapes[kk].forEach((q) => dim(q, "edim")));
+      site.areas.forEach((a) => { if (a.poly && a.poly.length > 2) dim(a.poly, "edim ar"); });
+    }
     g += labels + handles + `<circle class="esnap" r="${7 * u}" cx="-99999" cy="-99999" stroke-width="${2 * u}"/>`;
     this._snapPolys = Object.keys(shapes).reduce((l, kk) => l.concat(shapes[kk].map((q) => ({ poly: q }))), [])
       .concat(site.areas.map((a, ai) => ({ poly: a.poly || [], area: ai })).filter((x) => x.poly.length > 1));
@@ -2833,6 +2856,8 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #141c32; touch-action: none; display: block; cursor: grab; }
   .fl-canvas svg.pick { cursor: crosshair; }
   .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); }
+  .fl-canvas .edim { fill: #cfe1ff; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: #141c32; }
+  .fl-canvas .edim.ar { fill: #ffd6a0; }
   .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; }
   .fl-canvas .av { fill: #ffd6a0; stroke: #141c32; cursor: move; } .fl-canvas .av:hover { fill: #fff; }
   .fl-canvas .esnap { fill: none; stroke: #7dffb0; pointer-events: none; }

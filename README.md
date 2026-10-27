@@ -184,6 +184,7 @@ area shows all buildings, the lists are in the side panel. *Edit areas outside* 
   a line of the image, e.g. a boundary, then its direction: 0 = horizontal, 90 = vertical).
 - *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
   a building onto two points of a site plan, optionally scaling) – placing to a shared site plan.
+- *Show dimensions* (ruler): edge lengths of buildings and areas outside; remembered per browser.
 - *Draw area outside*: shared areas (yard, garden) with HA area and entities. Points snap to corners and edges of
   buildings and other areas, else 45° steps and a 0.25 m grid (Shift: free). Drag an area's corners to edit it (same
   snapping); double-click an edge adds a corner, double-click a corner removes it.

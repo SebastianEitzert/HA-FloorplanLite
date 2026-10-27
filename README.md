@@ -1,4 +1,4 @@
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/dark_logo.png"><img src="docs/images/logo.png" alt="Floorplan Lite" width="460"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/SebastianEitzert/HA-FloorplanLite/main/docs/images/dark_logo.png"><img src="https://raw.githubusercontent.com/SebastianEitzert/HA-FloorplanLite/main/docs/images/logo.png" alt="Floorplan Lite" width="460"></picture></p>
 
 # Floorplan Lite for Home Assistant
 

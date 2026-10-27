@@ -2,6 +2,13 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.7.2 – 2026-10-27
+- Measure lines in the site editor: „Corner to corner“ can keep the line (default). One line fixes a building's
+  position to another building's corner (with offset in metres), two lines fix its turn as well; moving or turning the
+  other building takes it along. Fixed buildings can't be dragged; click a measure line to release it. Stored as
+  `site.links`.
+- README logos use absolute image links, so HACS shows them.
+
 ## 0.7.1 – 2026-10-27
 - Site editor uses the full editor area (no longer cut off): zoom with the wheel, pan by dragging the empty canvas, lists
   in the side panel.

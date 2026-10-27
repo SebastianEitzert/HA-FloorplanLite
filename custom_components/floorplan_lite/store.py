@@ -144,12 +144,24 @@ SITE_AREA = ROOM_ENTITIES.extend(  # shared area outside, polygon in site coordi
     }
 )
 
+SITE_LINK = vol.Schema(  # measure line: corner "at" of plan "plan" sits at corner "to_at" of plan "to" + (dx, dy)
+    {
+        vol.Required("plan"): ID,
+        vol.Required("at"): POINT,
+        vol.Required("to"): ID,
+        vol.Required("to_at"): POINT,
+        vol.Optional("dx", default=0): NUM,
+        vol.Optional("dy", default=0): NUM,
+    }
+)
+
 SITE = vol.Schema(
     {
         vol.Optional("buildings", default=list): vol.All([SITE_BUILDING], vol.Length(max=30)),
         vol.Optional("areas", default=list): vol.All([SITE_AREA], vol.Length(max=100)),
         vol.Optional("site_background"): BACKGROUND,
         vol.Optional("raster", default=False): bool,
+        vol.Optional("links", default=list): vol.All([SITE_LINK], vol.Length(max=60)),
     }
 )
 

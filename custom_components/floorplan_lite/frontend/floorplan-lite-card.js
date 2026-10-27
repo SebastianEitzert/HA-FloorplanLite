@@ -2090,7 +2090,7 @@ const ED = {
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
     tMove: "Verschieben", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen",
-    cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
+    cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", fixLink: "dauerhaft als Maßlinie", fixed: "Fest über Maßlinien – zum Lösen die Maßlinie anklicken.", delLink: "Diese Maßlinie löschen?", loop: "Die Gebäude hängen sonst im Kreis voneinander ab.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
     offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
     alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
     alignQ2: "4. Denselben Punkt im Hintergrund anklicken.", bgScaleHint: "Zwei Punkte mit bekanntem Abstand im Hintergrund anklicken.", realLen: "Echte Länge",
@@ -2124,7 +2124,7 @@ const ED = {
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
     tMove: "Move", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit",
-    cornerA: "1. Click a corner of the building to move.", cornerB: "2. Click the target corner on another building.",
+    cornerA: "1. Click a corner of the building to move.", fixLink: "keep as measure line", fixed: "Fixed by measure lines – click a measure line to release it.", delLink: "Delete this measure line?", loop: "The buildings would depend on each other in a circle.", cornerB: "2. Click the target corner on another building.",
     offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
     alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
     alignQ2: "4. Click the same point in the background.", bgScaleHint: "Click two points of known distance in the background.", realLen: "Real length",
@@ -2182,6 +2182,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
 
   _emit(fn) {
     fn(this._s);
+    this._solve(this._s);
     this.dispatchEvent(new CustomEvent("site-changed", { detail: { site: JSON.parse(JSON.stringify(this._s)) }, bubbles: true, composed: true }));
     this._render();
   }
@@ -2345,7 +2346,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     let form = "";
     if (k === "corner" && st.pts.length === 2) {
       form = `${esc(t.offset)} x <input type="number" step="0.01" data-f="dx" value="0"> y <input type="number" step="0.01" data-f="dy" value="0"> m ` +
-        `<button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
+        `<label><input type="checkbox" data-f="fix" checked> ${esc(t.fixLink)}</label> <button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
     }
     if (k === "align" && st.pts.length === 4) {
       form = `<label><input type="checkbox" data-f="sc"> ${esc(t.alignScale)}</label> <button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
@@ -2371,6 +2372,40 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     if (go) go.addEventListener("click", () => this._apply(box));
   }
 
+  /* Measure lines: corner "at" of a building sits at corner "to_at" of another + (dx, dy). One line fixes the position,
+     two fix the turn as well. Buildings follow the ones they hang on, in a few passes. */
+  _solve(s) {
+    const d = this._d;
+    if (!d) return;
+    const org = {}, pos = {};
+    d.blds.forEach((b) => { org[b.id] = b.origin; pos[b.id] = b.pos; });
+    const B = (id) => s.buildings.filter((b) => b.plan === id)[0];
+    s.links = (s.links || []).filter((l) => B(l.plan) && B(l.to));
+    if (!s.links.length) { delete s.links; return; }
+    const P = (id) => {
+      const b = B(id), q = pos[id] || {};
+      return { x: typeof b.x === "number" ? b.x : q.x || 0, y: typeof b.y === "number" ? b.y : q.y || 0, rotation: b.rotation || 0, scale: b.scale };
+    };
+    for (let n = 0; n < 6; n++) {
+      s.buildings.forEach((b) => {
+        const my = s.links.filter((l) => l.plan === b.plan && org[l.to] && org[b.plan]);
+        if (!my.length) return;
+        const tg = my.map((l) => { const w = placer(P(l.to), org[l.to])(l.to_at); return [w[0] + (l.dx || 0), w[1] + (l.dy || 0)]; });
+        const cur = P(b.plan);
+        if (my.length > 1) {
+          const sv = [my[1].at[0] - my[0].at[0], my[1].at[1] - my[0].at[1]], qv = [tg[1][0] - tg[0][0], tg[1][1] - tg[0][1]];
+          if (Math.abs(sv[0]) + Math.abs(sv[1]) > 1e-6 && Math.abs(qv[0]) + Math.abs(qv[1]) > 1e-6) {
+            const r = (Math.atan2(qv[1], qv[0]) - Math.atan2(sv[1], sv[0])) * 180 / Math.PI;
+            cur.rotation = +(((r % 360) + 540) % 360 - 180).toFixed(2);
+          }
+        }
+        const w = placer({ x: 0, y: 0, rotation: cur.rotation, scale: cur.scale }, org[b.plan])(my[0].at);
+        b.x = +(tg[0][0] - w[0]).toFixed(3); b.y = +(tg[0][1] - w[1]).toFixed(3);
+        if (cur.rotation) b.rotation = cur.rotation; else delete b.rotation;
+      });
+    }
+  }
+
   _bld(i) { const d = this._d, b = this._s.buildings[i]; return d && b ? d.blds.filter((x) => x.id === b.plan)[0] : null; }
 
   _apply(box) {  // the measured tools
@@ -2380,8 +2415,20 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const dx = parseFloat(f("dx").value) || 0, dy = parseFloat(f("dy").value) || 0;
       const bl = this._bld(a.i);
       if (!bl) return;
-      const mx = b.p[0] + dx - a.p[0], my = b.p[1] + dy - a.p[1];
-      this._emit((s) => { const x = s.buildings[a.i]; x.x = +(bl.pos.x + mx).toFixed(3); x.y = +(bl.pos.y + my).toFixed(3); });
+      const mx = b.p[0] + dx - a.p[0], my = b.p[1] + dy - a.p[1], bb = this._bld(b.i);
+      if (f("fix").checked && bb) {  // a measure line: stays, and B moving takes A along
+        const dep = (id, seen) => (this._s.links || []).some((l) => l.plan === id && (l.to === bl.id || (seen.indexOf(l.to) < 0 && dep(l.to, seen.concat([l.to])))));
+        if (bb.id === bl.id || dep(bb.id, [bb.id])) { this._note = this._t.loop; this._setTool("move"); return; }
+        const at = bl.T.inv(a.p), to = bb.T.inv(b.p);
+        this._emit((s) => {
+          const L = (s.links || []).filter((l) => !(l.plan === bl.id && Math.abs(l.at[0] - at[0]) + Math.abs(l.at[1] - at[1]) < 1e-3));
+          const mine = L.filter((l) => l.plan === bl.id);
+          if (mine.length >= 2) L.splice(L.indexOf(mine[0]), 1);  // two lines fix a building; a third replaces the oldest
+          L.push({ plan: bl.id, at: at, to: bb.id, to_at: to, dx: dx, dy: dy });
+          s.links = L;
+          const x = s.buildings[a.i]; x.x = +(bl.pos.x + mx).toFixed(3); x.y = +(bl.pos.y + my).toFixed(3);
+        });
+      } else this._emit((s) => { const x = s.buildings[a.i]; x.x = +(bl.pos.x + mx).toFixed(3); x.y = +(bl.pos.y + my).toFixed(3); });
     } else if (this._tool === "align") {  // two building corners onto two points of the background
       const p1 = st.pts[0], q1 = st.pts[1].p, p2 = st.pts[2], q2 = st.pts[3].p, bl = this._bld(p1.i);
       if (!bl || p2.i !== p1.i) return;
@@ -2463,13 +2510,26 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       own.forEach((q) => q.forEach((c) => this._corners.push({ i: idx, p: c })));
       d.blds.slice(i + 1).forEach((o) => { if (own.some((q) => (shapes[o.id] || []).some((r) => polysOverlap(q, r)))) warn.push(b.name + " / " + o.name); });
     });
+    const byId = {};
+    d.blds.forEach((b) => { byId[b.id] = b; });
+    (site.links || []).forEach((l, j) => {
+      const A = byId[l.plan], Bb = byId[l.to];
+      if (!A || !Bb) return;
+      const p = A.T(l.at), q = Bb.T(l.to_at), len = Math.sqrt((l.dx || 0) * (l.dx || 0) + (l.dy || 0) * (l.dy || 0));
+      const lab = len ? (+len.toFixed(2)) + " m" : "0";
+      g += `<g class="el" data-l="${j}"><line x1="${q[0]}" y1="${q[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="${2 * u}" stroke-dasharray="${4 * u} ${3 * u}"/>` +
+        `<circle cx="${p[0]}" cy="${p[1]}" r="${4 * u}"/><circle cx="${q[0]}" cy="${q[1]}" r="${4 * u}"/>` +
+        `<text x="${(p[0] + q[0]) / 2 + 6 * u}" y="${(p[1] + q[1]) / 2 - 6 * u}" font-size="${12 * u}">📏 ${lab}</text>` +
+        `<line class="elh" x1="${q[0]}" y1="${q[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="${12 * u}"/></g>`;
+    });
     if (cornerMode) g += this._corners.map((c) => `<circle class="ec" cx="${c.p[0]}" cy="${c.p[1]}" r="${4 * u}"/>`).join("");
     const marks = (st.pts || []).map((q) => (q.p || q));
     if (k === "draw") g += `<polyline class="ed" points="${pts(marks)}" stroke-width="${2 * u}"/>`;
     if (k === "bgscale" && marks.length === 2) g += `<polyline class="ed" points="${pts(marks)}" stroke-width="${2 * u}"/>`;
     g += marks.map((q, j) => `<circle class="ep" cx="${q[0]}" cy="${q[1]}" r="${5 * u}"/><text class="eq" x="${q[0] + 7 * u}" y="${q[1] - 7 * u}" font-size="${12 * u}">${j + 1}</text>`).join("");
     host.innerHTML = `<svg viewBox="${v.join(" ")}" class="${k !== "move" ? "pick" : ""}">${g}</svg>`;
-    this.querySelector(".fl-warn").textContent = warn.length ? t.overlap + warn.join(", ") : "";
+    this.querySelector(".fl-warn").textContent = (warn.length ? t.overlap + warn.join(", ") + " " : "") + (this._note || "");
+    this._note = "";
     this._bindCanvas(host.querySelector("svg"), u);
   }
 
@@ -2517,7 +2577,17 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (e.button !== 0) return;
       const p = at(e), k = this._tool;
       if (k !== "move") return;
-      const eb = e.target.closest ? e.target.closest(".eb") : null;
+      const el = e.target.closest ? e.target.closest(".el") : null;
+      if (el) {
+        const j = +el.getAttribute("data-l");
+        if (window.confirm(this._t.delLink)) this._emit((s) => { s.links.splice(j, 1); });
+        return;
+      }
+      let eb = e.target.closest ? e.target.closest(".eb") : null;
+      if (eb) {
+        const bi = this._s.buildings[+eb.getAttribute("data-b")];
+        if (bi && (this._s.links || []).some((l) => l.plan === bi.plan)) { this._note = this._t.fixed; this.querySelector(".fl-warn").textContent = this._note; eb = null; }
+      }
       svg.setPointerCapture(e.pointerId);
       if (eb) {
         const i = +eb.getAttribute("data-b"), b = this._bld(i);
@@ -2577,6 +2647,8 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; }
   .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
   .fl-canvas .en { fill: #eef2fb; text-anchor: middle; }
+  .fl-canvas .el line { stroke: #ffd166; } .fl-canvas .el circle { fill: #ffd166; } .fl-canvas .el text { fill: #ffd166; cursor: pointer; }
+  .fl-canvas .el .elh { stroke: transparent; cursor: pointer; }
   .fl-canvas .ec { fill: #9fd3ff; } .fl-canvas .ed { fill: none; stroke: #ffd166; } .fl-canvas .ep { fill: #ffd166; } .fl-canvas .eq { fill: #ffd166; }
   .fl-coord { position: absolute; left: 10px; bottom: 6px; font-size: 12px; color: #cdd8f0; pointer-events: none; }
   .fl-warn { position: absolute; right: 10px; bottom: 6px; font-size: 12px; color: #ff8a80; pointer-events: none; }

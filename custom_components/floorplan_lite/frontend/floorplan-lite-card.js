@@ -2119,7 +2119,7 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
-    tMove: "Verschieben", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen",
+    tMove: "Gebäude verschieben", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen",
     cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", fixLink: "dauerhaft als Maßlinie", fixed: "Fest über Maßlinien – zum Lösen die Maßlinie anklicken.", delLink: "Diese Maßlinie löschen?", loop: "Die Gebäude hängen sonst im Kreis voneinander ab.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
     offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
     alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
@@ -2156,7 +2156,7 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
-    tMove: "Move", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit",
+    tMove: "Move buildings", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit",
     cornerA: "1. Click a corner of the building to move.", fixLink: "keep as measure line", fixed: "Fixed by measure lines – click a measure line to release it.", delLink: "Delete this measure line?", loop: "The buildings would depend on each other in a circle.", cornerB: "2. Click the target corner on another building.",
     offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
     alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
@@ -2336,7 +2336,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     this._list(this._sd.querySelector(".fl-areas"), site.areas,
       (hd, a, i) => {
         hd.innerHTML = `<b>${esc(a.name || a.id)}</b>${a.poly && a.poly.length > 2 ? "" : ` <i>${esc(t.notDrawn)}</i>`}` +
-          `<button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+          `<button class="fl-mini" data-edit="${i}">${esc(t.edit)}</button><button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-edit]").addEventListener("click", () => this._setTool("edit"));
         hd.querySelector("[data-draw]").addEventListener("click", () => this._setTool("draw", { i: i }));
         hd.querySelector("[data-del]").addEventListener("click", () => this._emit((s) => { s.areas.splice(i, 1); }));
       },
@@ -2376,10 +2377,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     if (!box) return;
     const t = this._t, st = this._step || { pts: [] }, k = this._tool;
     const btn = (id, icon, label) => `<button class="fl-tb${k === id ? " on" : ""}" data-t="${id}" title="${esc(label)}"><ha-icon icon="${icon}"></ha-icon><span>${esc(label)}</span></button>`;
-    let html = btn("move", "mdi:cursor-move", t.tMove) + btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
+    let html = btn("move", "mdi:cursor-move", t.tMove) + btn("edit", "mdi:vector-polygon", t.tEdit) + btn("newarea", "mdi:vector-square-plus", t.tDraw) +
+      btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
       `<button class="fl-tb" data-t="upload" title="${esc(t.tUpload)}"><ha-icon icon="mdi:image-plus"></ha-icon><span>${esc(t.tUpload)}</span></button>` +
       btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
-    let hint = k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? t.drawHint : "";
+    let hint = k === "edit" ? t.editHint : k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? t.drawHint : "";
     if (k === "corner") hint = st.pts.length === 0 ? t.cornerA : st.pts.length === 1 ? t.cornerB : "";
     if (k === "align") hint = [t.alignP1, t.alignQ1, t.alignP2, t.alignQ2][st.pts.length] || "";
     if (k === "bgscale") hint = st.pts.length < 2 ? t.bgScaleHint : "";
@@ -2401,6 +2403,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     box.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => {
       const id = b.getAttribute("data-t");
       if (id === "fit") { this._vb = null; this._canvas(); return; }
+      if (id === "newarea") { this._sd.querySelector('[data-a="adda"]').click(); return; }
       if (id === "upload") { this.dispatchEvent(new CustomEvent("site-upload", { bubbles: true, composed: true })); return; }
       this._setTool(id);
     }));
@@ -2541,7 +2544,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (!a.poly || a.poly.length < 3) return;
       const c = centroid(a.poly);
       g += `<polygon class="ea" data-ea="${ai}" points="${pts(a.poly)}" stroke-width="${2 * u}"/><text class="et" x="${c[0]}" y="${c[1]}" font-size="${13 * u}">${esc(a.name || a.id)}</text>`;
-      if (this._tool === "move") handles += a.poly.map((q, vi) => `<circle class="av" data-ea="${ai}" data-v="${vi}" cx="${q[0]}" cy="${q[1]}" r="${5 * u}"/>`).join("");
+      if (this._tool === "move" || this._tool === "edit") handles += a.poly.map((q, vi) => `<circle class="av" data-ea="${ai}" data-v="${vi}" cx="${q[0]}" cy="${q[1]}" r="${5 * u}" stroke-width="${1.5 * u}"/>`).join("");
     });
     const shapes = {};
     sf.bldShapes.forEach((x) => { (shapes[x.bld] || (shapes[x.bld] = [])).push(x.poly); });
@@ -2680,7 +2683,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     svg.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       const p = at(e), k = this._tool;
-      if (k !== "move") return;
+      if (k !== "move" && k !== "edit") return;
       const el = e.target.closest ? e.target.closest(".el") : null;
       if (el) {
         const j = +el.getAttribute("data-l");
@@ -2699,7 +2702,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         this._drag = { lab: +lb.getAttribute("data-lb"), el: lb, id: e.pointerId, p: p, o: [+lb.getAttribute("x"), +lb.getAttribute("y")] };
         return;
       }
-      let eb = e.target.closest ? e.target.closest(".eb") : null;
+      let eb = e.target.closest && k === "move" ? e.target.closest(".eb") : null;
       if (eb) {
         const bi = this._s.buildings[+eb.getAttribute("data-b")];
         if (bi && (this._s.links || []).some((l) => l.plan === bi.plan)) { this._note = this._t.fixed; this.querySelector(".fl-warn").textContent = this._note; eb = null; }
@@ -2722,7 +2725,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     });
     svg.addEventListener("click", (e) => {
       const k = this._tool, st = this._step, p = at(e);
-      if (k === "move") return;
+      if (k === "move" || k === "edit") return;
       if (k === "draw") {
         const q = snap(p, null, st.pts[st.pts.length - 1], e.shiftKey);
         if (st.pts.length > 2 && Math.abs(q[0] - st.pts[0][0]) + Math.abs(q[1] - st.pts[0][1]) < 10 * u) { this._finishDraw(); return; }
@@ -2744,13 +2747,13 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     });
     svg.addEventListener("dblclick", (e) => {
       const av = e.target.closest ? e.target.closest(".av") : null;
-      if (av && this._tool === "move") {  // double-click on an area corner removes it
+      if (av && (this._tool === "move" || this._tool === "edit")) {  // double-click on an area corner removes it
         const ai = +av.getAttribute("data-ea"), vi = +av.getAttribute("data-v");
         if (this._s.areas[ai].poly.length > 3) this._emit((s) => { s.areas[ai].poly.splice(vi, 1); });
         return;
       }
       const ea = e.target.closest ? e.target.closest(".ea") : null;
-      if (ea && this._tool === "move") {  // double-click on an area edge adds a corner there
+      if (ea && (this._tool === "move" || this._tool === "edit")) {  // double-click on an area edge adds a corner there
         const ai = +ea.getAttribute("data-ea"), poly = this._s.areas[ai].poly, p = at(e);
         let bi = 0, bd = Infinity;
         poly.forEach((a, i) => {
@@ -2771,13 +2774,15 @@ class FloorplanLiteSiteEditor extends HTMLElement {
 
 FloorplanLiteSiteEditor.styles = `
   floorplan-lite-site-editor { display: block; height: 100%; }
-  .fl-cv { position: relative; height: 100%; display: flex; flex-direction: column; }
+  .fl-cv { position: relative; height: 100%; display: flex; flex-direction: column; padding-left: 52px; }
   .fl-tools { flex: 0 0 auto; padding: 6px 8px; }
-  .fl-tbr { display: flex; flex-wrap: wrap; }
-  .fl-tb { display: inline-flex; align-items: center; margin: 0 6px 4px 0; padding: 4px 9px; font: inherit; font-size: 13px; cursor: pointer;
+  .fl-tbr { position: absolute; left: 0; top: 0; bottom: 0; width: 52px; display: flex; flex-direction: column; align-items: center; padding-top: 8px;
+    border-right: 1px solid var(--divider-color, #444); overflow-y: auto; }
+  .fl-tb span { display: none; }
+  .fl-tb { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin: 0 0 6px 0; padding: 0; font: inherit; font-size: 13px; cursor: pointer;
     border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4)); background: transparent; color: var(--primary-text-color); }
   .fl-tb.on { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); border-color: var(--primary-color, #03a9f4); }
-  .fl-tb ha-icon { --mdc-icon-size: 18px; margin-right: 4px; display: flex; }
+  .fl-tb ha-icon { --mdc-icon-size: 22px; display: flex; }
   .fl-step { font-size: 13px; min-height: 22px; } .fl-step input[type=number] { width: 80px; font: inherit; }
   .fl-canvas { flex: 1 1 auto; min-height: 240px; position: relative; }
   .fl-canvas svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #141c32; touch-action: none; display: block; cursor: grab; }
@@ -2796,7 +2801,7 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas .erose circle { fill: rgba(10, 16, 32, .6); stroke: rgba(255, 255, 255, .35); } .fl-canvas .erose .rs { fill: rgba(255, 255, 255, .45); }
   .fl-canvas .erose .rn { fill: #ff6b5e; } .fl-canvas .erose text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
   .fl-canvas .ec { fill: #9fd3ff; } .fl-canvas .ed { fill: none; stroke: #ffd166; } .fl-canvas .ep { fill: #ffd166; } .fl-canvas .eq { fill: #ffd166; }
-  .fl-coord { position: absolute; left: 10px; bottom: 6px; font-size: 12px; color: #cdd8f0; pointer-events: none; }
+  .fl-coord { position: absolute; left: 62px; bottom: 6px; font-size: 12px; color: #cdd8f0; pointer-events: none; }
   .fl-warn { position: absolute; right: 10px; bottom: 6px; font-size: 12px; color: #ff8a80; pointer-events: none; }
   .fl-hint { font-size: 13px; opacity: .75; margin: 8px; }
   .fl-sd h4 { margin: 14px 0 6px; }

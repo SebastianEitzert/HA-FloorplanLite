@@ -171,7 +171,9 @@ presence, motion, temperature, windows, shades, music), light colour for lights 
 colour. *Fill all rooms with area* does it for every room. **Create pop-up YAML** builds a Bubble Card pop-up per room
 (dynamic with auto-entities or simple tiles) – to copy, or written into a dashboard view directly.
 
-**Site editor** (a plan made with ⌂+): the drawing area shows all buildings, the lists are in the side panel.
+**Site editor** (a plan made with ⌂+): the tools are icons in the bar on the left (hover for their names), the drawing
+area shows all buildings, the lists are in the side panel. *Edit areas outside* shows the corners of all areas to drag
+(buildings stay put); *Edit* next to an area in the list does the same.
 
 - *Move*: drag a building; Shift+wheel turns, Alt+wheel scales; wheel zooms, dragging the empty area pans.
 - *Corner to corner*: click a corner of the building to move, then a corner of another building, enter the offset in

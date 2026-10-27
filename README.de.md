@@ -173,8 +173,9 @@ Fenster, Beschattung, Musik), Lichtfarbe für Lichter ohne eigene Farbe, kleine 
 Bereich ausfüllen* macht das für alle Räume. **Pop-up-YAML erzeugen** baut je Raum ein Bubble-Card-Pop-up (dynamisch
 mit auto-entities oder einfache Kacheln) – zum Kopieren oder direkt in eine Dashboard-Ansicht eingetragen.
 
-**Grundstücks-Editor** (ein Plan, angelegt mit ⌂+): Die Zeichenfläche zeigt alle Gebäude, die Listen stehen im
-Seitenbereich.
+**Grundstücks-Editor** (ein Plan, angelegt mit ⌂+): Die Werkzeuge sind Symbole in der Leiste links (Name beim
+Drüberfahren), die Zeichenfläche zeigt alle Gebäude, die Listen stehen im Seitenbereich. *Außenbereich bearbeiten*
+zeigt die Ecken aller Bereiche zum Ziehen (Gebäude bleiben stehen); *Bearbeiten* neben einem Bereich in der Liste ebenso.
 
 - *Verschieben*: Gebäude ziehen; Umschalt+Rad dreht, Alt+Rad skaliert; Rad zoomt, Ziehen auf freier Fläche verschiebt
   die Ansicht.

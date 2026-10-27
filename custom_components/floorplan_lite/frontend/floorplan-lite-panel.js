@@ -54,7 +54,7 @@ const T = {
     more: "Weitere", inserted: "%s Pop-ups eingetragen, %s schon vorhanden", insertAsk: "%s Pop-ups in „%d“ → „%v“ eintragen? Vorhandene Pop-ups mit gleichem Hash bleiben unverändert.",
     strategy: "Dieses Dashboard wird automatisch erzeugt und kann nicht bearbeitet werden", noArea: "ohne Bereich → einfache Kacheln",
     defaultDash: "Übersicht (Standard)", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
-    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (ohne Innenwände)", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
+    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (aus = Raumgrenzen ohne Wand, Wände dann mit „Innenwand“)", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
     flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
@@ -117,7 +117,7 @@ const T = {
     more: "More", inserted: "%s pop-ups added, %s already there", insertAsk: "Add %s pop-ups to “%d” → “%v”? Existing pop-ups with the same hash stay as they are.",
     strategy: "This dashboard is generated automatically and cannot be edited", noArea: "no area → simple tiles",
     defaultDash: "Overview (default)", areaHint: "Choose the area – name, id and the entities found are taken over.",
-    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (without inner walls)", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
+    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (off = borders between rooms without a wall, walls then with „Inner wall“)", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
     flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
@@ -1337,7 +1337,7 @@ class FloorplanLitePanel extends HTMLElement {
           { h += `<poly${k === "walls" && !x.closed ? "line" : "gon"} class="ghost" points="${pts(x.poly)}" stroke-width="${2 * px}"/>`; }));
       }
     }
-    const S = this._sel, rw = p.room_walls !== false;
+    const S = this._sel, rw = this._roomWalls();
     this._of("rooms").forEach(({ x, i }) => {
       const sel = S && S.kind === "rooms" && S.i === i;
       h += `<polygon class="room${x.outdoor ? " out" : ""}${sel ? " sel" : ""}" data-k="rooms" data-i="${i}" points="${pts(x.poly)}" ` +
@@ -1620,11 +1620,14 @@ class FloorplanLitePanel extends HTMLElement {
     });
   }
 
+  /* Rooms draw walls along their edges (plans without inner walls) */
+  _roomWalls() { return !!this._plan && this._plan.room_walls !== false; }
+
   _nearestWall(p) {  // nearest edge of a room or outer wall on this level
     const tol = 14 * this._scale();
     let best = null;
     ["outlines", "walls", "rooms"].forEach((k) => this._of(k).forEach(({ x }) => {
-      if (k === "rooms" && (x.outdoor || this._plan.room_walls === false)) return;
+      if (k === "rooms" && (x.outdoor || !this._roomWalls())) return;
       const poly = k === "outlines" ? this._centre(x) : x.poly;
       poly.forEach((a, j) => {
         if (k === "walls" && !x.closed && j === poly.length - 1) return;
@@ -2155,6 +2158,17 @@ class FloorplanLitePanel extends HTMLElement {
       delete other.label_at; delete other.key; delete other.color;
       r.poly = parts[keep];
       pl.rooms.push(other);
+      if (this._roomWalls()) {  // a split is a border, not a wall: no wall along the new line (the walls at its ends stay)
+        const ww = this._wall("wall_width");
+        path.forEach((a, j) => {
+          const b = path[j + 1];
+          if (!b) return;
+          const L = dist(a, b), w = L - ww;
+          if (w < 0.1) return;
+          pl.openings.push({ level: this._level, type: "open", at: [R3((a[0] + b[0]) / 2), R3((a[1] + b[1]) / 2)],
+            angle: R3(Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI), width: R3(w), depth: R3(ww + 0.04) });
+        });
+      }
       this._sel = { kind: "rooms", i: pl.rooms.length - 1 };
     });
   }

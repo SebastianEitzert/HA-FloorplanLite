@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Editor: splitting a room in a plan whose rooms draw their own walls no longer creates a wall – the new border gets „no wall“ automatically (walls at its ends stay). The setting „Rooms draw their own walls“ explains that off = borders without walls, walls then come from „Inner wall“.
 - **Script blueprint in English** (breaking for the script's own settings): fields `room`, `event`, `lights`, `players`;
   events `up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`, `next`, `previous`,
   `blue`, `green`, `red`, `double_tap`, `triple_tap`, twice with `_twice` (`yellow_twice` …). The card speaks to a script

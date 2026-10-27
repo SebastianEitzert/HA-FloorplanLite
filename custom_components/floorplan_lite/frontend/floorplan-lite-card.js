@@ -425,7 +425,7 @@ function buildSite(site, plans, cfg) {
     if (bg && bg.image) {
       sf.background = { image: bg.image, x: bg.x || 0, y: bg.y || 0, width: bg.width || 50, height: bg.height, rotation: bg.rotation || 0,
         opacity: bg.opacity === undefined ? 1 : bg.opacity, mode: bg.mode || "under" };
-      all.push([sf.background.x, sf.background.y]);
+      if (!all.length) all.push([sf.background.x, sf.background.y]);  // the view follows buildings and areas, the image is cut off
     }
     if (site.raster) sf.raster = true;
     const bb = all.length ? bbox(all) : [0, 0, 20, 20];

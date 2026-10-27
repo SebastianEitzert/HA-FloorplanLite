@@ -296,7 +296,7 @@ follow:                     # je Home-Assistant-Benutzer (Name oder ID)
 follow_floor: true          # beim Folgen auch das Stockwerk wechseln (false: nur das Gebäude)
 follow_hold: 120            # nach eigener Navigation 120 s nicht springen
 nachbar_rand: 0.15          # Rand um ein Gebäude, in dem Außenbereiche gezeigt werden (15 %)
-aus_schalter: {site: true, ranch: false}   # Aus-Schalter je Ebene
+aus_schalter: {site: true, zuhause: alle, ranch: false}   # Aus-Schalter – Werte und Beispiele unten
 musik_aus: pause            # pause | stop | off
 aus_mit_aussen: false       # „Gebäude aus“ schließt die Außenbereiche ein
 buttons:                    # eigene Schaltflächen links oben, je Ebene, mit den üblichen HA-Aktionen
@@ -354,12 +354,24 @@ buttons:
     - {icon: mdi:flash, name: Energie, tap_action: {action: navigate, navigation_path: /energy}}
   ranch:
     - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stall_temperatur}}
-aus_schalter:              # Aus-Schalter: site = Grundstück, <grundriss-id> = dieses Gebäude, <grundriss-id>:<stockwerk> = ein Stockwerk (hat Vorrang)
-  site: true
+aus_schalter:              # Aus-Schalter (oben rechts) – Schlüssel: site, <grundriss-id> (Gebäude) oder <grundriss-id>:<stockwerk> (ein Stockwerk, hat Vorrang)
+  site: true                # Grundstück: „Alles aus“ (true = Standard, false = keiner)
   ranch: false              # kein Aus-Schalter in der Ranch
-  zuhause: stockwerk        # im Haus: „Haus OG aus“ – nur die Räume des gezeigten Stockwerks
-  zuhause:dg: false         # aber keiner im Dachgeschoss
+  zuhause: alle             # Haus: „Haus aus“ + „Haus EG aus“ + „Haus OG aus“ + … (einer je Stockwerk)
+  zuhause:dg: false         # aber in der Dachgeschoss-Ansicht gar keiner
 ```
+
+| Wert | Schalter in einer Gebäudeansicht |
+|---|---|
+| `true` / nicht gesetzt | „<Gebäude> aus“ – das ganze Gebäude |
+| `stockwerk` | „<Gebäude> OG aus“ – nur die Räume des gezeigten Stockwerks |
+| `beide` | „<Gebäude> aus“ + „<Gebäude> OG aus“ (das gezeigte Stockwerk) |
+| `alle` | „<Gebäude> aus“ + ein Schalter je Stockwerk („EG aus“, „OG aus“ …), auf jedem Stockwerk |
+| `false` | keiner |
+
+Jeder Aus-Schalter braucht zwei Drücke innerhalb von 3 s; er schaltet die Lichter (Lichter, Schalter) aus und stoppt
+die Musik (`musik_aus`) der im Plan eingetragenen Räume, die an sind oder spielen; Außenbereiche nur mit
+`aus_mit_aussen: true`. Im Karten-Editor: *Aus-Schalter je Ebene*, eine Auswahl je Gebäude.
 - Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.
 
 ## Format eines Grundrisses

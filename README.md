@@ -288,7 +288,7 @@ follow:                     # per Home Assistant user (name or id)
 follow_floor: true          # following also changes the level (false: only the building)
 follow_hold: 120            # no jumps for 120 s after own navigation
 nachbar_rand: 0.15          # margin around a building in which areas outside are shown (15 %)
-aus_schalter: {site: true, ranch: false}   # off button per level
+aus_schalter: {site: true, home: alle, ranch: false}   # off buttons – values and examples below
 musik_aus: pause            # pause | stop | off
 aus_mit_aussen: false       # „building off“ includes the areas outside
 buttons:                    # own buttons top left, per level, with the standard HA actions
@@ -346,12 +346,24 @@ buttons:
     - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
   ranch:
     - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stable_temperature}}
-aus_schalter:              # off button: site = site view, <plan id> = that building, <plan id>:<level> = one floor (wins)
-  site: true
+aus_schalter:              # off buttons (top right) – key: site, <plan id> (building) or <plan id>:<level> (one floor, wins)
+  site: true                # site view: „All off“ (true = default, false = none)
   ranch: false              # no off button in the ranch
-  home: stockwerk           # in the house: „House OG off“ – only the rooms of the floor shown
-  home:dg: false            # but none in the attic
+  home: alle                # house: „House off“ + „House EG off“ + „House OG off“ + … (one per floor)
+  home:dg: false            # but none at all in the attic view
 ```
+
+| Value | Buttons in a building view |
+|---|---|
+| `true` / not set | „<building> off“ – the whole building |
+| `stockwerk` | „<building> OG off“ – only the rooms of the floor shown |
+| `beide` | „<building> off“ + „<building> OG off“ (the floor shown) |
+| `alle` | „<building> off“ + one button per floor („EG off“, „OG off“ …), on every floor |
+| `false` | none |
+
+Every off button needs two presses within 3 s; it switches off the lights (lights, switches) and stops the music
+(`musik_aus`) of the rooms entered in the plan that are on or playing; areas outside only with `aus_mit_aussen: true`.
+In the card editor: *Off button per level*, a choice per building.
 
 ## Plan format
 

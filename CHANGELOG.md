@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.9.0 – 2026-10-27
 - Stairs snap like all lines (corners, edges, 45°/90° to the previous point, grid; Shift free) and additionally to the middle of a run: half the stair's width from the walls of the room.
 - **Stairs**: new editor tool „Stair“ – draw the walking line from the bottom step to the top one; turns are wound – square by default (straight strings; the steps lie as in the round form and run out to the strings), or round (`form: rund`) (radius of the walking line, 0 = landing corner), the steps fan out in the turns. Width, number of risers, radius and the level it leads to in the side panel (walking line length and going shown). The card draws it with start dot and arrow, and dashed on the level above (`stairs` in the plan).
 - Editor: splitting a room in a plan whose rooms draw their own walls no longer creates a wall – the new border gets „no wall“ automatically (walls at its ends stay). The setting „Rooms draw their own walls“ explains that off = borders without walls, walls then come from „Inner wall“.

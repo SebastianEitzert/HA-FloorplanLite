@@ -94,6 +94,149 @@ rooms:                # optional: entities per room – override the ones stored
     musik: [media_player.kitchen]
 ```
 
+### Card options – complete reference
+
+| Option | Values (default) | Effect / depends on |
+|---|---|---|
+| `plan` | plan or site id | the stored plan; a site switches the card to site mode (see *Site*) |
+| `mode` | `swipe` / – (all levels side by side) | `swipe`: one level large, change with swipe, tabs, ←/→ |
+| `start` | level id (first level) | first level in `swipe`; in a site: `grundstueck`, `<plan>`, `<plan>:<level>` or a room |
+| `floors` | list of level ids (all) | only these levels, in this order |
+| `building` | building part id | only this building part of the plan (the plan's `buildings`) |
+| `background` | `false` (shown) | hides all background images |
+| `align` | `true` / `false` (plan's `align_levels`) | all levels in one frame – upper levels stay above the lower ones when swiping |
+| `ausrichtung` | `achse` / `norden` (plan / site setting) | `norden` turns plan or building views so north is up; `achse` keeps the drawing's own axis |
+| `kompass` | `false` (shown) | hides the compass rose |
+| `tap` | `none` (pop-up + script) | `none`: no pop-up on tap and no events to the script |
+| `script` | script entity (`script.raum_klick`) | receives keys, clicks, wheel and taps over a room (see *Script blueprint*) |
+| `scroll_keys` | `true` (`false`) | ↑/↓ also scroll the page – only for remotes without a wheel |
+| `hide_label` | list of labels (plan's `hide_labels`) | entities with one of these labels are ignored everywhere in the card |
+| `intro` | `false` (on) | no build-up animation (also off with „reduce motion“) |
+| `rooms` | `{<room key>: {…}}` | entities per room, override the ones stored in the plan – keys in the next table |
+| `site` | object | a site written into the card (wins over a stored one); also `site.show` |
+| `site_title` | text | title of the site level |
+| `follow`, `follow_floor`, `follow_hold`, `nachbar_rand`, `buttons`, `aus_schalter`, `musik_aus`, `aus_mit_aussen` | | site options, see *Site* |
+| `plan_data` / `plans_data` | plan JSON | a plan (or plans by id) inline instead of the stored ones – for tests and sharing |
+
+**Entities per room** (`rooms.<key>` in the card, or in the editor's side panel – the same keys):
+
+| Key | Entities | Shown as / used for |
+|---|---|---|
+| `licht` | lights, switches (list) | light fill and seam; script „light on/off“ and scenes' „room on“ |
+| `hauptlicht` | one light or switch | fills the room alone, the others only glow as the seam |
+| `lichtfarbe` | `warm`, `neutral`, `cold`, `amber`, `red`, `green`, `blue`, `purple` or `#rrggbb` | colour for lights / switches without a colour of their own |
+| `praesenz` | binary_sensors | breathing dot |
+| `bewegung` | binary_sensors | dot with ripples |
+| `temp` | climate or sensor | temperature in the label |
+| `fenster` | binary_sensors / covers | „window open“ chip (tilted dashed) |
+| `beschattung` | covers | „shade closed“ chip |
+| `musik` | media_players | equaliser chip; script music actions and volume; „off“ buttons |
+
+Without entities a room with an `area` (and `area_live`) takes them from its Home Assistant area. Entities with a
+label from `hide_label` never count.
+
+## Floor plan editor
+
+The page **Floorplan Lite** in the sidebar (administrators only). At the top: the plan list, **+** new floor plan,
+**⌂+** new site, ✎ rename (the id is what cards use: `plan: …`), undo / redo, preview (the real card next to the
+editor), JSON import / export, delete and save (Ctrl+S).
+
+**Tools** (left bar):
+
+| Tool | What it does |
+|---|---|
+| Select / edit | click an element; drag corners; double-click an edge adds a corner; right-click a corner deletes it; Del deletes the element |
+| Outer wall | draw the building outline – the drawn line can be the outside face, the centre or the inside face of the wall |
+| Inner wall | centre line of inner walls; points snap to wall corners and walls |
+| Generate room | click into an area enclosed by walls – the room fills it |
+| Draw room / Split room | draw freely with snapping / a line from edge to edge cuts a room in two |
+| Area outside | garden, terrace, yard – drawn like a room, shown without walls |
+| Helper line | dashed lines (canopy, terrace edge) |
+| Door, window, passage, garage door | click onto a wall; width, swing (mirror), entities and confirmation in the side panel |
+| Skylight / dome | free inside a room, square or round |
+| No wall | click the wall between two rooms – it disappears, both stay rooms (open plan) |
+| Background: move, scale, straighten | move the image; two points of known distance set the scale; two points on a wall of the image turn only the image straight |
+| Align to a wall | turns the whole plan so the clicked wall is horizontal |
+
+Drawing: click sets points, click on the first point or Enter closes, Backspace removes the last point, Esc cancels,
+Shift = free angle. Points snap to corners, edges, 45°/90° and a 5 cm grid; *Grid*, *Show level below* and
+*Show dimensions* can be switched on.
+
+**Side panel:** with nothing selected the plan settings – name, wall thickness, colours, north (degrees) and „Align
+to north“, labels whose entities are ignored, levels (add, rename, reorder, **copy level** with everything on it),
+building parts, background image per level (image or PDF – PDFs are converted, multi-page ones ask for the page –,
+opacity, under / over / hidden). With a room selected: **Home Assistant area** (fills name, id and the entities found
+there, or „live from the area“ so new devices appear by themselves), the entities per role (light, main light,
+presence, motion, temperature, windows, shades, music), light colour for lights without one of their own, small label,
+colour. *Fill all rooms with area* does it for every room. **Create pop-up YAML** builds a Bubble Card pop-up per room
+(dynamic with auto-entities or simple tiles) – to copy, or written into a dashboard view directly.
+
+**Site editor** (a plan made with ⌂+): the drawing area shows all buildings, the lists are in the side panel.
+
+- *Move*: drag a building; Shift+wheel turns, Alt+wheel scales; wheel zooms, dragging the empty area pans.
+- *Corner to corner*: click a corner of the building to move, then a corner of another building, enter the offset in
+  metres (0 / 0 = flush). With „keep as measure line“ (default) the line stays: one line fixes the position, two lines
+  the turn too; moving the other building takes it along. Fixed buildings can't be dragged – click a measure line to
+  release it.
+- *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
+  a building onto two points of a site plan, optionally scaling) – placing to a shared site plan.
+- *Draw area outside*: shared areas (yard, garden) with HA area and entities.
+- *Appearance*: north in the site view (degrees, 0 = up, clockwise), building views along their own axis or north up,
+  5 m grid, background settings. Drag a building's name to move its badge, double-click resets it.
+
+## Script blueprint (keys, clicks, wheel)
+
+The card sends every key, click, wheel step and tap over a room to a script as `raum` (area), `aktion`, `lichter` and
+`player`. The integration installs a blueprint for it (updated with every release):
+
+1. *Settings → Automations & scenes → Blueprints → **Floorplan Lite – keys, clicks and wheel over a room** → Create
+   script*.
+2. Save it as **`script.raum_klick`** (or set the card option `script:` to your script).
+3. Change the settings later in the script; with a new version of the integration the script follows the blueprint.
+
+**All settings** – every key / click event takes one action: `nothing`, `scene_next`, `scene_previous`,
+`light_toggle` (first scene / off), `light_on` (first scene), `light_off`, `room_off` (lights off, music stop),
+`music_play`, `music_pause`, `music_toggle`, `music_stop`, `volume_up`, `volume_down`, `next_track`, `previous_track`.
+„Next scene“ in a room without scenes = light on/off.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `hoch` / `runter` | next / previous scene | ↑ / ↓ – keyboard arrows, TV remote D-pad (pointer over a room) |
+| `lauter` / `leiser` | louder / quieter | mouse wheel, Magic Remote wheel |
+| `gelb` | nothing | right click, LG yellow key |
+| `play`, `pause`, `play_pause`, `stop` | play, pause, play/pause, stop | media keys of the TV remote / PC keyboard |
+| `weiter`, `zurueck` | next / previous track | PC keyboard track keys |
+| `blau`, `gruen`, `rot` | nothing | LG colour keys through the TV Streamer – blue is also the streamer's reload, green its own function, red Moonlight's menu |
+| `tipp2`, `tipp3` | light on/off, room off | double / triple tap on a touch screen |
+| `double_ms` | 400 ms | waiting time for a second press – only for keys whose `…2` is not `nothing` |
+| `hoch2` … `rot2` | `gelb2` room off, `play2` next track, others nothing | the same key pressed twice; a key with an action here runs its single action only after the waiting time |
+| `volume_mode` | only while playing | louder / quieter only change players that play, or always |
+| `standard_players` | `{}` | `{area: [media_player…]}` – play starts these when nothing plays (without: all players of the room) |
+| `players_plan_always` | on | players entered in the floor plan always count; off = the lists below filter them too |
+| `players_allow_integrations` / `_labels` | empty | not empty: only players of these integrations (domain, e.g. `loxone`, `sonos`) / labels count |
+| `players_block_integrations` / `_labels` | empty | these never count – block wins over allow |
+| `scenes_by_name` | on | scenes whose name starts with the room's name („Kitchen Evening“) belong to the room, besides those assigned to its area |
+| `room_names` | `{}` | `{area: name}` when the scenes use another name than the area, e.g. `kids_room_1: Kid 1` |
+| `off_names` | `Off`, `Aus` | a scene with this name (after the room's name) is „off“; without one the lights are switched off |
+| `first_names` | empty | these scenes come first in the cycle, in this order |
+| `modes` | empty | list of `{entity, state (on), scenes}` – while the entity has that state its scenes come right after off; topmost mode first |
+| `lights_plan_always` | on | lights entered in the floor plan always count; off = the lists below filter them too |
+| `lights_allow_integrations` / `_labels` | empty | not empty: only area lights of these integrations (`loxone`, `shelly`, `hue`, `template`, `group` …) / labels count – switches of the area count when they carry an allowed label |
+| `lights_block_integrations` / `_labels` | empty | these never switch and never keep the room „on“ (e.g. status LEDs) |
+
+**Fields the card sends:** `raum` (area id), `aktion` (event name, `…2` for twice, or `config` – the script answers
+which keys use twice and `double_ms`, the card asks at most once a minute), `lichter` and `player` (the room's entities
+from the plan; empty = the script uses the area's, filtered). Mode `parallel`, at most 10 at once.
+
+**Dependencies:** scenes are needed for the scene actions (otherwise light on/off); `off_names` / `first_names` /
+`modes` only order scenes; the allow / block lists only matter for rooms without entities in the plan unless
+`…_plan_always` is off; `double_ms` only delays keys with a twice action; colour keys only exist with the TV Streamer.
+
+**Which lights?** Exactly the ones entered for the room in the editor (light, main light – switches too). Only a room
+with none there uses its area's lights, filtered by the lists. Scenes switch whatever they contain. A room without
+scenes simply switches its lights on and off. The scene cycle: off → first scenes → the others (alphabetical) → off.
+The script runs once per event (mode *parallel*); no automation is needed.
+
 ## Site: several buildings in one card
 
 A **site** is set up in the floor plan editor: ⌂+ („New site“) at the top. Its buildings are your other floor plans –
@@ -148,6 +291,24 @@ buttons:                    # own buttons top left, per level, with the standard
     - {icon: mdi:cctv, name: Cameras, tap_action: {action: navigate, navigation_path: "#cameras"}}
 ```
 
+**Site keys** (stored by the site editor, or in the card's `site:`):
+
+| Key | Values (default) | Effect |
+|---|---|---|
+| `buildings[].plan` | plan id | the floor plan placed as building |
+| `buildings[].name` | text (plan name) | name in the bar and on the badge |
+| `buildings[].site_floor` | level id (lowest) | the level drawn on the site |
+| `buildings[].building` | building part id | only this part of the plan |
+| `buildings[].x`, `y`, `rotation`, `scale` | metres, degrees, factor (side by side, 0, 1) | position on the site; set by dragging, measure lines or alignment |
+| `buildings[].label_at` | `[x, y]` (middle) | where the badge sits – drag the name in the editor |
+| `areas[]` | `{id, name, area, poly, licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp, area_live}` | shared areas outside, work like rooms |
+| `links[]` | `{plan, at, to, to_at, dx, dy}` | measure lines: corner `at` of `plan` sits at corner `to_at` of `to` + offset; 1 line = position, 2 = also turn |
+| `north` | degrees (0 = up) | north in the site view; building views get theirs from it and their rotation |
+| `ausrichtung` | `achse` / `norden` (`achse`) | building views along their own axis or north up (card option overrides) |
+| `raster` | `true` (`false`) | 5 m grid in the site view |
+| `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | background of the site (shared site plan) |
+| `show` | list of plan ids (all) | only these buildings; one = that building alone without the site level |
+
 - **Three levels:** site → building → level. The bar at the top switches between the site and the buildings, the tabs
   below between the building's levels. Tapping a building on the site zooms into its last level; out with
   „⤢ Site“, two fingers together, Ctrl+wheel or Back (the view is in the address, `#plan=home&floor=og`). TV remote:
@@ -178,7 +339,7 @@ Coordinates are in metres; `y` points down. A plan has:
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
 | `hide_labels` | entities with one of these labels are ignored (e.g. a label you already use to keep entities off dashboards) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text`; wall thickness in metres: `wall_width` (inner, 0.2), `outer_width` (0.5) |
-| `site` | a site instead of levels: `{buildings: [{plan, name, site_floor, building, x, y, rotation, scale}], areas: [{id, name, area, poly, licht, …}], site_background, raster}` |
+| `site` | a site instead of levels – all keys in *Site keys* above |
 | `buildings` | building parts `[{id, name}]` – e.g. barn and garage in one drawing; outer walls and rooms carry their `building` – the card option `building: <id>` shows only that one |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
@@ -188,6 +349,17 @@ Coordinates are in metres; `y` points down. A plan has:
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| **„Configuration error“ on all Floorplan cards** (often in the Companion app after an update) | the app still has the old frontend: pull down to reload; if that doesn't help *Settings → Companion app → Troubleshooting → Reset frontend cache* and restart the app. In a browser: reload with Ctrl+Shift+R |
+| Editor or card looks like the old version after an update | restart Home Assistant after the HACS update, then reload the page (as above) |
+| Keys / wheel over a room do nothing | is there a script `script.raum_klick` (or the one in the card's `script:`)? Create it from the blueprint; its traces show what arrived |
+| ↑/↓ scroll the page | default is no; `scroll_keys: true` only for remotes without a wheel |
+| A building's badge on the site sits in the wrong place | drag its name in the site editor |
+| The card shows an old site | a `site:` written into the card wins over the stored site – remove it and use `plan: <site id>` |
 
 ## Development
 

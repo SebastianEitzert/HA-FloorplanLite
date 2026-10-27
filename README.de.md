@@ -95,6 +95,156 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
     musik: [media_player.kuche]
 ```
 
+### Karten-Optionen – vollständige Übersicht
+
+| Option | Werte (Standard) | Wirkung / hängt ab von |
+|---|---|---|
+| `plan` | ID eines Grundrisses oder Grundstücks | der gespeicherte Plan; ein Grundstück schaltet die Karte in den Grundstücks-Modus (siehe *Grundstück*) |
+| `mode` | `swipe` / – (alle Stockwerke nebeneinander) | `swipe`: ein Stockwerk groß, wechseln mit Wischen, Reitern, ←/→ |
+| `start` | Stockwerks-ID (erstes) | erstes Stockwerk bei `swipe`; im Grundstück: `grundstueck`, `<plan>`, `<plan>:<stockwerk>` oder ein Raum |
+| `floors` | Liste von Stockwerks-IDs (alle) | nur diese Stockwerke, in dieser Reihenfolge |
+| `building` | ID eines Gebäudeteils | nur dieser Gebäudeteil des Grundrisses (`buildings` des Plans) |
+| `background` | `false` (gezeigt) | blendet alle Hintergrundbilder aus |
+| `align` | `true` / `false` (`align_levels` des Plans) | alle Stockwerke in einem Rahmen – obere bleiben beim Wischen über den unteren |
+| `ausrichtung` | `achse` / `norden` (Einstellung von Plan / Grundstück) | `norden` dreht Grundriss- bzw. Gebäudeansichten so, dass Norden oben ist; `achse` behält die eigene Achse der Zeichnung |
+| `kompass` | `false` (gezeigt) | blendet die Windrose aus |
+| `tap` | `none` (Pop-up + Skript) | `none`: kein Pop-up beim Antippen und keine Ereignisse an das Skript |
+| `script` | Skript-Entität (`script.raum_klick`) | bekommt Tasten, Klicks, Mausrad und Tippen über einem Raum (siehe *Skript-Vorlage*) |
+| `scroll_keys` | `true` (`false`) | ↑/↓ scrollen zusätzlich die Seite – nur für Fernbedienungen ohne Rad |
+| `hide_label` | Liste von Labels (`hide_labels` des Plans) | Entitäten mit einem dieser Labels werden in der ganzen Karte ignoriert |
+| `intro` | `false` (an) | keine Aufbau-Animation (auch aus bei „Bewegung reduzieren“) |
+| `rooms` | `{<raum-schlüssel>: {…}}` | Entitäten je Raum, überschreiben die im Plan gespeicherten – Schlüssel in der nächsten Tabelle |
+| `site` | Objekt | ein in die Karte geschriebenes Grundstück (hat Vorrang vor dem gespeicherten); auch `site.show` |
+| `site_title` | Text | Titel der Grundstücksebene |
+| `follow`, `follow_floor`, `follow_hold`, `nachbar_rand`, `buttons`, `aus_schalter`, `musik_aus`, `aus_mit_aussen` | | Grundstücks-Optionen, siehe *Grundstück* |
+| `plan_data` / `plans_data` | Plan-JSON | ein Plan (oder Pläne nach ID) direkt statt der gespeicherten – für Tests und zum Teilen |
+
+**Entitäten je Raum** (`rooms.<schlüssel>` in der Karte oder im Seitenbereich des Editors – dieselben Schlüssel):
+
+| Schlüssel | Entitäten | Dargestellt als / genutzt für |
+|---|---|---|
+| `licht` | Lichter, Schalter (Liste) | Lichtfüllung und Saum; Skript „Licht an/aus“ und „Raum an“ bei Szenen |
+| `hauptlicht` | ein Licht oder Schalter | füllt allein den Raum, die anderen leuchten nur als Saum |
+| `lichtfarbe` | `warm`, `neutral`, `cold`, `amber`, `red`, `green`, `blue`, `purple` oder `#rrggbb` | Farbe für Lichter / Schalter ohne eigene Farbe |
+| `praesenz` | binary_sensors | atmender Punkt |
+| `bewegung` | binary_sensors | Punkt mit Wellen |
+| `temp` | climate oder sensor | Temperatur in der Beschriftung |
+| `fenster` | binary_sensors / covers | Chip „Fenster offen“ (gekippt gestrichelt) |
+| `beschattung` | covers | Chip „Beschattung zu“ |
+| `musik` | media_player | Equalizer-Chip; Musik-Aktionen und Lautstärke im Skript; Aus-Schalter |
+
+Ohne Entitäten nimmt ein Raum mit `area` (und `area_live`) sie aus seinem Home-Assistant-Bereich. Entitäten mit einem
+Label aus `hide_label` zählen nie.
+
+## Grundriss-Editor
+
+Die Seite **Floorplan Lite** in der Seitenleiste (nur Administratoren). Oben: Grundriss-Liste, **+** neuer Grundriss,
+**⌂+** neues Grundstück, ✎ umbenennen (die ID nutzen die Karten: `plan: …`), Rückgängig / Wiederholen, Vorschau (die
+echte Karte neben dem Editor), JSON importieren / exportieren, löschen und speichern (Strg+S).
+
+**Werkzeuge** (linke Leiste):
+
+| Werkzeug | Was es tut |
+|---|---|
+| Auswählen / bearbeiten | Element anklicken; Ecken ziehen; Doppelklick auf eine Kante fügt eine Ecke ein; Rechtsklick auf eine Ecke löscht sie; Entf löscht das Element |
+| Außenwand | Gebäudeumriss zeichnen – die gezeichnete Linie kann Außenkante, Wandmitte oder Innenkante sein |
+| Innenwand | Mittellinie der Innenwände; Punkte springen auf Wandecken und Wände |
+| Raum erzeugen | in eine von Wänden umschlossene Fläche klicken – der Raum füllt sie |
+| Raum zeichnen / Raum teilen | frei mit Einrasten / eine Linie von Rand zu Rand teilt einen Raum |
+| Bereich außen | Garten, Terrasse, Hof – wie ein Raum gezeichnet, ohne Wände dargestellt |
+| Hilfslinie | gestrichelte Linien (Vordach, Terrassenkante) |
+| Tür, Fenster, Durchgang, Garagentor | auf eine Wand klicken; Breite, Aufschlag (spiegeln), Entitäten und Sicherheitsabfrage im Seitenbereich |
+| Dachfenster / Lichtkuppel | frei im Raum, eckig oder rund |
+| Keine Wand | die Wand zwischen zwei Räumen anklicken – sie verschwindet, beide bleiben Räume (offene Küche) |
+| Hintergrund: verschieben, Maßstab, gerade ausrichten | Bild verschieben; zwei Punkte bekannten Abstands setzen den Maßstab; zwei Punkte auf einer Wand des Bildes drehen nur das Bild gerade |
+| Nach einer Wand ausrichten | dreht den ganzen Grundriss, bis die angeklickte Wand waagerecht liegt |
+
+Zeichnen: Klick setzt Punkte, Klick auf den ersten Punkt oder Enter schließt, Rücktaste entfernt den letzten Punkt,
+Esc bricht ab, Umschalt = freier Winkel. Punkte rasten auf Ecken, Kanten, 45°/90° und ein 5-cm-Raster ein; *Raster*,
+*Stockwerk darunter zeigen* und *Maße zeigen* lassen sich einschalten.
+
+**Seitenbereich:** ohne Auswahl die Einstellungen des Grundrisses – Name, Wandstärken, Farben, Norden (Grad) und „Nach
+Norden ausrichten“, Labels, deren Entitäten ignoriert werden, Stockwerke (hinzufügen, umbenennen, sortieren,
+**Stockwerk kopieren** mit allem darauf), Gebäudeteile, Hintergrundbild je Stockwerk (Bild oder PDF – PDFs werden
+umgewandelt, bei mehreren Seiten wird gefragt –, Deckkraft, unter / über dem Plan / ausgeblendet). Mit einem Raum
+ausgewählt: **Home-Assistant-Bereich** (übernimmt Name, ID und die gefundenen Entitäten, oder „live aus dem Bereich“,
+dann erscheinen neue Geräte von selbst), die Entitäten je Rolle (Licht, Hauptlicht, Präsenz, Bewegung, Temperatur,
+Fenster, Beschattung, Musik), Lichtfarbe für Lichter ohne eigene Farbe, kleine Beschriftung, Farbe. *Alle Räume mit
+Bereich ausfüllen* macht das für alle Räume. **Pop-up-YAML erzeugen** baut je Raum ein Bubble-Card-Pop-up (dynamisch
+mit auto-entities oder einfache Kacheln) – zum Kopieren oder direkt in eine Dashboard-Ansicht eingetragen.
+
+**Grundstücks-Editor** (ein Plan, angelegt mit ⌂+): Die Zeichenfläche zeigt alle Gebäude, die Listen stehen im
+Seitenbereich.
+
+- *Verschieben*: Gebäude ziehen; Umschalt+Rad dreht, Alt+Rad skaliert; Rad zoomt, Ziehen auf freier Fläche verschiebt
+  die Ansicht.
+- *Ecke an Ecke*: Ecke des zu bewegenden Gebäudes anklicken, dann eine Ecke eines anderen Gebäudes, Abstand in Metern
+  eingeben (0 / 0 = bündig). Mit „dauerhaft als Maßlinie“ (Standard) bleibt die Linie: eine Linie legt die Lage fest,
+  zwei auch die Drehung; wird das andere Gebäude bewegt, wandert es mit. Fixierte Gebäude lassen sich nicht ziehen –
+  Maßlinie anklicken löst sie.
+- *Hintergrund (Bild/PDF)* + *Hintergrund-Maßstab* (zwei Punkte und die echte Länge) + *Am Hintergrund ausrichten* (zwei
+  Ecken eines Gebäudes auf zwei Punkte eines Lageplans, wahlweise mit Skalieren) – Platzieren nach einem gemeinsamen
+  Lageplan.
+- *Außenbereich zeichnen*: gemeinsame Bereiche (Hof, Garten) mit HA-Bereich und Entitäten.
+- *Darstellung*: Norden in der Grundstücksansicht (Grad, 0 = oben, im Uhrzeigersinn), Gebäudeansichten an der eigenen
+  Hauptachse oder Norden oben, 5-m-Raster, Hintergrund. Den Gebäudenamen ziehen verschiebt sein Badge, Doppelklick setzt
+  es zurück.
+
+## Skript-Vorlage (Tasten, Klicks, Mausrad)
+
+Die Karte schickt jede Taste, jeden Klick, jeden Radschritt und jedes Tippen über einem Raum an ein Skript – mit `raum`
+(Bereich), `aktion`, `lichter` und `player`. Die Integration installiert dafür eine Blueprint-Vorlage (mit jedem Release
+aktualisiert):
+
+1. *Einstellungen → Automationen & Szenen → Blueprints → **Floorplan Lite – keys, clicks and wheel over a room** →
+   Skript erstellen*.
+2. Als **`script.raum_klick`** speichern (oder in der Karte `script:` auf dein Skript setzen).
+3. Einstellungen später im Skript ändern; mit einer neuen Version der Integration folgt das Skript der Vorlage.
+
+**Alle Einstellungen** – jedes Tasten- / Klick-Ereignis bekommt eine Aktion: `nothing` (nichts), `scene_next`,
+`scene_previous`, `light_toggle` (erste Szene / aus), `light_on` (erste Szene), `light_off`, `room_off` (Lichter aus,
+Musik Stopp), `music_play`, `music_pause`, `music_toggle`, `music_stop`, `volume_up`, `volume_down`, `next_track`,
+`previous_track`. „Szene weiter“ in einem Raum ohne Szenen = Licht an/aus.
+
+| Einstellung | Standard | Bedeutung |
+|---|---|---|
+| `hoch` / `runter` | Szene weiter / zurück | ↑ / ↓ – Pfeiltasten der Tastatur, Steuerkreuz der TV-Fernbedienung (Zeiger über einem Raum) |
+| `lauter` / `leiser` | lauter / leiser | Mausrad, Rad der Magic Remote |
+| `gelb` | nichts | Rechtsklick, LG-Taste Gelb |
+| `play`, `pause`, `play_pause`, `stop` | Start, Pause, Start/Pause, Stopp | Medientasten von TV-Fernbedienung / PC-Tastatur |
+| `weiter`, `zurueck` | Titel weiter / zurück | Titeltasten der PC-Tastatur |
+| `blau`, `gruen`, `rot` | nichts | LG-Farbtasten über den TV Streamer – Blau lädt beim Streamer zusätzlich neu, Grün hat dort eine eigene Funktion, Rot öffnet das Moonlight-Menü |
+| `tipp2`, `tipp3` | Licht an/aus, Raum aus | Doppel- / Dreifachtippen auf einem Touchscreen |
+| `double_ms` | 400 ms | Wartezeit auf den zweiten Druck – nur bei Tasten, deren `…2` nicht `nothing` ist |
+| `hoch2` … `rot2` | `gelb2` Raum aus, `play2` nächster Titel, sonst nichts | dieselbe Taste zweimal; eine Taste mit Aktion hier führt ihre Einzelaktion erst nach der Wartezeit aus |
+| `volume_mode` | nur bei laufender Musik | lauter / leiser ändern nur spielende Player oder immer |
+| `standard_players` | `{}` | `{bereich: [media_player…]}` – Play startet diese, wenn nichts läuft (ohne: alle Player des Raums) |
+| `players_plan_always` | an | im Grundriss eingetragene Player zählen immer; aus = die Listen unten filtern sie auch |
+| `players_allow_integrations` / `_labels` | leer | nicht leer: nur Player dieser Integrationen (Domain, z. B. `loxone`, `sonos`) / Labels zählen |
+| `players_block_integrations` / `_labels` | leer | diese zählen nie – Sperren gewinnt vor Erlauben |
+| `scenes_by_name` | an | Szenen, deren Name mit dem Raumnamen beginnt („Küche Abend“), gehören zum Raum, neben den dem Bereich zugeordneten |
+| `room_names` | `{}` | `{bereich: name}`, wenn die Szenen einen anderen Namen als der Bereich nutzen, z. B. `kinderzimmer_1: Kind 1` |
+| `off_names` | `Off`, `Aus` | eine Szene mit diesem Namen (nach dem Raumnamen) ist „aus“; ohne sie werden die Lichter ausgeschaltet |
+| `first_names` | leer | diese Szenen kommen in der Runde zuerst, in dieser Reihenfolge |
+| `modes` | leer | Liste von `{entity, state (on), scenes}` – solange die Entität diesen Zustand hat, kommen ihre Szenen direkt nach „aus“; der oberste Modus zuerst |
+| `lights_plan_always` | an | im Grundriss eingetragene Lichter zählen immer; aus = die Listen unten filtern sie auch |
+| `lights_allow_integrations` / `_labels` | leer | nicht leer: nur Bereichs-Lichter dieser Integrationen (`loxone`, `shelly`, `hue`, `template`, `group` …) / Labels zählen – Schalter des Bereichs zählen, wenn sie ein erlaubtes Label tragen |
+| `lights_block_integrations` / `_labels` | leer | diese schalten nie und halten den Raum nie „an“ (z. B. Status-LEDs) |
+
+**Felder, die die Karte schickt:** `raum` (Bereichs-ID), `aktion` (Ereignisname, `…2` für zweimal, oder `config` – das
+Skript antwortet, welche Tasten zweimal nutzen und `double_ms`; die Karte fragt höchstens einmal pro Minute), `lichter`
+und `player` (die Entitäten des Raums aus dem Plan; leer = das Skript nimmt die des Bereichs, gefiltert). Modus
+`parallel`, höchstens 10 gleichzeitig.
+
+**Abhängigkeiten:** Für die Szenen-Aktionen braucht es Szenen (sonst Licht an/aus); `off_names` / `first_names` /
+`modes` ordnen nur Szenen; die Erlauben-/Sperren-Listen wirken nur bei Räumen ohne Entitäten im Plan, außer
+`…_plan_always` ist aus; `double_ms` verzögert nur Tasten mit Zweimal-Aktion; Farbtasten gibt es nur mit dem TV Streamer.
+
+**Welche Lichter?** Genau die im Editor für den Raum eingetragenen (Licht, Hauptlicht – auch Schalter). Nur ein Raum
+ohne Einträge nimmt die Lichter seines Bereichs, gefiltert durch die Listen. Szenen schalten, was sie enthalten. Ein
+Raum ohne Szenen schaltet seine Lichter an und aus. Die Szenenrunde: aus → erste Szenen → die übrigen (alphabetisch) →
+aus. Das Skript läuft einmal je Ereignis (Modus *parallel*); eine Automation ist nicht nötig.
+
 ## Grundstück: mehrere Gebäude in einer Karte
 
 Ein **Grundstück** legst du im Grundriss-Editor an: oben ⌂+ („Neues Grundstück“). Seine Gebäude sind deine anderen
@@ -150,6 +300,24 @@ buttons:                    # eigene Schaltflächen links oben, je Ebene, mit de
     - {icon: mdi:cctv, name: Kameras, tap_action: {action: navigate, navigation_path: "#kameras"}}
 ```
 
+**Grundstücks-Schlüssel** (vom Grundstücks-Editor gespeichert oder im `site:` der Karte):
+
+| Schlüssel | Werte (Standard) | Wirkung |
+|---|---|---|
+| `buildings[].plan` | Grundriss-ID | der als Gebäude platzierte Grundriss |
+| `buildings[].name` | Text (Name des Plans) | Name in der Leiste und auf dem Badge |
+| `buildings[].site_floor` | Stockwerks-ID (unterstes) | das auf dem Grundstück gezeigte Stockwerk |
+| `buildings[].building` | ID eines Gebäudeteils | nur dieser Teil des Grundrisses |
+| `buildings[].x`, `y`, `rotation`, `scale` | Meter, Grad, Faktor (nebeneinander, 0, 1) | Lage auf dem Grundstück; gesetzt durch Ziehen, Maßlinien oder Ausrichten |
+| `buildings[].label_at` | `[x, y]` (Mitte) | wo das Badge sitzt – Namen im Editor ziehen |
+| `areas[]` | `{id, name, area, poly, licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp, area_live}` | gemeinsame Außenbereiche, verhalten sich wie Räume |
+| `links[]` | `{plan, at, to, to_at, dx, dy}` | Maßlinien: Ecke `at` von `plan` sitzt an Ecke `to_at` von `to` + Abstand; 1 Linie = Lage, 2 = auch Drehung |
+| `north` | Grad (0 = oben) | Norden in der Grundstücksansicht; Gebäudeansichten berechnen ihren daraus und aus ihrer Drehung |
+| `ausrichtung` | `achse` / `norden` (`achse`) | Gebäudeansichten an der eigenen Achse oder Norden oben (Karten-Option übersteuert) |
+| `raster` | `true` (`false`) | 5-m-Raster in der Grundstücksansicht |
+| `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | Hintergrund des Grundstücks (gemeinsamer Lageplan) |
+| `show` | Liste von Grundriss-IDs (alle) | nur diese Gebäude; eines = dieses Gebäude allein ohne Grundstücksebene |
+
 - **Drei Ebenen:** Grundstück → Gebäude → Stockwerk. Die Leiste oben wechselt zwischen Grundstück und Gebäuden, die
   Reiter darunter zwischen den Stockwerken des Gebäudes. Tippen auf ein Gebäude im Grundstück zoomt in dessen zuletzt
   gewähltes Stockwerk; hinaus mit „⤢ Grundstück“, zwei Fingern zusammen, Strg+Mausrad oder Zurück (die Ansicht steht in
@@ -191,6 +359,17 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
+
+## Probleme und Lösungen
+
+| Problem | Lösung |
+|---|---|
+| **„Konfigurationsfehler“ bei allen Floorplan-Karten** (oft in der Companion-App nach einem Update) | die App hat noch das alte Frontend: Seite nach unten ziehen zum Neuladen; hilft das nicht, *Einstellungen → Companion App → Fehlerbehebung → Frontend-Cache zurücksetzen* und die App neu starten. Im Browser: Strg+Umschalt+R |
+| Editor oder Karte sehen nach einem Update aus wie vorher | nach dem HACS-Update Home Assistant neu starten, dann die Seite neu laden (wie oben) |
+| Tasten / Mausrad über einem Raum tun nichts | gibt es das Skript `script.raum_klick` (oder das aus `script:` der Karte)? Aus der Vorlage erstellen; seine Ablaufverfolgung zeigt, was ankam |
+| ↑/↓ scrollen die Seite | Standard ist nein; `scroll_keys: true` nur für Fernbedienungen ohne Rad |
+| Das Badge eines Gebäudes sitzt an der falschen Stelle | den Namen im Grundstücks-Editor verschieben |
+| Die Karte zeigt ein altes Grundstück | ein in die Karte geschriebenes `site:` hat Vorrang vor dem gespeicherten – entfernen und `plan: <grundstück-id>` nutzen |
 
 ## Entwicklung
 

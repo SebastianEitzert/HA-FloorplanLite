@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Card (site): option `height` / `hoehe` – `fill` sizes the card down to the bottom of the window (a TV never scrolls), or any CSS length; every view fits into it. Option `legend` / `legende: false` hides the legend. Both in the card editor. On phones the top bar takes two rows (buttons above, site and buildings below).
 - Card (site): the card keeps one height for the site, every building and every level – no more jumps; flatter views are centred in the frame.
 - Card (site): site and buildings get icons in the top bar (`site.icon`, default mdi:home-group; `buildings[].icon`, default mdi:home – set in the site editor); on phones only the icons show, the „⤢ site“ button goes (the site tab does it), several off buttons sit behind one power button, the compass is smaller.
 - Card: closing a pop-up no longer moves the view – opening a room counts as own navigation (the follow pause `follow_hold` starts), location updates are ignored while a pop-up is open, and the address change on closing it is not taken as navigation.

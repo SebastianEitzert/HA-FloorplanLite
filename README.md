@@ -107,6 +107,8 @@ rooms:                # optional: entities per room – override the ones stored
 | `align` | `true` / `false` (plan's `align_levels`) | all levels in one frame – upper levels stay above the lower ones when swiping |
 | `orientation` | `axis` / `north` (plan / site setting) | `north` turns plan or building views so north is up; `axis` keeps the drawing's own axis |
 | `compass` | `false` (shown) | hides the compass rose |
+| `height` | `fill` / CSS length (automatic) | fixed height of the card (site cards): `fill` = from the card down to the bottom of the window – a TV or wall panel never scrolls; or e.g. `600px`, `80vh`. Every view is as large as fits |
+| `legend` | `false` (shown) | hides the legend – more room for the plan |
 | `other_floors` | `true` (`false`) | outer walls of the other levels as faint dashed helper lines – e.g. the attic shows where the ground floor ends; with `align: true` all levels share one frame so the lines are fully in view |
 | `tap` | `none` (pop-up + script) | `none`: no pop-up on tap and no events to the script |
 | `script` | script entity (`script.raum_klick`) | receives keys, clicks, wheel and taps over a room (see *Script blueprint*) |

@@ -329,12 +329,14 @@ buttons:                    # own buttons top left, per level, with the standard
 | `buildings[].site_floor` | level id (lowest) | the level drawn on the site |
 | `buildings[].building` | building part id | only this part of the plan |
 | `buildings[].x`, `y`, `rotation`, `scale` | metres, degrees, factor (side by side, 0, 1) | position on the site; set by dragging, measure lines or alignment |
+| `buildings[].icon` | `mdi:…` (`mdi:home`) | icon in the top bar (phones: icon only) |
 | `buildings[].label_at` | `[x, y]` (middle) | where the badge sits – drag the name in the editor |
 | `areas[]` | `{id, name, area, poly, light, main_light, music, presence, motion, windows, shades, temp, area_live}` | shared areas outside, work like rooms |
 | `links[]` | `{plan, at, to, to_at, dx, dy}` | measure lines: corner `at` of `plan` sits at corner `to_at` of `to` + offset; 1 line = position, 2 = also turn |
 | `north` | degrees (0 = up) | north in the site view; building views get theirs from it and their rotation |
 | `orientation` | `axis` / `north` (`axis`) | building views along their own axis or north up (card option overrides) |
 | `raster` | `true` (`false`) | 5 m grid in the site view |
+| `icon` | `mdi:…` (`mdi:home-group`) | icon of the site in the top bar |
 | `boundary` | `[{poly, closed?}]` | property line(s), open or closed |
 | `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | background of the site (shared site plan) |
 | `show` | list of plan ids (all) | only these buildings; one = that building alone without the site level |

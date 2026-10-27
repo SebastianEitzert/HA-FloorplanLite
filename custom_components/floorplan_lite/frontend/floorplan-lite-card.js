@@ -601,7 +601,7 @@ function buildSite(site, plans, cfg) {
       const big2 = g.outlines.map((o) => o.map(T)).sort((a, b) => Math.abs(area2(b)) - Math.abs(area2(a)))[0];
       lab = centroid(big2);
     }
-    out.blds.push({ id: pid, name: name, label: lab, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos, origin: p.origin, T: T,
+    out.blds.push({ id: pid, name: name, icon: p.b.icon || "mdi:home", label: lab, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos, origin: p.origin, T: T,
       titles: p.levels.map((lv) => ({ key: pid + ":" + lv, name: p.fl[lv].title, short: p.fl[lv].short })) });
   });
   areas.forEach((a) => { sf.rooms.push(areaRoom(a, a.poly)); if (!out.info[a.id]) out.info[a.id] = { id: a.id, area: a.area || a.id, name: a.name || a.id, view: "site", site: true }; });
@@ -624,6 +624,7 @@ function buildSite(site, plans, cfg) {
     out.floors.site = sf;
     out.order.push("site");
     out.info.__site = { view: "site" };
+    out.icon = site.icon || "mdi:home-group";
   }
   out.blds.forEach((b) => b.levels.forEach((k) => out.order.push(k)));
   out.single = single ? out.blds[0].id : null;
@@ -1607,15 +1608,22 @@ class FloorplanLiteCard extends HTMLElement {
     this._reduce = reduce;
     this._chips = chips(t);
     const CHIP = this._chips;
-    const views = this._fl.map((k) => `<div class="view" data-v="${esc(k)}" hidden>${this._floorHtml(k, false, intro, true)}</div>`).join("");
-    const seg = this._single ? "" : `<div class="segs" role="tablist"><button class="sg" data-go="site" role="tab">${esc(t.site)}</button>` +
-      d.blds.map((b) => `<button class="sg" data-go="${esc(b.id)}" role="tab">${esc(b.name)}</button>`).join("") + `</div>`;
+    // one frame for all views (no jumps in height between site, buildings and levels): the tallest view's shape, at
+    // most 1.25 × the width; flatter views are centred in it, taller ones narrower
+    const ratio = (k) => { const v = this._floors[k] && this._floors[k].view; return v && v[2] > 0 ? v[3] / v[2] : 0.6; };
+    const R = Math.min(1.25, Math.max.apply(null, this._fl.map(ratio).concat([0.3])));
+    const views = this._fl.map((k) => `<div class="view" data-v="${esc(k)}" hidden style="width:${Math.min(100, R / ratio(k) * 100).toFixed(2)}%">` +
+      `${this._floorHtml(k, false, intro, true)}</div>`).join("");
+    // site and buildings: icon and name (narrow cards: only the icon)
+    const sgBtn = (go, icon, name) => `<button class="sg" data-go="${esc(go)}" role="tab" title="${esc(name)}" aria-label="${esc(name)}"><ha-icon icon="${esc(icon)}"></ha-icon><span>${esc(name)}</span></button>`;
+    const seg = this._single ? "" : `<div class="segs" role="tablist">${sgBtn("site", d.icon || "mdi:home-group", t.site)}` +
+      d.blds.map((b) => sgBtn(b.id, b.icon || "mdi:home", b.name)).join("") + `</div>`;
     const legend = `<div class="legend">` +
       `<span><i class="lg p"></i>${t.presence}</span><span><i class="lg m"></i>${t.motion}</span><span><i class="lg l"></i>${t.light}</span>` +
       `<span>${CHIP.w}${t.win}</span><span>${CHIP.s}${t.shade}</span><span>${CHIP.m}${t.musicL}</span></div>`;
     root.innerHTML = `<style>${FloorplanLiteCard.styles}${this._styleVars()}</style>` +
       `<ha-card class="night site${intro ? " intro" : ""}"><div class="bar"><div class="lb"></div><div class="mid">${seg}</div><div class="rb"></div></div>` +
-      `<div class="ftabs" role="tablist"></div><div class="views">${views}</div>${legend}<div class="toast" role="status"></div></ha-card>`;
+      `<div class="ftabs" role="tablist"></div><div class="views"><div class="vsz" style="padding-top:${(R * 100).toFixed(2)}%"></div>${views}</div>${legend}<div class="toast" role="status"></div></ha-card>`;
     this._wire(root);
     this._track = null;
     root.querySelectorAll(".bhit, .bsum").forEach((el) => {
@@ -1822,9 +1830,14 @@ class FloorplanLiteCard extends HTMLElement {
       if ((offMode === "stockwerk" || offMode === "beide") && shown) offs.push({ floor: v, label: t.bOff.replace("%s", fName(shown)) });
       if (offMode === "alle" && b) b.titles.forEach((x) => offs.push({ floor: x.key, label: t.bOff.replace("%s", fName(x)) }));
     }
-    rb.innerHTML = (bld && !this._single ? `<button class="zo" title="${esc(t.site)}">⤢ <span>${esc(t.site)}</span></button>` : "") +
-      offs.map((o, i) => `<button class="off" data-o="${i}"><ha-icon icon="mdi:power"></ha-icon><span>${esc(o.label)}</span></button>`).join("") +
+    // narrow card (phone): no „⤢ site“ (the site tab does it), several off buttons behind one power button
+    const narrow = (this.clientWidth || window.innerWidth) < 600, menu = narrow && offs.length > 1;
+    const offHtml = offs.map((o, i) => `<button class="off" data-o="${i}"><ha-icon icon="mdi:power"></ha-icon><span>${esc(o.label)}</span></button>`).join("");
+    rb.innerHTML = (bld && !this._single && !narrow ? `<button class="zo" title="${esc(t.site)}">⤢ <span>${esc(t.site)}</span></button>` : "") +
+      (menu ? `<button class="offm-btn" title="${esc(t.allOff)}" aria-label="${esc(t.allOff)}"><ha-icon icon="mdi:power"></ha-icon></button><div class="offm" hidden>${offHtml}</div>` : offHtml) +
       this._rose(this._floors && this._floors[v], true);
+    const mb = rb.querySelector(".offm-btn");
+    if (mb) mb.addEventListener("click", () => { const m = rb.querySelector(".offm"); m.hidden = !m.hidden; });
     const zo = rb.querySelector(".zo");
     if (zo) zo.addEventListener("click", () => this._zoomOut());
     rb.querySelectorAll(".off").forEach((off) => off.addEventListener("click", () => this._off(level, off, offs[+off.getAttribute("data-o")].floor)));
@@ -2289,7 +2302,16 @@ FloorplanLiteCard.styles = `
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .sg, .fb, .zo, .off { font: inherit; font-size: .92em; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap;
     -webkit-tap-highlight-color: transparent; transition: background .2s, color .2s; }
-  .sg { padding: 6px 14px; margin: 0 1px; background: transparent; color: var(--n-muted); }
+  .sg { display: inline-flex; align-items: center; padding: 6px 14px; margin: 0 1px; background: transparent; color: var(--n-muted); }
+  .sg ha-icon { --mdc-icon-size: 18px; display: flex; margin-right: 6px; }
+  .rb { position: relative; }
+  .offm-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 34px; padding: 0; margin: 0 3px; border: 0;
+    border-radius: 999px; cursor: pointer; background: rgba(255, 255, 255, .06); color: var(--n-text); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+  .offm-btn ha-icon { --mdc-icon-size: 18px; display: flex; }
+  .offm { position: absolute; right: 0; top: 40px; z-index: 7; display: flex; flex-direction: column; align-items: stretch; padding: 6px;
+    border-radius: 12px; background: rgba(20, 28, 50, .97); box-shadow: 0 6px 20px rgba(0, 0, 0, .45); }
+  .offm[hidden] { display: none; }
+  .offm .off { margin: 3px 0; }
   .sg.on { color: var(--n-text); background: rgba(255, 255, 255, .14); }
   .fb, .zo, .off { display: inline-flex; align-items: center; padding: 6px 11px; margin: 0 3px; background: rgba(255, 255, 255, .06);
     color: var(--n-text); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
@@ -2299,8 +2321,11 @@ FloorplanLiteCard.styles = `
   .sg:focus, .fb:focus, .zo:focus, .off:focus, .bsum:focus { outline: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, .6); }
   .ftabs { display: flex; justify-content: center; margin: 0 0 6px; }
   .ftabs:empty { display: none; }
+  .site .ftabs, .site .ftabs:empty { display: flex; min-height: 34px; }  /* same height with and without level tabs */
   .ftabs .tab { width: auto; padding: 5px 16px; margin: 0 3px; }
   .ftabs .tab.on { background: rgba(255, 255, 255, .1); }
+  .site .views { position: relative; }
+  .site .view { position: absolute; top: 0; left: 0; right: 0; margin: 0 auto; }
   .view[hidden] { display: none; }
   .view.fadein .plan { animation: fadein .35s both; }
   .site .views, .site .hit, .site .bhit { touch-action: pan-y; }  /* two fingers: the card zooms, not the page */
@@ -2335,7 +2360,9 @@ FloorplanLiteCard.styles = `
 
   @media (max-width: 600px) {
     .site .fb span, .site .zo span { display: none; }
-    .sg { padding: 6px 10px; }
+    .sg { padding: 7px 11px; } .sg span { display: none; } .sg ha-icon { margin-right: 0; }
+    .rb > .off span { display: none; } .rb > .off ha-icon { margin-right: 0; } .rb > .off.arm span { display: inline; margin-left: 5px; }
+    .rose.bar { width: 32px; height: 32px; margin-left: 3px; }
     ha-card.night { padding: 10px 8px 8px; }
     .tab { width: 4.4em; } .tab .l { display: none; } .tab .s { display: inline; }
   }
@@ -2356,7 +2383,7 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
-    tMove: "Gebäude verschieben", tBoundary: "Grundstücksgrenze zeichnen", sBoundary: "Grundstücksgrenze", addBoundary: "+ Grenze zeichnen", boundaryN: "Grenze %n", closedB: "geschlossen", openB: "offen", points: "Punkte", boundaryHint: "Grundstücksgrenze: Klicken setzt Punkte (fangen Ecken und Kanten, Umschalt: frei). Doppelklick oder „Fertig“ beendet eine offene Linie, Klick auf den ersten Punkt schließt sie. Esc bricht ab.", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche und der Grundstücksgrenze ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen", tDims: "Maße anzeigen", dec: ",", tDims: "Maße anzeigen", dec: ",",
+    tMove: "Gebäude verschieben", site_icon: "Symbol des Grundstücks (Standard mdi:home-group)", tBoundary: "Grundstücksgrenze zeichnen", sBoundary: "Grundstücksgrenze", addBoundary: "+ Grenze zeichnen", boundaryN: "Grenze %n", closedB: "geschlossen", openB: "offen", points: "Punkte", boundaryHint: "Grundstücksgrenze: Klicken setzt Punkte (fangen Ecken und Kanten, Umschalt: frei). Doppelklick oder „Fertig“ beendet eine offene Linie, Klick auf den ersten Punkt schließt sie. Esc bricht ab.", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche und der Grundstücksgrenze ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen", tDims: "Maße anzeigen", dec: ",", tDims: "Maße anzeigen", dec: ",",
     cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", fixLink: "dauerhaft als Maßlinie", fixed: "Fest über Maßlinien – zum Lösen die Maßlinie anklicken.", delLink: "Diese Maßlinie löschen?", loop: "Die Gebäude hängen sonst im Kreis voneinander ab.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
     offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
     alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
@@ -2393,7 +2420,7 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
-    tMove: "Move buildings", tBoundary: "Draw property line", sBoundary: "Property line", addBoundary: "+ Draw line", boundaryN: "Line %n", closedB: "closed", openB: "open", points: "points", boundaryHint: "Property line: clicks set points (they snap to corners and edges, Shift: free). A double click or „Done“ ends an open line, a click on the first point closes it. Esc cancels.", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas and property lines (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit", tDims: "Show dimensions", dec: ".",
+    tMove: "Move buildings", site_icon: "Icon of the site (default mdi:home-group)", tBoundary: "Draw property line", sBoundary: "Property line", addBoundary: "+ Draw line", boundaryN: "Line %n", closedB: "closed", openB: "open", points: "points", boundaryHint: "Property line: clicks set points (they snap to corners and edges, Shift: free). A double click or „Done“ ends an open line, a click on the first point closes it. Esc cancels.", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas and property lines (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit", tDims: "Show dimensions", dec: ".",
     cornerA: "1. Click a corner of the building to move.", fixLink: "keep as measure line", fixed: "Fixed by measure lines – click a measure line to release it.", delLink: "Delete this measure line?", loop: "The buildings would depend on each other in a circle.", cornerB: "2. Click the target corner on another building.",
     offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
     alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
@@ -2535,6 +2562,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       opt.addEventListener("value-changed", (e) => this._emit((s) => {
         const v = e.detail.value;
         if (v.raster) s.raster = true; else delete s.raster;
+        if (v.site_icon) s.icon = v.site_icon; else delete s.icon;
         if (v.north) s.north = v.north; else delete s.north;
         if (v.ausrichtung === "norden") s.ausrichtung = "norden"; else delete s.ausrichtung;
         if (v.site_background && v.site_background.image) s.site_background = v.site_background; else delete s.site_background;
@@ -2554,7 +2582,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       (b) => {
         const p = this._sp && this._sp[b.plan];
         const lv = p ? (p.levels || []).map((l) => ({ value: l.id, label: l.name })) : [];
-        const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }];
+        const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }];
         if (lv.length > 1) sc.push({ name: "site_floor", selector: this._sel([{ value: "", label: "–" }].concat(lv)) });
         if (p && (p.buildings || []).length > 1) sc.push({ name: "part", selector: this._sel([{ value: "", label: "–" }].concat(p.buildings.map((x) => ({ value: x.id, label: x.name })))) });
         sc.push({ name: "x", selector: { number: { mode: "box", step: 0.01 } } }, { name: "y", selector: { number: { mode: "box", step: 0.01 } } },
@@ -2562,10 +2590,10 @@ class FloorplanLiteSiteEditor extends HTMLElement {
           { name: "scale", selector: { number: { mode: "box", step: 0.001, min: 0.01, max: 100 } } });
         return sc;
       },
-      (b) => ({ plan: b.plan || "", name: b.name || "", site_floor: b.site_floor || "", part: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
+      (b) => ({ plan: b.plan || "", name: b.name || "", icon: b.icon || "", site_floor: b.site_floor || "", part: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
       (i, v) => this._emit((s) => {
         const b = s.buildings[i];
-        ["plan", "name", "site_floor"].forEach((k) => { if (v[k]) b[k] = v[k]; else delete b[k]; });
+        ["plan", "name", "site_floor", "icon"].forEach((k) => { if (v[k]) b[k] = v[k]; else delete b[k]; });
         if (v.part) b.building = v.part; else delete b.building;
         ["x", "y"].forEach((k) => { if (typeof v[k] === "number") b[k] = v[k]; else delete b[k]; });
         if (v.rotation) b.rotation = v.rotation; else delete b.rotation;
@@ -2605,8 +2633,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     this._opt.hass = this._hass;
     this._opt.schema = [{ name: "north", selector: { number: { mode: "box", min: -360, max: 360, step: 0.5, unit_of_measurement: "°" } } },
       { name: "ausrichtung", selector: this._sel([{ value: "achse", label: t.oAxis }, { value: "norden", label: t.oNorth }]) },
-      { name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
-    this._opt.data = { north: site.north || 0, ausrichtung: site.ausrichtung || "achse", raster: !!site.raster, site_background: site.site_background || {} };
+      { name: "site_icon", selector: { icon: {} } }, { name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
+    this._opt.data = { north: site.north || 0, ausrichtung: site.ausrichtung || "achse", site_icon: site.icon || "", raster: !!site.raster, site_background: site.site_background || {} };
     this._toolbar();
     this._canvas();
   }

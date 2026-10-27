@@ -144,6 +144,7 @@ SITE_BUILDING = vol.Schema(  # another plan placed on the property
         vol.Optional("rotation"): NUM,
         vol.Optional("scale"): vol.All(NUM, vol.Range(min=0.01, max=100)),
         vol.Optional("label_at"): POINT,  # where its badge sits on the site (default: its middle)
+        vol.Optional("icon"): vol.All(str, vol.Length(max=64)),  # mdi:… for the bar (default mdi:home)
     }
 )
 
@@ -175,6 +176,7 @@ SITE = vol.Schema(
         vol.Optional("areas", default=list): vol.All([SITE_AREA], vol.Length(max=100)),
         vol.Optional("site_background"): BACKGROUND,
         vol.Optional("raster", default=False): bool,
+        vol.Optional("icon"): vol.All(str, vol.Length(max=64)),  # mdi:… for the site in the bar (default mdi:home-group)
         vol.Optional("boundary", default=list): vol.All(  # property line(s), open or closed
             [vol.Schema({vol.Required("poly"): POLY, vol.Optional("closed", default=False): bool})], vol.Length(max=20)
         ),

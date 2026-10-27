@@ -338,12 +338,14 @@ buttons:                    # eigene Schaltflächen links oben, je Ebene, mit de
 | `buildings[].site_floor` | Stockwerks-ID (unterstes) | das auf dem Grundstück gezeigte Stockwerk |
 | `buildings[].building` | ID eines Gebäudeteils | nur dieser Teil des Grundrisses |
 | `buildings[].x`, `y`, `rotation`, `scale` | Meter, Grad, Faktor (nebeneinander, 0, 1) | Lage auf dem Grundstück; gesetzt durch Ziehen, Maßlinien oder Ausrichten |
+| `buildings[].icon` | `mdi:…` (`mdi:home`) | Symbol in der Leiste oben (Handy: nur das Symbol) |
 | `buildings[].label_at` | `[x, y]` (Mitte) | wo das Badge sitzt – Namen im Editor ziehen |
 | `areas[]` | `{id, name, area, poly, licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp, area_live}` | gemeinsame Außenbereiche, verhalten sich wie Räume |
 | `links[]` | `{plan, at, to, to_at, dx, dy}` | Maßlinien: Ecke `at` von `plan` sitzt an Ecke `to_at` von `to` + Abstand; 1 Linie = Lage, 2 = auch Drehung |
 | `north` | Grad (0 = oben) | Norden in der Grundstücksansicht; Gebäudeansichten berechnen ihren daraus und aus ihrer Drehung |
 | `ausrichtung` | `achse` / `norden` (`achse`) | Gebäudeansichten an der eigenen Achse oder Norden oben (Karten-Option übersteuert) |
 | `raster` | `true` (`false`) | 5-m-Raster in der Grundstücksansicht |
+| `icon` | `mdi:…` (`mdi:home-group`) | Symbol des Grundstücks in der Leiste oben |
 | `boundary` | `[{poly, closed?}]` | Grundstücksgrenze(n), offen oder geschlossen |
 | `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | Hintergrund des Grundstücks (gemeinsamer Lageplan) |
 | `show` | Liste von Grundriss-IDs (alle) | nur diese Gebäude; eines = dieses Gebäude allein ohne Grundstücksebene |

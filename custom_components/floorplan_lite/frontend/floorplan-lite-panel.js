@@ -1484,7 +1484,8 @@ class FloorplanLitePanel extends HTMLElement {
       h += `<g class="stairg${own ? "" : " above"}" stroke="${esc(st.edge)}" stroke-width="${1.5 * px}"><polyline points="${pts(g.left)}"/><polyline points="${pts(g.right)}"/>` +
         g.steps.map((q) => `<line x1="${q[0][0]}" y1="${q[0][1]}" x2="${q[1][0]}" y2="${q[1][1]}"/>`).join("") +
         `<circle cx="${g.start[0]}" cy="${g.start[1]}" r="${4 * px}"/><polyline points="${pts(g.arrow)}"/></g>`;
-      if (own) h += `<polyline class="sline${sel ? " sel" : ""}" data-k="stairs" data-i="${i}" points="${pts(x.poly)}" stroke-width="${3 * px}"/>`;
+      if (own) h += `<polygon class="shit" data-k="stairs" data-i="${i}" points="${pts(g.left.concat(g.right.slice().reverse()))}"/>` +
+        `<polyline class="sline${sel ? " sel" : ""}" data-k="stairs" data-i="${i}" points="${pts(x.poly)}" stroke-width="${3 * px}"/>`;
     });
     this._of("openings").filter(({ x }) => x.type !== "open").forEach(opening);
     if (bg && bg.mode === "over") h += bgHtml;
@@ -2413,6 +2414,7 @@ const STYLES = `
   .wall { fill: none; stroke-linejoin: miter; stroke-linecap: square; cursor: pointer; pointer-events: stroke; }
   .wall.sel { stroke: #4fc3ff; }
   .stairg { fill: none; opacity: .75; pointer-events: none; } .stairg circle { fill: currentColor; } .stairg.above { stroke-dasharray: 4 3; opacity: .35; }
+  .shit { fill: transparent; stroke: none; cursor: pointer; pointer-events: all; }
   .sline { fill: none; stroke: #ffcd91; stroke-dasharray: 3 3; cursor: pointer; pointer-events: stroke; opacity: .8; }
   .hline { fill: none; stroke-dasharray: .3 .22; cursor: pointer; pointer-events: stroke; opacity: .7; }
   .ghost { fill: none; stroke: rgba(255,255,255,.35); stroke-dasharray: .25 .2; pointer-events: none; }

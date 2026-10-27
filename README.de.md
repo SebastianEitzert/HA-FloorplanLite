@@ -183,6 +183,8 @@ zeigt die Ecken aller Bereiche zum Ziehen (Gebäude bleiben stehen); *Bearbeiten
   eingeben (0 / 0 = bündig). Mit „dauerhaft als Maßlinie“ (Standard) bleibt die Linie: eine Linie legt die Lage fest,
   zwei auch die Drehung; wird das andere Gebäude bewegt, wandert es mit. Fixierte Gebäude lassen sich nicht ziehen –
   Maßlinie anklicken löst sie.
+- *Hintergrund verschieben* (ziehen; Umschalt+Rad dreht, Alt+Rad skaliert um den Mauszeiger) und *Hintergrund drehen*
+  (zwei Punkte auf einer Linie des Bildes, z. B. einer Grundstücksgrenze, dann ihre Richtung: 0 = waagerecht, 90 = senkrecht).
 - *Hintergrund (Bild/PDF)* + *Hintergrund-Maßstab* (zwei Punkte und die echte Länge) + *Am Hintergrund ausrichten* (zwei
   Ecken eines Gebäudes auf zwei Punkte eines Lageplans, wahlweise mit Skalieren) – Platzieren nach einem gemeinsamen
   Lageplan.

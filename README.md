@@ -180,6 +180,8 @@ area shows all buildings, the lists are in the side panel. *Edit areas outside* 
   metres (0 / 0 = flush). With „keep as measure line“ (default) the line stays: one line fixes the position, two lines
   the turn too; moving the other building takes it along. Fixed buildings can't be dragged – click a measure line to
   release it.
+- *Move background* (drag; Shift+wheel turns, Alt+wheel scales around the pointer) and *Turn background* (two points on
+  a line of the image, e.g. a boundary, then its direction: 0 = horizontal, 90 = vertical).
 - *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
   a building onto two points of a site plan, optionally scaling) – placing to a shared site plan.
 - *Draw area outside*: shared areas (yard, garden) with HA area and entities. Points snap to corners and edges of

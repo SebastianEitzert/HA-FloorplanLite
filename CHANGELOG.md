@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Site editor: the background can be moved („Move background“: drag; Shift+wheel turns, Alt+wheel scales around the pointer) and turned to a line („Turn background“: two points on a boundary or wall, then the wanted direction).
 - Site editor: tools as icons in a bar on the left (like the floor plan editor), with tooltips; new tools „Edit areas outside“ (drag corners, without moving buildings by accident) and „Draw area outside“; „Edit“ next to each area in the list.
 - Site editor: drawing and editing areas outside snaps to corners and edges of buildings and other areas, else 45° steps and a 0.25 m grid (Shift: free); corners of areas can be dragged, double-click an edge adds a corner, a corner removes it.
 - Editor page keeps the window height: only the side panel scrolls, the drawing area stays in place.

@@ -287,6 +287,59 @@ const sceneLabel = (name, room) => {
 
 const planLabels = (plan) => ((plan && plan.hide_labels) || []).concat(plan && plan.hide_label ? [plan.hide_label] : []);
 
+/* Stair: the walking line (poly) is rounded in its turns (radius), the steps stand across it at equal distances –
+   in a turn they fan out like winders. Returns the rounded line, both edges, the step lines, start and end. */
+function stairGeo(st) {
+  const P = (st.poly || []).filter((q) => Array.isArray(q) && q.length === 2);
+  const w = st.width > 0 ? st.width : 1, n = Math.max(2, Math.round(st.steps || 16));
+  if (P.length < 2) return null;
+  const R = typeof st.radius === "number" ? st.radius : w * 0.6;
+  const len = (a, b) => Math.sqrt(Math.pow(b[0] - a[0], 2) + Math.pow(b[1] - a[1], 2));
+  const line = [P[0]];
+  for (let i = 1; i < P.length - 1; i++) {  // fillet every corner
+    const a = P[i - 1], c = P[i], b = P[i + 1], la = len(c, a), lb = len(c, b);
+    const ua = [(a[0] - c[0]) / la, (a[1] - c[1]) / la], ub = [(b[0] - c[0]) / lb, (b[1] - c[1]) / lb];
+    const cos = Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1])), th = Math.acos(cos);
+    if (!R || th > Math.PI - 0.01 || th < 0.01) { line.push(c); continue; }
+    let d = R / Math.tan(th / 2);
+    const dm = Math.min(la, lb) * (i === 1 || i === P.length - 2 ? 1 : 0.5);
+    const r = d > dm ? dm * Math.tan(th / 2) : R;
+    d = Math.min(d, dm);
+    const t1 = [c[0] + ua[0] * d, c[1] + ua[1] * d], t2 = [c[0] + ub[0] * d, c[1] + ub[1] * d];
+    const bis = [ua[0] + ub[0], ua[1] + ub[1]], bl = Math.sqrt(bis[0] * bis[0] + bis[1] * bis[1]) || 1;
+    const h = r / Math.sin(th / 2), o = [c[0] + bis[0] / bl * h, c[1] + bis[1] / bl * h];
+    let a1 = Math.atan2(t1[1] - o[1], t1[0] - o[0]), a2 = Math.atan2(t2[1] - o[1], t2[0] - o[0]), da = a2 - a1;
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    const k = Math.max(4, Math.ceil(Math.abs(da) / 0.12));
+    for (let j = 0; j <= k; j++) { const an = a1 + da * j / k; line.push([o[0] + Math.cos(an) * r, o[1] + Math.sin(an) * r]); }
+  }
+  line.push(P[P.length - 1]);
+  const cum = [0];
+  for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + len(line[i - 1], line[i]));
+  const L = cum[cum.length - 1];
+  if (!L) return null;
+  const at = (s) => {  // point and direction at the distance s along the line
+    let i = 1;
+    while (i < line.length - 1 && cum[i] < s) i++;
+    const a = line[i - 1], b = line[i], seg = cum[i] - cum[i - 1] || 1, f = Math.max(0, Math.min(1, (s - cum[i - 1]) / seg));
+    return { p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], u: [(b[0] - a[0]) / seg, (b[1] - a[1]) / seg] };
+  };
+  const across = (s) => { const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2; return [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]]; };
+  const steps = [];
+  for (let k = 0; k <= n; k++) steps.push(across(L * k / n));
+  const edgeL = [], edgeR = [];
+  line.forEach((q, i) => {
+    const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], l = len(a, b) || 1;
+    const nx = -(b[1] - a[1]) / l * w / 2, ny = (b[0] - a[0]) / l * w / 2;
+    edgeL.push([q[0] + nx, q[1] + ny]); edgeR.push([q[0] - nx, q[1] - ny]);
+  });
+  const e = at(L), ar = Math.min(0.35, w * 0.3);
+  const arrow = [[e.p[0] - e.u[0] * ar - e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar + e.u[0] * ar * 0.6], e.p,
+    [e.p[0] - e.u[0] * ar + e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar - e.u[0] * ar * 0.6]];
+  return { line: line, left: edgeL, right: edgeR, steps: steps, start: P[0], arrow: arrow, length: L };
+}
+
 function prepare(plan, align, building) {
   const rot = rotator(plan.rotation || 0), st = plan.style || {};
   // building: only the outer walls and rooms of this building of the plan (option building / site.buildings[].building)
@@ -301,6 +354,14 @@ function prepare(plan, align, building) {
     const outlines = (plan.outlines || []).filter(at).map((o) => R(centre(o)));
     const extra = (plan.lines || []).filter(at).map((l) => ({ poly: R(l.poly), open: !!l.open }));
     const walls = (plan.walls || []).filter(at).map((w) => ({ poly: R(w.poly), width: w.width, closed: !!w.closed }));
+    // stairs: drawn on their level, dashed on the level they lead to (to_level, else the next one)
+    const lvIds = (plan.levels || []).map((l) => l.id);
+    const stairs = (plan.stairs || []).filter((x) => mine(x)).map((x) => {
+      const up = x.to_level || lvIds[lvIds.indexOf(x.level) + 1];
+      if (x.level !== lv.id && up !== lv.id) return null;
+      const g = stairGeo(Object.assign({}, x, { poly: R(x.poly) }));
+      return g ? Object.assign(g, { above: x.level !== lv.id }) : null;
+    }).filter(Boolean);
     const rooms = (plan.rooms || []).filter(at).map((r) => ({
       id: r.id, key: r.key, name: r.name === undefined ? r.id : r.name, poly: R(r.poly),
       labelAt: r.label_at ? rot(r.label_at) : null, small: !!r.small, outdoor: !!r.outdoor, color: r.color, area: r.area,
@@ -327,7 +388,7 @@ function prepare(plan, align, building) {
       const [x1, y1, x2, y2] = all.length ? bbox(all) : [0, 0, 10, 10];
       view = [x1 - 0.6, y1 - 0.6, x2 - x1 + 1.2, y2 - y1 + 1.2];
     }
-    floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, walls, rooms, openings, roomWalls: plan.room_walls !== false,
+    floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, walls, rooms, openings, stairs, roomWalls: plan.room_walls !== false,
       background: lv.background || null, bgRot: plan.rotation || 0, north: (plan.north || 0) + (plan.rotation || 0) };
   });
   // outer walls of the other levels, as optional helper lines (card option andere_geschosse)
@@ -931,6 +992,10 @@ class FloorplanLiteCard extends HTMLElement {
       walls += `<poly${w.closed ? "gon" : "line"} points="${pts(w.poly)}"${w.width ? ` stroke-width="${w.width}"` : ""} stroke-linecap="square"/>`;
     });
     const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("") +
+      (f.stairs || []).map((st) => `<g class="stair${st.above ? " above" : ""}"><polyline points="${pts(st.left)}"/><polyline points="${pts(st.right)}"/>` +
+        st.steps.map((q) => `<line x1="${q[0][0]}" y1="${q[0][1]}" x2="${q[1][0]}" y2="${q[1][1]}"/>`).join("") +
+        (st.above ? "" : `<polyline class="walk" points="${pts(st.line)}"/><circle cx="${st.start[0]}" cy="${st.start[1]}" r=".12"/><polyline class="walk" points="${pts(st.arrow)}"/>`) +
+        `</g>`).join("") +
       (this._config.andere_geschosse === true ? (f.others || []).map((o) => `<polygon class="ghost" points="${pts(o)}"/>`).join("") : "");
     const shadows = f.outlines.map((o) => `<polygon class="shadow" points="${pts(o)}" transform="translate(.15 .45)" filter="url(#${n("sh")})"/>`).join("");
     const st = f.style || (this._plan && this._plan.style) || {};
@@ -2048,6 +2113,9 @@ FloorplanLiteCard.styles = `
   .wa { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; }      /* stroke-width per plan (wall_width) */
   .outline { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; } /* stroke-width per plan (outer_width) */
   .rim { fill: none; stroke: var(--n-edge); stroke-width: .05; stroke-linejoin: miter; opacity: .55; }
+  .stair { fill: none; stroke: var(--n-edge); stroke-width: .04; opacity: .6; }
+  .stair .walk { stroke-width: .035; } .stair circle { fill: var(--n-edge); stroke: none; }
+  .stair.above { stroke-dasharray: .12 .1; opacity: .35; }
   .ghost { fill: none; stroke: var(--n-edge); stroke-width: .06; stroke-dasharray: .15 .15; opacity: .35; }
   .extra { fill: none; stroke: var(--n-edge); stroke-width: .07; stroke-dasharray: .3 .22; opacity: .45; }
   .op line, .op path { fill: none; stroke-linecap: round; }

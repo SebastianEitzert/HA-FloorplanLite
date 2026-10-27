@@ -82,6 +82,18 @@ LINE = vol.Schema(  # dashed helper lines, e.g. a canopy or a terrace
     }
 )
 
+STAIR = vol.Schema(  # a stair: its walking line from the bottom step to the top one; turns are wound
+    {
+        vol.Required("level"): ID,  # the level it starts on; it shows dashed on the level above (to_level)
+        vol.Required("poly"): POLY,
+        vol.Optional("width", default=1.0): vol.All(NUM, vol.Range(min=0.3, max=5)),
+        vol.Optional("steps", default=16): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
+        vol.Optional("radius"): vol.All(NUM, vol.Range(min=0, max=10)),  # radius of the walking line in turns
+        vol.Optional("to_level"): ID,
+        vol.Optional("building"): ID,
+    }
+)
+
 ENTITY_LIST = vol.All([vol.All(str, vol.Length(max=255))], vol.Length(max=50))
 
 OPENING = vol.Schema(
@@ -185,6 +197,7 @@ PLAN = vol.Schema(
         vol.Optional("outlines", default=list): [OUTLINE],
         vol.Optional("walls", default=list): [WALL],
         vol.Optional("lines", default=list): [LINE],
+        vol.Optional("stairs", default=list): [STAIR],
         vol.Optional("rooms", default=list): [ROOM],
         vol.Optional("openings", default=list): [OPENING],
         vol.Optional("entities", default=dict): {ID: ROOM_ENTITIES},
@@ -232,10 +245,13 @@ def validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
     if len(levels) != len(plan["levels"]):
         raise vol.Invalid("level ids must be unique")
     buildings = {b["id"] for b in plan["buildings"]}
-    for kind in ("outlines", "walls", "lines", "rooms", "openings"):
+    for kind in ("outlines", "walls", "lines", "stairs", "rooms", "openings"):
         for item in plan[kind]:
             if item["level"] not in levels:
                 raise vol.Invalid(f"{kind}: unknown level {item['level']}")
             if item.get("building") and item["building"] not in buildings:
                 raise vol.Invalid(f"{kind}: unknown building {item['building']}")
+    for st in plan["stairs"]:
+        if st.get("to_level") and st["to_level"] not in levels:
+            raise vol.Invalid(f"stairs: unknown level {st['to_level']}")
     return plan

@@ -18,8 +18,11 @@ const T = {
     del: "Löschen", delPlan: "Grundriss „%s“ wirklich löschen?", importJson: "JSON importieren", exportJson: "JSON exportieren",
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
+    stairHint: "Die gestrichelte Linie ist die Lauflinie: vom Antritt (Punkt) zum Austritt (Pfeil). Ecken werden gewendelt – Radius = Abstand der Lauflinie vom Wendelpunkt. Ecken ziehen wie bei Linien.",
+    stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairNext: "– nächstes Stockwerk –",
+    stairLen: "Lauflinie %l m · Auftritt ≈ %s cm",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
-      line: "Hilfslinie (Vordach …)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", skylight: "Dachfenster / Lichtkuppel (frei im Raum)", openWall: "Keine Wand (offener Bereich)",
+      line: "Hilfslinie (Vordach …)", stair: "Treppe (Lauflinie von unten nach oben)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", skylight: "Dachfenster / Lichtkuppel (frei im Raum)", openWall: "Keine Wand (offener Bereich)",
       image: "Hintergrundbild verschieben", scale: "Maßstab setzen (zwei Punkte)", alignWall: "Nach einer Wand ausrichten", straighten: "Hintergrund gerade ausrichten (zwei Punkte)", pan: "Verschieben (Ansicht)" },
     hintDraw: "Klicken setzt Punkte · Klick auf den ersten Punkt oder Enter schließt · Rücktaste entfernt den letzten · Esc bricht ab · Umschalt: freier Winkel",
     hintLine: "Klicken setzt Punkte · Enter oder erneuter Klick auf den letzten Punkt beendet · Esc bricht ab",
@@ -81,8 +84,11 @@ const T = {
     del: "Delete", delPlan: "Really delete floor plan “%s”?", importJson: "Import JSON", exportJson: "Export JSON",
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
-    tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", outdoor: "Area outside (garden, yard, terrace)",
-      line: "Helper line (canopy …)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", skylight: "Roof window / dome (anywhere in a room)", openWall: "No wall (open plan)",
+    stairHint: "The dashed line is the walking line: from the first step (dot) to the top (arrow). Corners are wound – radius = distance of the walking line from the turning point. Drag corners like with lines.",
+    stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairNext: "– next level –",
+    stairLen: "Walking line %l m · going ≈ %s cm",
+    tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", stair: "Stair (walking line from bottom to top)", outdoor: "Area outside (garden, yard, terrace)",
+      line: "Helper line (canopy …)", stair: "Stair (walking line from bottom to top)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", skylight: "Roof window / dome (anywhere in a room)", openWall: "No wall (open plan)",
       image: "Move background image", scale: "Set scale (two points)", alignWall: "Align to a wall", straighten: "Straighten background (two points)", pan: "Pan (view)" },
     hintDraw: "Click to add points · click the first point or Enter to close · Backspace removes the last · Esc cancels · Shift: free angle",
     hintLine: "Click to add points · Enter or clicking the last point again finishes · Esc cancels",
@@ -143,12 +149,66 @@ const LIGHT_COLOURS = [["", "warm"], ["#fff1e0", "neutral"], ["#e4ecff", "cold"]
   ["#5adc78", "green"], ["#5a8cff", "blue"], ["#b07aff", "purple"]];
 const OPENING_TOOLS = ["door", "window", "passage", "garage"];
 const POLY_TOOLS = ["room", "outline", "outdoor"];
-const SHAPES = ["rooms", "outlines", "walls", "lines"];  // elements with a poly
+const SHAPES = ["rooms", "outlines", "walls", "lines", "stairs"];  // elements with a poly
+
+/* Stair: the walking line (poly) is rounded in its turns (radius), the steps stand across it at equal distances –
+   in a turn they fan out like winders. Returns the rounded line, both edges, the step lines, start and end. */
+function stairGeo(st) {
+  const P = (st.poly || []).filter((q) => Array.isArray(q) && q.length === 2);
+  const w = st.width > 0 ? st.width : 1, n = Math.max(2, Math.round(st.steps || 16));
+  if (P.length < 2) return null;
+  const R = typeof st.radius === "number" ? st.radius : w * 0.6;
+  const len = (a, b) => Math.sqrt(Math.pow(b[0] - a[0], 2) + Math.pow(b[1] - a[1], 2));
+  const line = [P[0]];
+  for (let i = 1; i < P.length - 1; i++) {  // fillet every corner
+    const a = P[i - 1], c = P[i], b = P[i + 1], la = len(c, a), lb = len(c, b);
+    const ua = [(a[0] - c[0]) / la, (a[1] - c[1]) / la], ub = [(b[0] - c[0]) / lb, (b[1] - c[1]) / lb];
+    const cos = Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1])), th = Math.acos(cos);
+    if (!R || th > Math.PI - 0.01 || th < 0.01) { line.push(c); continue; }
+    let d = R / Math.tan(th / 2);
+    const dm = Math.min(la, lb) * (i === 1 || i === P.length - 2 ? 1 : 0.5);
+    const r = d > dm ? dm * Math.tan(th / 2) : R;
+    d = Math.min(d, dm);
+    const t1 = [c[0] + ua[0] * d, c[1] + ua[1] * d], t2 = [c[0] + ub[0] * d, c[1] + ub[1] * d];
+    const bis = [ua[0] + ub[0], ua[1] + ub[1]], bl = Math.sqrt(bis[0] * bis[0] + bis[1] * bis[1]) || 1;
+    const h = r / Math.sin(th / 2), o = [c[0] + bis[0] / bl * h, c[1] + bis[1] / bl * h];
+    let a1 = Math.atan2(t1[1] - o[1], t1[0] - o[0]), a2 = Math.atan2(t2[1] - o[1], t2[0] - o[0]), da = a2 - a1;
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    const k = Math.max(4, Math.ceil(Math.abs(da) / 0.12));
+    for (let j = 0; j <= k; j++) { const an = a1 + da * j / k; line.push([o[0] + Math.cos(an) * r, o[1] + Math.sin(an) * r]); }
+  }
+  line.push(P[P.length - 1]);
+  const cum = [0];
+  for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + len(line[i - 1], line[i]));
+  const L = cum[cum.length - 1];
+  if (!L) return null;
+  const at = (s) => {  // point and direction at the distance s along the line
+    let i = 1;
+    while (i < line.length - 1 && cum[i] < s) i++;
+    const a = line[i - 1], b = line[i], seg = cum[i] - cum[i - 1] || 1, f = Math.max(0, Math.min(1, (s - cum[i - 1]) / seg));
+    return { p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], u: [(b[0] - a[0]) / seg, (b[1] - a[1]) / seg] };
+  };
+  const across = (s) => { const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2; return [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]]; };
+  const steps = [];
+  for (let k = 0; k <= n; k++) steps.push(across(L * k / n));
+  const edgeL = [], edgeR = [];
+  line.forEach((q, i) => {
+    const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], l = len(a, b) || 1;
+    const nx = -(b[1] - a[1]) / l * w / 2, ny = (b[0] - a[0]) / l * w / 2;
+    edgeL.push([q[0] + nx, q[1] + ny]); edgeR.push([q[0] - nx, q[1] - ny]);
+  });
+  const e = at(L), ar = Math.min(0.35, w * 0.3);
+  const arrow = [[e.p[0] - e.u[0] * ar - e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar + e.u[0] * ar * 0.6], e.p,
+    [e.p[0] - e.u[0] * ar + e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar - e.u[0] * ar * 0.6]];
+  return { line: line, left: edgeL, right: edgeR, steps: steps, start: P[0], arrow: arrow, length: L };
+}
+
 const PDFJS = "/floorplan_lite_static/vendor/pdfjs/";  // pdf.js, loaded only when a PDF is chosen
 const WALLS = { wall_width: 0.2, outer_width: 0.5 };  // wall thickness in metres (style keys), as in the card
 const DEFAULT_STYLE = { background: "#131b30", floor: ["#2a3657", "#1c2541"], wall: "#4d5a7d", edge: "#8d9cc4" };
 const ICONS = { select: "mdi:cursor-default", room: "mdi:vector-square", roomGen: "mdi:format-color-fill", split: "mdi:content-cut", wall: "mdi:vector-polyline-edit", outline: "mdi:wall", outdoor: "mdi:tree",
-  line: "mdi:vector-polyline", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
+  line: "mdi:vector-polyline", stair: "mdi:stairs", door: "mdi:door", window: "mdi:window-closed-variant", passage: "mdi:door-open",
   garage: "mdi:garage", skylight: "mdi:window-shutter-open", openWall: "mdi:arrow-expand-horizontal", image: "mdi:image-move", scale: "mdi:ruler", alignWall: "mdi:format-align-middle", straighten: "mdi:format-rotate-90", pan: "mdi:pan" };
 
 /* ---------- Geometry ---------- */
@@ -426,7 +486,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _setPlan(plan) {
     plan.levels = plan.levels || []; plan.rooms = plan.rooms || []; plan.outlines = plan.outlines || [];
-    plan.lines = plan.lines || []; plan.walls = plan.walls || []; plan.openings = plan.openings || []; plan.buildings = plan.buildings || [];
+    plan.lines = plan.lines || []; plan.stairs = plan.stairs || []; plan.walls = plan.walls || []; plan.openings = plan.openings || []; plan.buildings = plan.buildings || [];
     plan.entities = plan.entities || {}; plan.style = plan.style || {};
     this._plan = plan;
     this._level = (plan.levels[0] && plan.levels[0].id) || null;
@@ -701,7 +761,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _renderTools() {
     const t = this.t, nav = this.shadowRoot.querySelector(".tools");
-    const groups = [["select", "pan"], ["outline", "wall", "roomGen", "room", "split", "outdoor", "line"], OPENING_TOOLS.concat(["skylight", "openWall"]), ["image", "scale", "straighten", "alignWall"]];
+    const groups = [["select", "pan"], ["outline", "wall", "roomGen", "room", "split", "outdoor", "line", "stair"], OPENING_TOOLS.concat(["skylight", "openWall"]), ["image", "scale", "straighten", "alignWall"]];
     nav.innerHTML = groups.map((g) => `<div class="grp">${g.map((k) =>
       `<button class="tool${this._tool === k ? " on" : ""}" data-t="${k}" title="${esc(t.tools[k])}"${!this._plan ? " disabled" : ""}><ha-icon icon="${ICONS[k]}"></ha-icon></button>`).join("")}</div>`).join("");
     nav.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => this._setTool(b.getAttribute("data-t"))));
@@ -801,6 +861,13 @@ class FloorplanLitePanel extends HTMLElement {
       h += this._field(t.wallWidth, this._num("width", el.width || this._wall("wall_width"), 0.01)) + this._field(t.closedF, this._chk("closed", el.closed));
     } else if (s.kind === "lines") {
       h += this._field(t.open, this._chk("open", el.open));
+    } else if (s.kind === "stairs") {
+      const g = stairGeo(el), lv = this._plan.levels.map((l) => `<option value="${esc(l.id)}"${el.to_level === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("");
+      h += `<p class="small">${esc(t.stairHint)}</p>` + this._field(t.widthM, this._num("width", el.width || 1, 0.05)) + this._field(t.stairSteps, this._num("steps", el.steps || 16, 1)) +
+        this._field(t.stairRadius, this._num("radius", typeof el.radius === "number" ? el.radius : R3((el.width || 1) * 0.6), 0.05)) +
+        this._field(t.stairTo, `<select data-k="to_level"><option value="">${esc(t.stairNext)}</option>${lv}</select>`) +
+        (g ? `<p class="small">${esc(t.stairLen.replace("%l", g.length.toFixed(2)).replace("%s", (g.length / (el.steps || 16) * 100).toFixed(1)))}</p>` : "") +
+        this._field(t.building, this._buildingSel("building", el.building));
     } else if (s.kind === "openings") {
       const sky = el.type === "skylight", ents = (el.entities || []).concat(el.entity && (el.entities || []).indexOf(el.entity) < 0 ? [el.entity] : []);
       h += this._field(t.type, `<select data-k="type">${(sky ? ["skylight"] : OPENING_TOOLS.concat(["open"])).map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
@@ -1367,6 +1434,17 @@ class FloorplanLitePanel extends HTMLElement {
       const sel = S && S.kind === "lines" && S.i === i;
       h += `<${x.open ? "polyline" : "polygon"} class="hline${sel ? " sel" : ""}" data-k="lines" data-i="${i}" points="${pts(x.poly)}" stroke="${esc(st.edge)}" stroke-width="${3 * px}"/>`;
     });
+    const lvIds = p.levels.map((l) => l.id);
+    p.stairs.forEach((x, i) => {  // stairs: on their level, dashed on the one above
+      const up = x.to_level || lvIds[lvIds.indexOf(x.level) + 1];
+      if (x.level !== this._level && up !== this._level) return;
+      const g = stairGeo(x), sel = S && S.kind === "stairs" && S.i === i, own = x.level === this._level;
+      if (!g) return;
+      h += `<g class="stairg${own ? "" : " above"}" stroke="${esc(st.edge)}" stroke-width="${1.5 * px}"><polyline points="${pts(g.left)}"/><polyline points="${pts(g.right)}"/>` +
+        g.steps.map((q) => `<line x1="${q[0][0]}" y1="${q[0][1]}" x2="${q[1][0]}" y2="${q[1][1]}"/>`).join("") +
+        `<circle cx="${g.start[0]}" cy="${g.start[1]}" r="${4 * px}"/><polyline points="${pts(g.arrow)}"/></g>`;
+      if (own) h += `<polyline class="sline${sel ? " sel" : ""}" data-k="stairs" data-i="${i}" points="${pts(x.poly)}" stroke-width="${3 * px}"/>`;
+    });
     this._of("openings").filter(({ x }) => x.type !== "open").forEach(opening);
     if (bg && bg.mode === "over") h += bgHtml;
     // labels
@@ -1470,7 +1548,7 @@ class FloorplanLitePanel extends HTMLElement {
      level, or square to the last drawn line) → lining up with another corner (dashed guide) → onto a wall → 5 cm grid.
      `nb` are the neighbours of a dragged corner: both edges then snap the same way. */
   _snapPolys() {
-    const polys = [], closed = (k, x) => (k === "walls" ? !!x.closed : k === "lines" ? !x.open : true);
+    const polys = [], closed = (k, x) => (k === "walls" ? !!x.closed : k === "lines" ? !x.open : k !== "stairs");
     SHAPES.forEach((k) => this._of(k).forEach(({ x }) => polys.push({ poly: x.poly, closed: closed(k, x), src: x })));
     const ow = this._wall("outer_width");
     this._of("outlines").forEach(({ x }) => {  // outer walls: their other faces and centre line are worth snapping to as well
@@ -1679,7 +1757,7 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (e.button !== 0) return;
     const tool = this._tool;
-    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "wall" || tool === "split") return this._draftClick(this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey), e);
+    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "stair" || tool === "wall" || tool === "split") return this._draftClick(this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey), e);
     if (tool === "roomGen") return this._roomAt(p);
     if (OPENING_TOOLS.indexOf(tool) >= 0) {
       const w = this._nearestWall(p);
@@ -1818,7 +1896,7 @@ class FloorplanLitePanel extends HTMLElement {
       const el = this._plan[this._sel.kind][this._sel.i];
       const old = el.poly[d.vertex];
       el.poly[d.vertex] = [NaN, NaN];  // ignore itself while snapping
-      const n = el.poly.length, open = (this._sel.kind === "walls" && !el.closed) || (this._sel.kind === "lines" && el.open);
+      const n = el.poly.length, open = (this._sel.kind === "walls" && !el.closed) || (this._sel.kind === "lines" && el.open) || this._sel.kind === "stairs";
       const nb = [d.vertex > 0 || !open ? el.poly[(d.vertex - 1 + n) % n] : null, d.vertex < n - 1 || !open ? el.poly[(d.vertex + 1) % n] : null];
       el.poly[d.vertex] = this._snap(p, null, e.shiftKey, nb) || old;
       this._dirty = true; return this._renderCanvas();
@@ -1864,7 +1942,7 @@ class FloorplanLitePanel extends HTMLElement {
       this._dirty = true; return this._renderCanvas();
     }
     const tool = this._tool;
-    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "wall" || tool === "split") {
+    if (POLY_TOOLS.indexOf(tool) >= 0 || tool === "line" || tool === "stair" || tool === "wall" || tool === "split") {
       this._hover = this._snap(p, this._draft && this._draft[this._draft.length - 1], e.shiftKey);
       return this._renderCanvas();
     }
@@ -1892,7 +1970,7 @@ class FloorplanLitePanel extends HTMLElement {
     const el = this._plan[this._sel.kind][this._sel.i], p = this._pt(e), tol = 10 * this._scale();
     let best = null;
     el.poly.forEach((a, j) => {
-      if (((this._sel.kind === "lines" && el.open) || (this._sel.kind === "walls" && !el.closed)) && j === el.poly.length - 1) return;
+      if (((this._sel.kind === "lines" && el.open) || (this._sel.kind === "walls" && !el.closed) || this._sel.kind === "stairs") && j === el.poly.length - 1) return;
       const b = el.poly[(j + 1) % el.poly.length], pr = proj(p, a, b), d = dist(p, pr.p);
       if (d < tol && (!best || d < best.d)) best = { d, j, p: pr.p };
     });
@@ -1904,13 +1982,13 @@ class FloorplanLitePanel extends HTMLElement {
     const hit = this._hit(e);
     if (this._draft) { this._draft.pop(); if (!this._draft.length) this._draft = null; return this._renderCanvas(); }
     if (!hit || hit.v === undefined || !this._sel) return;
-    const el = this._plan[this._sel.kind][this._sel.i], min = this._sel.kind === "lines" || this._sel.kind === "walls" ? 2 : 3;
+    const el = this._plan[this._sel.kind][this._sel.i], min = this._sel.kind === "lines" || this._sel.kind === "walls" || this._sel.kind === "stairs" ? 2 : 3;
     if (el.poly.length <= min) return;
     this._change(() => { el.poly.splice(hit.v, 1); });
   }
 
   _draftClick(p) {
-    const d = this._draft || (this._draft = []), open = this._tool === "line" || this._tool === "wall" || this._tool === "split";
+    const d = this._draft || (this._draft = []), open = this._tool === "line" || this._tool === "stair" || this._tool === "wall" || this._tool === "split";
     if (d.length >= 3 && dist(p, d[0]) < 1e-6) { if (open) this._closed = true; return this._finish(); }
     if (d.length && dist(p, d[d.length - 1]) < 1e-6) { if (open && d.length >= 2) this._finish(); return; }
     d.push(p);
@@ -1920,7 +1998,7 @@ class FloorplanLitePanel extends HTMLElement {
   _finish() {
     const d = this._draft, tool = this._tool, closedWall = !!this._closed;
     this._draft = null; this._hover = null; this._snapMark = null; this._closed = false; this._guides = []; this._right = null;
-    if (!d || d.length < (tool === "line" || tool === "wall" || tool === "split" ? 2 : 3)) return this._renderCanvas();
+    if (!d || d.length < (tool === "line" || tool === "stair" || tool === "wall" || tool === "split" ? 2 : 3)) return this._renderCanvas();
     const p = this._plan;
     if (tool === "split") return this._split(d);
     if (tool === "wall") {  // keep the tool: walls are drawn one after another
@@ -1936,6 +2014,11 @@ class FloorplanLitePanel extends HTMLElement {
       } else if (tool === "line") {
         p.lines.push({ level: this._level, poly: d, open: !closedWall });
         this._sel = { kind: "lines", i: p.lines.length - 1 };
+      } else if (tool === "stair") {
+        const st = { level: this._level, poly: d, width: 1, steps: 16 };
+        if (this._building) st.building = this._building;
+        p.stairs.push(st);
+        this._sel = { kind: "stairs", i: p.stairs.length - 1 };
       } else {
         const nm = this._newRoomName(tool === "outdoor");
         const r = { id: nm.id, level: this._level, name: nm.name, poly: d };
@@ -2283,6 +2366,8 @@ const STYLES = `
   .refline { fill: none; stroke: #ffd166; stroke-dasharray: .2 .15; opacity: .7; pointer-events: none; }
   .wall { fill: none; stroke-linejoin: miter; stroke-linecap: square; cursor: pointer; pointer-events: stroke; }
   .wall.sel { stroke: #4fc3ff; }
+  .stairg { fill: none; opacity: .75; pointer-events: none; } .stairg circle { fill: currentColor; } .stairg.above { stroke-dasharray: 4 3; opacity: .35; }
+  .sline { fill: none; stroke: #ffcd91; stroke-dasharray: 3 3; cursor: pointer; pointer-events: stroke; opacity: .8; }
   .hline { fill: none; stroke-dasharray: .3 .22; cursor: pointer; pointer-events: stroke; opacity: .7; }
   .ghost { fill: none; stroke: rgba(255,255,255,.35); stroke-dasharray: .25 .2; pointer-events: none; }
   .sel { stroke: #4fc3ff !important; } .room.sel { filter: brightness(1.25); }

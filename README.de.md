@@ -174,6 +174,7 @@ echte Karte neben dem Editor), JSON importieren / exportieren, löschen und spei
 | Raum zeichnen / Raum teilen | frei mit Einrasten / eine Linie von Rand zu Rand teilt einen Raum |
 | Bereich außen | Garten, Terrasse, Hof – wie ein Raum gezeichnet, ohne Wände dargestellt |
 | Hilfslinie | gestrichelte Linien (Vordach, Terrassenkante) |
+| Treppe | die **Lauflinie** zeichnen, vom Antritt (Punkt) bis zum Austritt (Pfeil), an jeder Wendung ein Punkt; Wendungen werden mit dem *Radius* gewendelt (Abstand der Lauflinie vom Wendelpunkt – z. B. 0,6 bei 1,00 m Laufbreite um einen 20-cm-Kern, 0 = Podest-Ecke), die Stufen fächern sich dort auf. Seitenbereich: Breite, Steigungen, Radius, *führt nach* (Standard: nächstes Stockwerk, dort gestrichelt); Länge der Lauflinie und Auftritt werden angezeigt |
 | Tür, Fenster, Durchgang, Garagentor | auf eine Wand klicken; Breite, Aufschlag (spiegeln), Entitäten und Sicherheitsabfrage im Seitenbereich |
 | Dachfenster / Lichtkuppel | frei im Raum, eckig oder rund |
 | Keine Wand | die Wand zwischen zwei Räumen anklicken – sie verschwindet, beide bleiben Räume (offene Küche) |
@@ -413,6 +414,7 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
+| `stairs` | `{level, poly (Lauflinie, unten → oben), width (1), steps (16), radius? (width × 0,6), to_level?, building?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
 

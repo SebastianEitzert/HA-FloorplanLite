@@ -172,6 +172,7 @@ editor), JSON import / export, delete and save (Ctrl+S).
 | Draw room / Split room | draw freely with snapping / a line from edge to edge cuts a room in two |
 | Area outside | garden, terrace, yard – drawn like a room, shown without walls |
 | Helper line | dashed lines (canopy, terrace edge) |
+| Stair | draw the **walking line** from the bottom step (dot) to the top one (arrow), a point at every turn; turns are wound with the *radius* (distance of the walking line from the turning point – e.g. 0.6 for a 1.00 m run around a 20 cm core, 0 = landing corner), the steps fan out there. Side panel: width, risers, radius, *leads to* (default: the next level, where it shows dashed); walking line length and going are shown |
 | Door, window, passage, garage door | click onto a wall; width, swing (mirror), entities and confirmation in the side panel |
 | Skylight / dome | free inside a room, square or round |
 | No wall | click the wall between two rooms – it disappears, both stay rooms (open plan) |
@@ -404,6 +405,7 @@ Coordinates are in metres; `y` points down. A plan has:
 | `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls` |
 | `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
+| `stairs` | `{level, poly (walking line, bottom → top), width (1), steps (16), radius? (width × 0.6), to_level?, building?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
 

@@ -2522,6 +2522,10 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const ar = W / H, w = Math.max(v[2], v[3] * ar), h = w / ar;
       this._vb = [v[0] - (w - v[2]) / 2, v[1] - (h - v[3]) / 2, w, h];
     }
+    else if (Math.abs(this._vb[3] / this._vb[2] - H / W) > 1e-3) {  // the frame changed its shape: keep the middle and the width
+      const o = this._vb, h = o[2] * H / W;
+      this._vb = [o[0], o[1] + (o[3] - h) / 2, o[2], h];
+    }
     const v = this._vb, u = v[2] / W;  // metres per pixel
     let g = "";
     if (sf.background) {

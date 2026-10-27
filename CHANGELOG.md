@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Site editor: the grid no longer slips when the editor area changes its size (the view keeps the frame's shape).
 - Editor: the north arrow of a plan that stands on a site follows the site (site north and the building's turn); the
   field shows where it comes from. Plans without a site keep their own adjustable north.
 

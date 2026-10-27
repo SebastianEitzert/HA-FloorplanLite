@@ -2,6 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.7.0 – 2026-10-27
+- The site moves into the floor plan editor: „New site“ (⌂+) creates a plan whose buildings are other plans – drag,
+  turn, scale them with an overlap warning, draw the shared areas outside and link them to HA areas with their
+  entities, background image and grid. A card needs only `plan: <site>`; the card editor keeps what belongs to the
+  dashboard (start view, users with template preview, buttons, off button, shown buildings). `site:` in the card still
+  works and can override `show`.
+- „Buildings“ inside a single plan are now called building parts, with a hint to the site.
+
 ## 0.6.0 – 2026-10-27
 - **Site** (card option `site`, without it nothing changes): several plans as buildings on one property, placed by
   `x`/`y`/`rotation`/`scale` or automatically side by side. Three levels – site, building, level – with a bar on top,

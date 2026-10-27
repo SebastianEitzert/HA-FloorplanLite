@@ -120,6 +120,39 @@ ROOM_ENTITIES = vol.Schema(
     }
 )
 
+SITE_BUILDING = vol.Schema(  # another plan placed on the property
+    {
+        vol.Required("plan"): ID,
+        vol.Optional("name"): vol.All(str, vol.Length(max=60)),
+        vol.Optional("site_floor"): ID,  # level shown on the site (default: the lowest)
+        vol.Optional("building"): ID,  # only this building part of the plan
+        vol.Optional("x"): NUM,  # position in metres (without x/y: side by side)
+        vol.Optional("y"): NUM,
+        vol.Optional("rotation"): NUM,
+        vol.Optional("scale"): vol.All(NUM, vol.Range(min=0.01, max=100)),
+    }
+)
+
+SITE_AREA = ROOM_ENTITIES.extend(  # shared area outside, polygon in site coordinates
+    {
+        vol.Required("id"): ID,
+        vol.Optional("name"): vol.All(str, vol.Length(max=60)),
+        vol.Optional("area"): vol.All(str, vol.Length(max=255)),
+        vol.Optional("area_live", default=False): bool,
+        vol.Optional("color"): vol.All(str, vol.Length(max=32)),
+        vol.Optional("poly", default=list): vol.Any(POLY, vol.All(list, vol.Length(max=0))),
+    }
+)
+
+SITE = vol.Schema(
+    {
+        vol.Optional("buildings", default=list): vol.All([SITE_BUILDING], vol.Length(max=30)),
+        vol.Optional("areas", default=list): vol.All([SITE_AREA], vol.Length(max=100)),
+        vol.Optional("site_background"): BACKGROUND,
+        vol.Optional("raster", default=False): bool,
+    }
+)
+
 PLAN = vol.Schema(
     {
         vol.Required("id"): ID,
@@ -132,7 +165,8 @@ PLAN = vol.Schema(
         vol.Optional("hide_labels"): vol.All([vol.All(str, vol.Length(max=255))], vol.Length(max=30)),  # entities with one of these labels are ignored
         vol.Optional("style", default=dict): vol.Schema({vol.Optional(str): vol.Any(str, NUM, [str])}),
         vol.Optional("buildings", default=list): [vol.Schema({vol.Required("id"): ID, vol.Required("name"): str})],
-        vol.Required("levels"): vol.All([LEVEL], vol.Length(min=1, max=30)),
+        vol.Optional("site"): SITE,  # a property: other plans as buildings, areas outside (then no levels of its own)
+        vol.Optional("levels", default=list): vol.All([LEVEL], vol.Length(max=30)),
         vol.Optional("outlines", default=list): [OUTLINE],
         vol.Optional("walls", default=list): [WALL],
         vol.Optional("lines", default=list): [LINE],
@@ -175,6 +209,10 @@ class PlanStore:
 def validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
     """Check a plan and its references (levels, buildings) – raises vol.Invalid."""
     plan = PLAN(plan)
+    if not plan["levels"] and "site" not in plan:
+        raise vol.Invalid("a plan needs at least one level")
+    if any(b["plan"] == plan["id"] for b in plan.get("site", {}).get("buildings", [])):
+        raise vol.Invalid("a site cannot contain itself")
     levels = {level["id"] for level in plan["levels"]}
     if len(levels) != len(plan["levels"]):
         raise vol.Invalid("level ids must be unique")

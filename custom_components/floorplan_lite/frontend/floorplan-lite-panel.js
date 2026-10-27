@@ -10,6 +10,9 @@
 const T = {
   de: {
     title: "Floorplan Lite", plan: "Grundriss", newPlan: "Neuer Grundriss", planName: "Name des Grundrisses",
+    newSite: "Neues Grundstück (mehrere Grundrisse als Gebäude)", siteName: "Name des Grundstücks",
+    siteSide: "Grundstück: Die Gebäude sind andere Grundrisse – ziehen, drehen, skalieren. Außenbereiche (Hof, Garten) zeichnest du hier und verknüpfst sie mit einem Home-Assistant-Bereich. In einer Karte genügt dann plan: <dieses Grundstück>; Startansicht, Benutzer und Schaltflächen stellst du in der Karte ein.",
+    partsHint: "Gebäudeteile innerhalb dieses Grundrisses (z. B. Stall und Garage in einer Zeichnung). Mehrere Grundrisse auf einem Grundstück: oben „Neues Grundstück“.",
     save: "Speichern", ok: "OK", cancel: "Abbrechen", rename: "Umbenennen", idHint: "Karten im Dashboard verweisen über die ID auf den Grundriss (plan: …). Nach einer Änderung dort anpassen.",
     wallInner: "Innenwände (cm)", wallOuter: "Außenwände (cm)", saved: "Gespeichert", unsaved: "Ungespeicherte Änderungen", undo: "Rückgängig", redo: "Wiederholen",
     del: "Löschen", delPlan: "Grundriss „%s“ wirklich löschen?", importJson: "JSON importieren", exportJson: "JSON exportieren",
@@ -34,7 +37,7 @@ const T = {
     scalePrompt: "Wie viele Meter liegen zwischen den beiden Punkten?",
     levels: "Stockwerke", level: "Stockwerk", addLevel: "Stockwerk hinzufügen", levelName: "Name des Stockwerks", levelShort: "Kürzel (z. B. EG)",
     copyOutlines: "Außenwände des aktuellen Stockwerks übernehmen?", delLevel: "Stockwerk „%s“ mit allen Räumen löschen?",
-    up: "nach oben", down: "nach unten", buildings: "Gebäude", building: "Gebäude", addBuilding: "Gebäude hinzufügen", buildingName: "Name des Gebäudes",
+    up: "nach oben", down: "nach unten", buildings: "Gebäudeteile", building: "Gebäudeteil", addBuilding: "Gebäudeteil hinzufügen", buildingName: "Name des Gebäudeteils",
     noBuilding: "– ohne –", delBuilding: "Gebäude „%s“ entfernen? Elemente bleiben erhalten.",
     background: "Hintergrundbild", upload: "Bild oder PDF hochladen", removeImage: "Bild entfernen", opacity: "Deckkraft", mode: "Lage",
     modes: { under: "unter dem Plan", over: "über dem Plan", hidden: "ausgeblendet" }, rotation: "Drehung (Grad)", width: "Breite (m)",
@@ -70,6 +73,9 @@ const T = {
   },
   en: {
     title: "Floorplan Lite", plan: "Floor plan", newPlan: "New floor plan", planName: "Name of the floor plan",
+    newSite: "New site (several floor plans as buildings)", siteName: "Name of the site",
+    siteSide: "Site: the buildings are other floor plans – drag, turn, scale them. Draw areas outside (yard, garden) here and link them to a Home Assistant area. A card then only needs plan: <this site>; start view, users and buttons are set in the card.",
+    partsHint: "Building parts within this floor plan (e.g. barn and garage in one drawing). Several floor plans on one property: „New site“ at the top.",
     save: "Save", ok: "OK", cancel: "Cancel", rename: "Rename", idHint: "Dashboard cards refer to the plan by its id (plan: …). Update them after a change.",
     wallInner: "Inner walls (cm)", wallOuter: "Outer walls (cm)", saved: "Saved", unsaved: "Unsaved changes", undo: "Undo", redo: "Redo",
     del: "Delete", delPlan: "Really delete floor plan “%s”?", importJson: "Import JSON", exportJson: "Export JSON",
@@ -94,7 +100,7 @@ const T = {
     scalePrompt: "How many metres are between the two points?",
     levels: "Levels", level: "Level", addLevel: "Add level", levelName: "Name of the level", levelShort: "Short name (e.g. GF)",
     copyOutlines: "Copy the outer walls of the current level?", delLevel: "Delete level “%s” with all its rooms?",
-    up: "up", down: "down", buildings: "Buildings", building: "Building", addBuilding: "Add building", buildingName: "Name of the building",
+    up: "up", down: "down", buildings: "Building parts", building: "Building part", addBuilding: "Add building part", buildingName: "Name of the building part",
     noBuilding: "– none –", delBuilding: "Remove building “%s”? Its elements stay.",
     background: "Background image", upload: "Upload image or PDF", removeImage: "Remove image", opacity: "Opacity", mode: "Position",
     modes: { under: "under the plan", over: "over the plan", hidden: "hidden" }, rotation: "Rotation (degrees)", width: "Width (m)",
@@ -428,6 +434,51 @@ class FloorplanLitePanel extends HTMLElement {
     this._renderAll();
   }
 
+  async _newSite() {  // a property: other plans become its buildings, side by side until placed
+    if (this._dirty && !(await this._dialog(this.t.leave))) return;
+    const r = await this._dialog(this.t.newSite, [{ label: this.t.siteName, value: "" }]);
+    const name = r && r[0];
+    if (!name) return;
+    let id = slug(name), n = 2;
+    while ((this._plans || []).some((p) => p.id === id)) id = slug(name) + "_" + n++;
+    const blds = [];
+    for (const p of this._plans || []) {
+      let full = null;
+      try { full = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: p.id }); } catch (e) { full = null; }
+      if (full && !full.site) blds.push({ plan: p.id, name: p.name });
+    }
+    this._setPlan({ id, name, site: { buildings: blds, areas: [] }, levels: [], style: {}, buildings: [],
+      outlines: [], walls: [], lines: [], rooms: [], openings: [], entities: {}, room_walls: false });
+    this._storedId = null;
+    this._dirty = true;
+    this._renderAll();
+  }
+
+  _renderSiteEditor() {  // a property: its own editor instead of the drawing tools
+    const R = this.shadowRoot, box = R.querySelector(".siteed"), site = !!(this._plan && this._plan.site);
+    ["canvas", "zoom", "hint", "levels"].forEach((c) => { const el = R.querySelector("." + c); if (el) el.style.display = site ? "none" : ""; });
+    box.hidden = !site;
+    if (!site) return false;
+    if (!customElements.get("floorplan-lite-site-editor")) { box.textContent = "floorplan-lite-site-editor?"; return true; }
+    if (!this._siteEd) {
+      this._siteEd = document.createElement("floorplan-lite-site-editor");
+      this._siteEd.addEventListener("site-changed", (e) => {
+        this._undo.push(JSON.stringify(this._plan));
+        this._redo = [];
+        this._plan.site = e.detail.site;
+        this._dirty = true;
+        this._renderHeader();
+        this._renderPreview();
+      });
+      box.appendChild(this._siteEd);
+    }
+    this._siteEd.hass = this._hass;
+    this._siteEd.siteId = this._plan.id;
+    this._siteEd.plans = this._plans || [];
+    this._siteEd.site = this._plan.site;
+    return true;
+  }
+
   async _save() {
     if (!this._plan) return;
     try {
@@ -520,6 +571,7 @@ class FloorplanLitePanel extends HTMLElement {
           <select class="plans"></select>
           <button data-a="rename" class="icon"><ha-icon icon="mdi:pencil"></ha-icon></button>
           <button data-a="new" class="icon" title=""><ha-icon icon="mdi:plus"></ha-icon></button>
+          <button data-a="newsite" class="icon" title=""><ha-icon icon="mdi:home-group"></ha-icon></button>
           <span class="sp"></span>
           <span class="status"></span>
           <button data-a="undo" class="icon"><ha-icon icon="mdi:undo"></ha-icon></button>
@@ -538,6 +590,7 @@ class FloorplanLitePanel extends HTMLElement {
             <div class="hint"></div>
             <div class="zoom"><button data-z="in">+</button><button data-z="out">−</button><button data-z="fit"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button></div>
             <div class="previewbox" hidden></div>
+            <div class="siteed" hidden></div>
           </div>
           <aside class="side"></aside>
         </div>
@@ -564,6 +617,7 @@ class FloorplanLitePanel extends HTMLElement {
 
   _header(a) {
     if (a === "new") return this._newPlan();
+    if (a === "newsite") return this._newSite();
     if (!this._plan) return;
     if (a === "save") return this._save();
     if (a === "rename") return this._rename();
@@ -585,6 +639,12 @@ class FloorplanLitePanel extends HTMLElement {
   _renderAll() {
     if (!this.shadowRoot.querySelector(".app")) return;
     this._renderHeader();
+    if (this._renderSiteEditor()) {
+      this.shadowRoot.querySelector(".tools").innerHTML = "";
+      this.shadowRoot.querySelector(".side").innerHTML = `<p class="small">${esc(this.t.siteSide)}</p>`;
+      this._renderPreview();
+      return;
+    }
     this._renderTools();
     this._renderLevels();
     this._renderSide();
@@ -600,11 +660,11 @@ class FloorplanLitePanel extends HTMLElement {
     if (this._plan && !list.some((p) => p.id === this._plan.id)) list.push({ id: this._plan.id, name: this._plan.name });
     sel.innerHTML = list.map((p) => `<option value="${esc(p.id)}"${this._plan && p.id === this._plan.id ? " selected" : ""}>${esc(p.name)}</option>`).join("");
     sel.hidden = !list.length;
-    const titles = { rename: t.rename, new: t.newPlan, undo: t.undo, redo: t.redo, preview: t.preview, import: t.importJson, export: t.exportJson, delete: t.del };
+    const titles = { newsite: t.newSite, rename: t.rename, new: t.newPlan, undo: t.undo, redo: t.redo, preview: t.preview, import: t.importJson, export: t.exportJson, delete: t.del };
     R.querySelectorAll("header button").forEach((b) => {
       const a = b.getAttribute("data-a");
       if (titles[a]) b.title = titles[a];
-      if (a !== "new") b.disabled = !this._plan;
+      if (a !== "new" && a !== "newsite") b.disabled = !this._plan;
     });
     R.querySelector('[data-a="save"]').textContent = t.save;
     R.querySelector('[data-a="undo"]').disabled = !this._undo.length;
@@ -826,7 +886,7 @@ class FloorplanLitePanel extends HTMLElement {
       this._field(t.alignLevels, `<input type="checkbox" data-p="align_levels"${p.align_levels ? " checked" : ""}>`) +
       this._field(t.hideLabel, `<select multiple size="5" data-hidel="1">${this._labelOptions(this._hideLabels())}</select>`) +
       this._field(t.north, `<span class="crow"><input type="number" step="1" data-p="north" value="${R3(p.north || 0)}"><button class="mini" data-act="northup">${esc(t.northAlign)}</button></span>`) +
-      `<h4>${esc(t.buildings)}</h4>` +
+      `<h4>${esc(t.buildings)}</h4><p class="small">${esc(t.partsHint)}</p>` +
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
       `<label class="cur">${esc(t.building)}: ${this._buildingSel("__cur", this._building)}</label></div>` +
@@ -1172,6 +1232,7 @@ class FloorplanLitePanel extends HTMLElement {
   _svg() { return this.shadowRoot.querySelector(".canvas"); }
 
   _fit() {
+    if (this._plan && this._plan.site) return;
     if (!this._plan) return;
     const all = [];
     SHAPES.forEach((k) => this._of(k).forEach((e) => e.x.poly.forEach((q) => all.push(q))));
@@ -1210,6 +1271,7 @@ class FloorplanLitePanel extends HTMLElement {
   }
 
   _renderCanvas() {
+    if (this._plan && this._plan.site) return;
     const svg = this._svg();
     if (!svg) return;
     if (!this._plan || !this._level) { svg.innerHTML = ""; return; }
@@ -2083,6 +2145,11 @@ class FloorplanLitePanel extends HTMLElement {
     if (box.hidden) { box.innerHTML = ""; this._card = null; return; }
     if (!customElements.get("floorplan-lite-card")) { box.textContent = "floorplan-lite-card?"; return; }
     if (!this._card) { box.innerHTML = ""; this._card = document.createElement("floorplan-lite-card"); box.appendChild(this._card); }
+    if (this._plan.site) {
+      this._card.setConfig({ plan: this._plan.id, plan_data: clone(this._plan), intro: false, tap: "none" });
+      this._card.hass = this._hass;
+      return;
+    }
     const ids = this._plan.levels.map((l) => l.id);
     this._card.setConfig({ plan: this._plan.id, plan_data: clone(this._plan), mode: "swipe", start: this._level, intro: false, tap: "none", floors: ids });
     this._card.hass = this._hass;
@@ -2092,6 +2159,7 @@ class FloorplanLitePanel extends HTMLElement {
 const STYLES = `
   .dlg { position: fixed; inset: 0; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
     background: rgba(0, 0, 0, .45); }
+  .siteed { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: auto; padding: 12px 16px; }
   .dlg form.wide { width: min(760px, calc(100vw - 32px)); }
   .dlg textarea.yaml { font-family: monospace; font-size: 12px; white-space: pre; }
   .dlg .btns select { max-width: 180px; }

@@ -96,7 +96,18 @@ rooms:                # optional: entities per room – override the ones stored
 
 ## Site: several buildings in one card
 
-With `site` one card shows several plans (buildings) on one property – without `site` the card behaves as before.
+A **site** is set up in the floor plan editor: ⌂+ („New site“) at the top. Its buildings are your other floor plans –
+drag them into place (Shift+wheel turns, Alt+wheel scales, overlap warning), and draw shared areas outside (yard,
+garden) that you link to a Home Assistant area with their entities. The card then only needs `plan: <site id>`; what
+belongs to the dashboard – start view, users, buttons, off button, „show only these buildings“ – is set in the card's
+visual editor. (`buildings` inside a single floor plan are *building parts* of one drawing, e.g. barn and garage.)
+
+```yaml
+type: custom:floorplan-lite-card
+plan: property          # a site from the floor plan editor
+```
+
+The site can also be written into the card (`site:`), with the same keys the editor stores:
 
 ```yaml
 type: custom:floorplan-lite-card
@@ -154,9 +165,7 @@ buttons:                    # own buttons top left, per level, with the standard
   the card that are on or playing; press twice within 3 s, a short note tells how many devices were switched.
 - **Only one building:** `site.show: [ranch]` shows that building alone (with the shared areas next to it). Within a
   single plan with several `buildings`, the card option `building: <id>` shows only that building.
-- The visual card editor has a *site* step: drag buildings into place (Shift+wheel turns, Alt+wheel scales, overlap
-  warning), draw areas outside and link them to an HA area, choose users and their start view with a live preview of
-  the template, and all options above.
+- The visual card editor offers the users (with a live preview of the template) and all card options above.
 
 ## Plan format
 
@@ -169,7 +178,8 @@ Coordinates are in metres; `y` points down. A plan has:
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
 | `hide_labels` | entities with one of these labels are ignored (e.g. a label you already use to keep entities off dashboards) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text`; wall thickness in metres: `wall_width` (inner, 0.2), `outer_width` (0.5) |
-| `buildings` | `[{id, name}]` – e.g. house, barn, garage; outer walls and rooms carry their `building` – the card option `building: <id>` shows only that one |
+| `site` | a site instead of levels: `{buildings: [{plan, name, site_floor, building, x, y, rotation, scale}], areas: [{id, name, area, poly, licht, …}], site_background, raster}` |
+| `buildings` | building parts `[{id, name}]` – e.g. barn and garage in one drawing; outer walls and rooms carry their `building` – the card option `building: <id>` shows only that one |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
 | `walls` | inner walls (centre line): `{level, poly, width?, closed?}` – `width` in metres, otherwise `style.wall_width` |

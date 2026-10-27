@@ -447,11 +447,13 @@ class FloorplanLiteCard extends HTMLElement {
     const site = config.site && typeof config.site === "object" ? config.site : null;
     const ids = site ? (site.buildings || []).map((b) => b && b.plan).filter(Boolean) : [];
     const sig = site ? ids.join(",") : "";
-    if (!!site !== !!this._siteMode || this._planId !== config.plan || this._siteIds !== sig) {
+    if (!!site !== !!this._siteInline || this._planId !== (site ? null : config.plan) || this._siteIds !== sig) {
       this._unsubscribe();
       this._planId = site ? null : config.plan;
       this._plan = undefined;
       this._siteMode = !!site;
+      this._siteInline = !!site;
+      this._sitePlanData = null;
       this._siteIds = sig;
       this._plans = {};
       ids.forEach((id) => { this._plans[id] = undefined; });
@@ -525,7 +527,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* ---------- Plan from the integration ---------- */
   _subscribe() {
-    if (this._siteMode) return this._subscribeSite();
+    if (this._siteMode) this._subscribeSite();
     if (this._unsub || this._subscribing || !this._hass || !this._planId || !this.isConnected || (this._config && this._config.plan_data)) return;
     this._subscribing = true;
     this._hass.connection.subscribeMessage((msg) => this._setPlan(msg.plan || null),
@@ -556,7 +558,8 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _setSite() {
-    const cfg = this._config || {}, site = cfg.site || {};
+    const cfg = this._config || {};
+    const site = Object.assign({}, this._sitePlanData ? this._sitePlanData.site : {}, cfg.site || {});
     const ids = Object.keys(this._plans || {});
     if (ids.some((id) => this._plans[id] === undefined)) { this._plan = undefined; this._render(); return; }
     const plans = {};
@@ -569,7 +572,7 @@ class FloorplanLiteCard extends HTMLElement {
     this._rooms = d.rooms;
     this._info = d.info;
     this._single = d.single;
-    this._hideLabels = cfg.hide_label !== undefined ? listOf(cfg.hide_label) : d.labels;
+    this._hideLabels = cfg.hide_label !== undefined ? listOf(cfg.hide_label) : d.labels.concat(planLabels(this._sitePlanData));
     this._liveAreas = d.live;
     this._live = {}; this._liveSrc = null;
     this._lastFloor = this._lastFloor || {};
@@ -582,6 +585,19 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _setPlan(plan) {
+    if (plan && plan.site) {  // a property plan: its buildings are other plans
+      this._sitePlanData = plan;
+      this._siteMode = true;
+      const ids = (plan.site.buildings || []).map((b) => b && b.plan).filter(Boolean);
+      this._plans = this._plans || {};
+      Object.keys(this._plans).forEach((id) => { if (ids.indexOf(id) < 0) delete this._plans[id]; });
+      ids.forEach((id) => { if (!(id in this._plans)) this._plans[id] = undefined; });
+      this._subscribeSite();
+      this._setSite();
+      return;
+    }
+    this._sitePlanData = null;
+    this._siteMode = false;
     this._plan = plan;
     const cfg = this._config || {};
     const align = cfg.align === undefined ? !!(plan && plan.align_levels) : !!cfg.align;
@@ -2073,7 +2089,8 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
-    site_on: "Grundstück: mehrere Grundrisse (Gebäude) in einer Karte",
+    siteHint: "Lage der Gebäude und Außenbereiche legst du im Grundstück im Grundriss-Editor fest; hier nur, was diese Karte betrifft.",
+    sView: "Darstellung", noBlds: "Noch keine Gebäude – „+ Gebäude“ wählt einen Grundriss.", part: "Nur dieser Gebäudeteil des Grundrisses",
     sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sOpts: "Weitere Einstellungen",
     addBld: "+ Gebäude", addArea: "+ Außenbereich zeichnen", addUser: "+ Benutzer", del: "Entfernen", redraw: "Neu zeichnen", done: "Fertig", cancel: "Abbrechen",
     name: "Name", site_floor: "Geschoss in der Grundstücksansicht (Standard: unterstes)", x: "Lage x (m, leer = automatisch)", y: "Lage y (m)",
@@ -2101,7 +2118,8 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
-    site_on: "Site: several floor plans (buildings) in one card",
+    siteHint: "Where the buildings stand and the areas outside are set in the site in the floor plan editor; here only what this card needs.",
+    sView: "Display", noBlds: "No buildings yet – „+ Building“ picks a floor plan.", part: "Only this building part of the plan",
     sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sOpts: "More settings",
     addBld: "+ Building", addArea: "+ Draw an area outside", addUser: "+ User", del: "Remove", redraw: "Draw again", done: "Done", cancel: "Cancel",
     name: "Name", site_floor: "Level shown on the site (default: the lowest)", x: "Position x (m, empty = automatic)", y: "Position y (m)",
@@ -2136,21 +2154,282 @@ const polysOverlap = (a, b) => {  // two polygons share area (a corner inside th
   return false;
 };
 
+/* ---------- Property editor (floor plan editor, plan with `site`): place buildings, draw areas outside ---------- */
+class FloorplanLiteSiteEditor extends HTMLElement {
+  set hass(h) { const first = !this._hass; this._hass = h; (this._forms || []).forEach((f) => { f.hass = h; }); if (first) this._render(); }
+  set plans(l) { this._planList = l || []; this._render(); }
+  set site(s) { this._s = JSON.parse(JSON.stringify(s || {})); this._s.buildings = this._s.buildings || []; this._s.areas = this._s.areas || []; this._render(); }
+  set siteId(id) { this._siteId = id; }
+  get _t() {
+    const l = (this._hass && ((this._hass.locale && this._hass.locale.language) || this._hass.language)) || "en";
+    return ED[String(l).slice(0, 2)] || ED.en;
+  }
+
+  _emit(fn) {  // change a copy, tell the floor plan editor (undo, saving), redraw
+    fn(this._s);
+    this.dispatchEvent(new CustomEvent("site-changed", { detail: { site: JSON.parse(JSON.stringify(this._s)) }, bubbles: true, composed: true }));
+    this._render();
+  }
+
+  async _load(id) {
+    const c = this._sp || (this._sp = {});
+    if (c[id] !== undefined || !id || !this._hass) return;
+    c[id] = null;
+    try { c[id] = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { c[id] = false; }
+    this._render();
+  }
+
+  _geo() {
+    const plans = {};
+    let missing = false;
+    this._s.buildings.forEach((b) => {
+      if (!b || !b.plan) return;
+      const p = this._sp && this._sp[b.plan];
+      if (p === undefined) { this._load(b.plan); missing = true; } else if (p === null) missing = true; else if (p) plans[b.plan] = p;
+    });
+    if (missing) return null;
+    return buildSite(Object.assign({}, this._s, { show: undefined, raster: true }), plans, {});
+  }
+
+  _sel(options, extra) { return { select: Object.assign({ mode: "dropdown", options: options }, extra || {}) }; }
+
+  _list(host, list, head, schema, data, change) {  // one ha-form per item: typing keeps the focus
+    const items = host.__items || (host.__items = []);
+    while (items.length > list.length) items.pop().el.remove();
+    list.forEach((x, i) => {
+      let it = items[i];
+      if (!it) {
+        const el = document.createElement("div"), hd = document.createElement("div"), form = document.createElement("ha-form");
+        el.className = "fl-item"; hd.className = "fl-head";
+        form.computeLabel = (sc) => this._t[sc.name] || sc.name;
+        el.appendChild(hd); el.appendChild(form); host.appendChild(el);
+        it = items[i] = { el: el, hd: hd, form: form };
+        form.addEventListener("value-changed", (e) => change(it.i, e.detail.value));
+        (this._forms || (this._forms = [])).push(form);
+      }
+      it.i = i;
+      head(it.hd, x, i);
+      it.form.hass = this._hass;
+      it.form.schema = schema(x, i);
+      it.form.data = data(x, i);
+    });
+  }
+
+  _render() {
+    if (!this._hass || !this._s) return;
+    const t = this._t, site = this._s;
+    if (!this._built) {
+      this._built = true;
+      this.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style><div class="fl-canvas"></div><div class="fl-coord"></div><p class="fl-hint fl-warn"></p>` +
+        `<p class="fl-hint">${esc(t.dragHint)}</p>` +
+        `<h4>${esc(t.sBlds)}</h4><div class="fl-blds"></div><button class="fl-btn" data-a="addb">${esc(t.addBld)}</button>` +
+        `<h4>${esc(t.sAreas)}</h4><div class="fl-areas"></div><button class="fl-btn" data-a="adda">${esc(t.addArea)}</button>` +
+        `<h4>${esc(t.sView)}</h4><div class="fl-opts"></div>`;
+      this.querySelector('[data-a="addb"]').addEventListener("click", () => this._emit((s) => {
+        const used = s.buildings.map((b) => b.plan);
+        const free = (this._planList || []).filter((p) => used.indexOf(p.id) < 0 && p.id !== this._siteId)[0];
+        s.buildings.push({ plan: free ? free.id : "" });
+      }));
+      this.querySelector('[data-a="adda"]').addEventListener("click", () => {
+        this._emit((s) => { s.areas.push({ id: "bereich_" + (s.areas.length + 1), poly: [] }); });
+        this._draw = { i: this._s.areas.length - 1, pts: [] };
+        this._canvas();
+      });
+      const opt = document.createElement("ha-form");
+      opt.computeLabel = (sc) => this._t[sc.name] || sc.name;
+      opt.addEventListener("value-changed", (e) => this._emit((s) => {
+        const v = e.detail.value;
+        if (v.raster) s.raster = true; else delete s.raster;
+        if (v.site_background && v.site_background.image) s.site_background = v.site_background; else delete s.site_background;
+      }));
+      this.querySelector(".fl-opts").appendChild(opt);
+      this._opt = opt;
+      (this._forms || (this._forms = [])).push(opt);
+      window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._draw) { this._draw = null; this._canvas(); } });
+    }
+    const plans = (this._planList || []).filter((p) => p.id !== this._siteId).map((p) => ({ value: p.id, label: p.name }));
+    this._list(this.querySelector(".fl-blds"), site.buildings,
+      (hd, b, i) => {
+        hd.innerHTML = `<b>${esc(b.name || b.plan || "?")}</b><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-del]").addEventListener("click", () => this._emit((s) => { s.buildings.splice(i, 1); }));
+      },
+      (b) => {
+        const p = this._sp && this._sp[b.plan];
+        const lv = p ? (p.levels || []).map((l) => ({ value: l.id, label: l.name })) : [];
+        const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }];
+        if (lv.length > 1) sc.push({ name: "site_floor", selector: this._sel([{ value: "", label: "–" }].concat(lv)) });
+        if (p && (p.buildings || []).length > 1) sc.push({ name: "part", selector: this._sel([{ value: "", label: "–" }].concat(p.buildings.map((x) => ({ value: x.id, label: x.name })))) });
+        sc.push({ name: "x", selector: { number: { mode: "box", step: 0.1 } } }, { name: "y", selector: { number: { mode: "box", step: 0.1 } } },
+          { name: "rotation", selector: { number: { mode: "box", step: 1, min: -360, max: 360 } } },
+          { name: "scale", selector: { number: { mode: "box", step: 0.01, min: 0.05, max: 10 } } });
+        return sc;
+      },
+      (b) => ({ plan: b.plan || "", name: b.name || "", site_floor: b.site_floor || "", part: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
+      (i, v) => this._emit((s) => {
+        const b = s.buildings[i];
+        ["plan", "name", "site_floor"].forEach((k) => { if (v[k]) b[k] = v[k]; else delete b[k]; });
+        if (v.part) b.building = v.part; else delete b.building;
+        ["x", "y"].forEach((k) => { if (typeof v[k] === "number") b[k] = v[k]; else delete b[k]; });
+        if (v.rotation) b.rotation = v.rotation; else delete b.rotation;
+        if (v.scale && v.scale !== 1) b.scale = v.scale; else delete b.scale;
+      }));
+    const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
+    this._list(this.querySelector(".fl-areas"), site.areas,
+      (hd, a, i) => {
+        hd.innerHTML = `<b>${esc(a.name || a.id)}</b>${a.poly && a.poly.length > 2 ? "" : ` <i>${esc(t.notDrawn)}</i>`}` +
+          `<button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-draw]").addEventListener("click", () => { this._draw = { i: i, pts: [] }; this._canvas(); });
+        hd.querySelector("[data-del]").addEventListener("click", () => this._emit((s) => { s.areas.splice(i, 1); }));
+      },
+      () => [{ name: "area", selector: { area: {} } }, { name: "name", selector: { text: {} } },
+        { name: "licht", selector: ents(["light", "switch"], true) }, { name: "hauptlicht", selector: ents(["light", "switch"]) },
+        { name: "musik", selector: ents("media_player", true) }, { name: "praesenz", selector: ents("binary_sensor", true) },
+        { name: "bewegung", selector: ents("binary_sensor", true) }, { name: "fenster", selector: ents(["binary_sensor", "cover"], true) },
+        { name: "beschattung", selector: ents("cover", true) }, { name: "temp", selector: ents(["climate", "sensor"]) }],
+      (a) => ({ area: a.area || "", name: a.name || "", licht: a.licht || [], hauptlicht: a.hauptlicht || "", musik: a.musik || [],
+        praesenz: a.praesenz || [], bewegung: a.bewegung || [], fenster: a.fenster || [], beschattung: a.beschattung || [], temp: a.temp || "" }),
+      (i, v) => this._emit((s) => {
+        const a = s.areas[i], ha = (this._hass.areas || {})[v.area];
+        if (v.area) { a.id = String(v.area).replace(/[^a-z0-9_]/g, "_").slice(0, 64); a.area = v.area; if (!v.name && ha) v.name = ha.name; } else delete a.area;
+        if (v.name) a.name = v.name; else delete a.name;
+        ["licht", "musik", "praesenz", "bewegung", "fenster", "beschattung"].forEach((k) => { if (v[k] && v[k].length) a[k] = v[k]; else delete a[k]; });
+        ["hauptlicht", "temp"].forEach((k) => { if (v[k]) a[k] = v[k]; else delete a[k]; });
+      }));
+    this._opt.hass = this._hass;
+    this._opt.schema = [{ name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
+    this._opt.data = { raster: !!site.raster, site_background: site.site_background || {} };
+    this._canvas();
+  }
+
+  _canvas() {
+    const host = this.querySelector(".fl-canvas");
+    if (!host) return;
+    const t = this._t, d = this._geo(), site = this._s;
+    if (!d) { host.innerHTML = `<p class="fl-hint">${esc(t.loading)}</p>`; return; }
+    const sf = d.floors.site;
+    if (!sf) { host.innerHTML = `<p class="fl-hint">${esc(t.noBlds)}</p>`; return; }
+    const v = [sf.view[0], sf.view[1] - 2.5, sf.view[2], sf.view[3] + 2.5];
+    let g = "";
+    if (sf.background) {
+      const b = sf.background;
+      g += `<image href="${esc(b.image)}" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height || b.width * 4}" opacity="${b.opacity}"` +
+        ` preserveAspectRatio="${b.height ? "none" : "xMinYMin meet"}"${b.rotation ? ` transform="rotate(${b.rotation} ${b.x} ${b.y})"` : ""}/>`;
+    }
+    for (let x = Math.ceil(v[0] / 5) * 5; x <= v[0] + v[2]; x += 5) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}"/><text class="gt" x="${x + 0.2}" y="${v[1] + 1}">${x}</text>`;
+    for (let y = Math.ceil(v[1] / 5) * 5; y <= v[1] + v[3]; y += 5) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}"/><text class="gt" x="${v[0] + 0.2}" y="${y - 0.2}">${y}</text>`;
+    site.areas.forEach((a) => {
+      if (!a.poly || a.poly.length < 3) return;
+      const c = centroid(a.poly);
+      g += `<polygon class="ea" points="${pts(a.poly)}"/><text class="et" x="${c[0]}" y="${c[1]}">${esc(a.name || a.id)}</text>`;
+    });
+    const shapes = {};
+    sf.bldShapes.forEach((x) => { (shapes[x.bld] || (shapes[x.bld] = [])).push(x.poly); });
+    const warn = [];
+    d.blds.forEach((b, i) => {
+      const own = shapes[b.id] || [];
+      const idx = site.buildings.map((x) => x.plan).indexOf(b.id);
+      g += `<g class="eb" data-b="${idx}">` + own.map((q) => `<polygon points="${pts(q)}"/>`).join("") +
+        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 0.6}">${esc(b.name)}</text></g>`;
+      d.blds.slice(i + 1).forEach((o) => { if (own.some((q) => (shapes[o.id] || []).some((r) => polysOverlap(q, r)))) warn.push(b.name + " / " + o.name); });
+    });
+    const dr = this._draw;
+    if (dr) g += `<polyline class="ed" points="${pts(dr.pts)}"/>` + dr.pts.map((q) => `<circle class="ep" cx="${q[0]}" cy="${q[1]}" r=".35"/>`).join("");
+    host.innerHTML = `<svg viewBox="${v[0]} ${v[1]} ${v[2]} ${v[3]}" class="${dr ? "drawing" : ""}">${g}</svg>` +
+      (dr ? `<div class="fl-drawbar">${esc(t.drawHint)} <button class="fl-mini" data-a="done">${esc(t.done)}</button><button class="fl-mini" data-a="cancel">${esc(t.cancel)}</button></div>` : "");
+    this.querySelector(".fl-warn").textContent = warn.length ? t.overlap + warn.join(", ") : "";
+    const svg = host.querySelector("svg"), coord = this.querySelector(".fl-coord");
+    const at = (e) => { const q = svg.createSVGPoint(); q.x = e.clientX; q.y = e.clientY; const m = svg.getScreenCTM(); const r = m ? q.matrixTransform(m.inverse()) : q; return [r.x, r.y]; };
+    svg.addEventListener("pointermove", (e) => {
+      const q = at(e);
+      coord.textContent = "x " + q[0].toFixed(1) + " · y " + q[1].toFixed(1) + " m";
+      const dg = this._drag;
+      if (dg && dg.id === e.pointerId) {
+        const dx = +(q[0] - dg.p[0]).toFixed(1), dy = +(q[1] - dg.p[1]).toFixed(1);
+        dg.pos = { x: +(dg.ox + dx).toFixed(1), y: +(dg.oy + dy).toFixed(1) };
+        dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
+      }
+    });
+    if (dr) {
+      const snap = (q) => [Math.round(q[0] * 4) / 4, Math.round(q[1] * 4) / 4];
+      const finish = () => {
+        const poly = dr.pts.slice();
+        this._draw = null;
+        if (poly.length > 2) this._emit((s) => { s.areas[dr.i].poly = poly; }); else this._canvas();
+      };
+      svg.addEventListener("click", (e) => {
+        const q = snap(at(e));
+        if (dr.pts.length > 2 && Math.abs(q[0] - dr.pts[0][0]) + Math.abs(q[1] - dr.pts[0][1]) < 0.8) { finish(); return; }
+        dr.pts.push(q);
+        this._canvas();
+      });
+      svg.addEventListener("dblclick", (e) => { e.preventDefault(); dr.pts.pop(); finish(); });
+      host.querySelector('[data-a="done"]').addEventListener("click", finish);
+      host.querySelector('[data-a="cancel"]').addEventListener("click", () => { this._draw = null; this._canvas(); });
+      return;
+    }
+    svg.querySelectorAll(".eb").forEach((el) => {
+      const i = +el.getAttribute("data-b");
+      el.addEventListener("pointerdown", (e) => {
+        const b = d.blds.filter((x) => x.id === (site.buildings[i] || {}).plan)[0];
+        if (!b) return;
+        e.preventDefault();
+        svg.setPointerCapture(e.pointerId);
+        this._drag = { i: i, el: el, id: e.pointerId, p: at(e), ox: b.pos.x, oy: b.pos.y, pos: { x: b.pos.x, y: b.pos.y } };
+      });
+      el.addEventListener("wheel", (e) => {
+        if (!e.shiftKey && !e.altKey) return;
+        e.preventDefault();
+        this._emit((s) => {
+          const b = s.buildings[i];
+          if (e.shiftKey) b.rotation = ((b.rotation || 0) + (e.deltaY < 0 ? 5 : -5)) % 360;
+          else b.scale = Math.max(0.05, +((b.scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2));
+        });
+      }, { passive: false });
+    });
+    svg.addEventListener("pointerup", () => {
+      const dg = this._drag;
+      if (!dg) return;
+      this._drag = null;
+      if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { Object.assign(s.buildings[dg.i], dg.pos); });
+    });
+  }
+}
+
+FloorplanLiteSiteEditor.styles = `
+  floorplan-lite-site-editor { display: block; }
+  floorplan-lite-site-editor h4 { margin: 16px 0 6px; }
+  .fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; }
+  .fl-warn { color: var(--error-color, #db4437); opacity: 1; }
+  .fl-canvas svg { width: 100%; height: auto; max-height: 62vh; background: #141c32; border-radius: 8px; touch-action: none; display: block; }
+  .fl-canvas svg.drawing { cursor: crosshair; }
+  .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); stroke-width: .05; } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); font-size: .9px; }
+  .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; stroke-width: .12; }
+  .fl-canvas .et { fill: #ffd6a0; font-size: 1.2px; text-anchor: middle; }
+  .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; stroke-width: .15; }
+  .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
+  .fl-canvas .en { fill: #eef2fb; font-size: 1.6px; text-anchor: middle; }
+  .fl-canvas .ed { fill: none; stroke: #ffd166; stroke-width: .12; } .fl-canvas .ep { fill: #ffd166; }
+  .fl-coord { font-size: 12px; opacity: .7; min-height: 16px; }
+  .fl-drawbar { font-size: 13px; margin: 6px 0; }
+  .fl-item { border: 1px solid var(--divider-color, rgba(127, 127, 127, .3)); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+  .fl-head { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 6px; } .fl-head b { margin-right: 8px; }
+  .fl-btn, .fl-mini { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4));
+    background: transparent; color: var(--primary-text-color); }
+  .fl-btn { padding: 6px 12px; } .fl-mini { padding: 2px 8px; margin-left: 6px; font-size: 12px; }
+`;
+
 class FloorplanLiteCardEditor extends HTMLElement {
   setConfig(config) {
     const reload = !this._config || this._config.plan !== config.plan;
     this._config = JSON.parse(JSON.stringify(config || {}));
-    if (reload && this._hass && !this._config.site) this._loadPlan(); else this._render();
+    if (reload && this._hass) this._loadPlan(); else this._render();
   }
 
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
     if (first) this._load();
-    else {
-      if (this._form) this._form.hass = hass;
-      (this._subforms || []).forEach((f) => { f.hass = hass; });
-    }
+    else { if (this._form) this._form.hass = hass; (this._subforms || []).forEach((f) => { f.hass = hass; }); }
   }
 
   get _t() {
@@ -2168,6 +2447,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     const id = this._config && this._config.plan;
     let plan = null;
     if (id) { try { plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { plan = null; } }
+    this._planObj = plan;
     this._levels = plan ? plan.levels || [] : [];
     this._planBlds = plan ? plan.buildings || [] : [];
     this._planAlign = !!(plan && plan.align_levels);
@@ -2175,7 +2455,11 @@ class FloorplanLiteCardEditor extends HTMLElement {
     this._render();
   }
 
-  async _sitePlan(id) {  // the full plans of the site's buildings (levels, outlines for the layout)
+  _isSite() { return !!(this._config.site || (this._planObj && this._planObj.site)); }
+
+  _siteCfg() { return Object.assign({}, this._planObj && this._planObj.site ? this._planObj.site : {}, this._config.site || {}); }
+
+  async _sitePlan(id) {
     const c = this._sp || (this._sp = {});
     if (c[id] !== undefined || !id) return;
     c[id] = null;
@@ -2183,18 +2467,31 @@ class FloorplanLiteCardEditor extends HTMLElement {
     this._renderSite();
   }
 
+  _geo() {
+    const site = this._siteCfg(), plans = {};
+    let missing = false;
+    (site.buildings || []).forEach((b) => {
+      if (!b || !b.plan) return;
+      const p = this._sp && this._sp[b.plan];
+      if (p === undefined) { this._sitePlan(b.plan); missing = true; } else if (p === null) missing = true; else if (p) plans[b.plan] = p;
+    });
+    return missing ? null : buildSite(Object.assign({}, site, { show: undefined }), plans, this._config);
+  }
+
   _emit(c) {
     this._config = c;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: JSON.parse(JSON.stringify(c)) }, bubbles: true, composed: true }));
   }
 
+  _sel(options, extra) { return { select: Object.assign({ mode: "dropdown", options: options }, extra || {}) }; }
+
   _schema() {
     const t = this._t, lv = (this._levels || []).map((l) => ({ value: l.id, label: l.name }));
-    const sel = (options, extra) => ({ select: Object.assign({ mode: "dropdown", options: options }, extra || {}) });
-    const sc = [{ name: "site_on", selector: { boolean: {} } }];
-    if (!this._config.site) {
-      sc.push({ name: "plan", required: true, selector: sel((this._plans || []).map((p) => ({ value: p.id, label: p.name }))) },
-        { name: "mode", selector: sel([{ value: "swipe", label: t.swipe }, { value: "all", label: t.all }], { mode: "list" }) });
+    const sel = (o, x) => this._sel(o, x);
+    const sc = [];
+    if (!this._config.site) sc.push({ name: "plan", required: true, selector: sel((this._plans || []).map((p) => ({ value: p.id, label: p.name }))) });
+    if (!this._isSite()) {
+      sc.push({ name: "mode", selector: sel([{ value: "swipe", label: t.swipe }, { value: "all", label: t.all }], { mode: "list" }) });
       if (this._config.mode === "swipe" && lv.length) sc.push({ name: "start", selector: sel(lv) });
       if (lv.length > 1) sc.push({ name: "floors", selector: sel(lv, { multiple: true, mode: "list" }) });
       if ((this._planBlds || []).length > 1) sc.push({ name: "building", selector: sel([{ value: "", label: "–" }].concat(this._planBlds.map((b) => ({ value: b.id, label: b.name })))) });
@@ -2213,30 +2510,19 @@ class FloorplanLiteCardEditor extends HTMLElement {
   _data() {
     const c = this._config;
     return {
-      site_on: !!c.site, building: c.building || "",
+      building: c.building || "",
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
       align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
-      tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? (this._config.site ? [] : this._planLabels || []) : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
+      tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels || [] : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
 
   _changed(v) {
     const c = Object.assign({}, this._config), set = (k, val, keep) => { if (keep) c[k] = val; else delete c[k]; };
-    if (v.site_on && !c.site) {  // into a site: the current plan becomes its first building
-      const first = c.plan || ((this._plans || [])[0] || {}).id;
-      c.site = { buildings: first ? [{ plan: first }] : [] };
-      ["plan", "mode", "start", "floors", "building"].forEach((k) => { delete c[k]; });
-      this._emit(c); this._render(); return;
-    }
-    if (!v.site_on && c.site) {  // back to one plan: the first building
-      c.plan = ((c.site.buildings || [])[0] || {}).plan || ((this._plans || [])[0] || {}).id;
-      c.mode = "swipe";
-      ["site", "follow", "buttons", "aus_schalter", "musik_aus", "aus_mit_aussen", "follow_hold", "follow_floor", "nachbar_rand", "start"].forEach((k) => { delete c[k]; });
-      this._emit(c); this._loadPlan(); return;
-    }
     const planChanged = !c.site && v.plan !== c.plan;
-    if (!c.site) {
-      c.plan = v.plan;
+    const site = this._isSite() && !planChanged;
+    if (!c.site) c.plan = v.plan;
+    if (!site) {
       set("mode", "swipe", v.mode === "swipe");
       set("start", v.start, v.mode === "swipe" && v.start && !planChanged);
       set("floors", v.floors, v.floors && v.floors.length && !planChanged && v.floors.length < (this._levels || []).length);
@@ -2249,7 +2535,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");
     const hl = (v.hide_label || []).slice().sort();
-    set("hide_label", hl, !planChanged && hl.join() !== (c.site ? "" : (this._planLabels || []).slice().sort().join()));
+    set("hide_label", hl, !planChanged && hl.join() !== (this._planLabels || []).slice().sort().join());
+    if (planChanged) ["mode", "start", "floors", "building"].forEach((k) => { delete c[k]; });
     this._emit(c);
     if (planChanged) this._loadPlan(); else this._render();
   }
@@ -2259,7 +2546,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     const t = this._t;
     if (!this._box) {
       this._box = document.createElement("div");
-      this._box.innerHTML = `<style>${FloorplanLiteCardEditor.styles}</style>` +
+      this._box.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style>` +
         `<div class="fl-msg"></div><div class="fl-form"></div><div class="fl-site"></div><p class="fl-hint fl-foot"></p>`;
       this.appendChild(this._box);
       this._form = document.createElement("ha-form");
@@ -2269,176 +2556,65 @@ class FloorplanLiteCardEditor extends HTMLElement {
     }
     const msg = this._box.querySelector(".fl-msg");
     msg.innerHTML = this._plans.length ? "" : `<p class="fl-hint">${esc(t.noPlans)}</p>`;
-    this._box.querySelector(".fl-foot").innerHTML = `${esc(t.hint)} <a href="/floorplan-lite">${esc(t.open)} →</a>`;
+    this._box.querySelector(".fl-foot").innerHTML = `${esc(this._isSite() ? t.siteHint : t.hint)} <a href="/floorplan-lite">${esc(t.open)} →</a>`;
     this._form.hass = this._hass;
     this._form.schema = this._schema();
     this._form.data = this._data();
     this._renderSite();
   }
 
-  /* ---------- Site ---------- */
-  _site() { return this._config.site || {}; }
-
-  _setSite(fn, rebuild) {  // change a copy of the config's site, send it, redraw
-    const c = JSON.parse(JSON.stringify(this._config));
-    c.site = c.site || { buildings: [] };
-    fn(c, c.site);
-    this._emit(c);
-    this._renderSite(rebuild);
-  }
-
-  _geo() {  // site geometry from the loaded plans (all buildings, no „show“ filter, with grid)
-    const site = this._site(), plans = {};
-    let missing = false;
-    (site.buildings || []).forEach((b) => {
-      if (!b || !b.plan) return;
-      const p = this._sp && this._sp[b.plan];
-      if (p === undefined) { this._sitePlan(b.plan); missing = true; } else if (p === null) missing = true; else if (p) plans[b.plan] = p;
-    });
-    if (missing) return null;
-    const s = Object.assign({}, site, { show: undefined, raster: true });
-    return { d: buildSite(s, plans, this._config), plans: plans };
-  }
-
-  _sel(options, extra) { return { select: Object.assign({ mode: "dropdown", options: options }, extra || {}) }; }
-
   _viewOptions(geo, withEmpty) {
-    const t = this._t, out = withEmpty ? [{ value: "", label: "–" }] : [];
-    out.push({ value: "grundstueck", label: t.gsite });
-    if (geo) geo.d.blds.forEach((b) => { out.push({ value: b.id, label: b.name }); b.titles.forEach((x) => out.push({ value: x.key, label: b.name + " · " + x.name })); });
+    const out = withEmpty ? [{ value: "", label: "–" }] : [];
+    out.push({ value: "grundstueck", label: this._t.gsite });
+    if (geo) geo.blds.forEach((b) => { out.push({ value: b.id, label: b.name }); b.titles.forEach((x) => out.push({ value: x.key, label: b.name + " · " + x.name })); });
     return out;
   }
 
   _roomOptions(geo) {
     const out = [{ value: "", label: "–" }];
     if (!geo) return out;
-    Object.keys(geo.d.info).forEach((k) => {
-      const i = geo.d.info[k];
+    Object.keys(geo.info).forEach((k) => {
+      const i = geo.info[k];
       if (!i || !i.id) return;
-      const b = i.bld ? geo.d.blds.filter((x) => x.id === i.bld)[0] : null;
+      const b = i.bld ? geo.blds.filter((x) => x.id === i.bld)[0] : null;
       out.push({ value: i.id, label: (i.name || i.id) + (b ? " (" + b.name + ")" : "") });
     });
     return out;
   }
 
-  /* Keeps one ha-form per list item, so typing in a field does not lose the focus. */
-  _list(host, list, head, schema, data, change) {
-    const items = host.__items || (host.__items = []);
-    while (items.length > list.length) items.pop().el.remove();
-    list.forEach((x, i) => {
-      let it = items[i];
-      if (!it) {
-        const el = document.createElement("div"), hd = document.createElement("div"), form = document.createElement("ha-form");
-        el.className = "fl-item"; hd.className = "fl-head";
-        form.computeLabel = (sc) => this._t[sc.name] || sc.name;
-        el.appendChild(hd); el.appendChild(form); host.appendChild(el);
-        it = items[i] = { el: el, hd: hd, form: form };
-        form.addEventListener("value-changed", (e) => change(it.i, e.detail.value));
-        (this._subforms || (this._subforms = [])).push(form);
-      }
-      it.i = i;
-      head(it.hd, x, i);
-      it.form.hass = this._hass;
-      it.form.schema = schema(x, i);
-      it.form.data = data(x, i);
-    });
-  }
+  _list(host, list, head, schema, data, change) { return FloorplanLiteSiteEditor.prototype._list.call(this, host, list, head, schema, data, change); }
 
-  _renderSite(rebuild) {
+  /* Card settings of a property: users (start view, location), more settings. The layout itself is in the floor plan editor. */
+  _renderSite() {
     const host = this._box && this._box.querySelector(".fl-site");
     if (!host) return;
-    if (!this._config.site) { host.innerHTML = ""; this._subforms = []; this._siteBuilt = false; return; }
-    const t = this._t, site = this._site(), geo = this._geo();
-    if (!this._siteBuilt || rebuild) {
-      this._siteBuilt = true;
-      this._subforms = [];
-      host.innerHTML = `<h3>${esc(t.sSite)}</h3><div class="fl-canvas"></div><div class="fl-coord"></div><p class="fl-hint fl-warn"></p>` +
-        `<p class="fl-hint">${esc(t.dragHint)}</p>` +
-        `<h4>${esc(t.sBlds)}</h4><div class="fl-blds"></div><button class="fl-btn" data-a="addb">${esc(t.addBld)}</button>` +
-        `<h4>${esc(t.sAreas)}</h4><div class="fl-areas"></div><button class="fl-btn" data-a="adda">${esc(t.addArea)}</button>` +
-        `<h4>${esc(t.sUsers)}</h4><div class="fl-users"></div><button class="fl-btn" data-a="addu">${esc(t.addUser)}</button>` +
+    if (!this._isSite()) { host.innerHTML = ""; this._built = false; return; }
+    const t = this._t, site = this._siteCfg(), geo = this._geo(), cfg = this._config;
+    if (!this._built) {
+      this._built = true;
+      this._forms = [];
+      host.innerHTML = `<h4>${esc(t.sUsers)}</h4><div class="fl-users"></div><button class="fl-btn" data-a="addu">${esc(t.addUser)}</button>` +
         `<p class="fl-hint">${esc(t.params)}</p><h4>${esc(t.sOpts)}</h4><div class="fl-opts"></div>`;
-      host.querySelector('[data-a="addb"]').addEventListener("click", () => this._setSite((c, s) => {
-        const used = (s.buildings || []).map((b) => b.plan);
-        const free = (this._plans || []).filter((p) => used.indexOf(p.id) < 0)[0];
-        s.buildings = (s.buildings || []).concat([{ plan: free ? free.id : "" }]);
-      }));
-      host.querySelector('[data-a="adda"]').addEventListener("click", () => {
-        this._setSite((c, s) => { s.areas = (s.areas || []).concat([{ id: "bereich_" + ((s.areas || []).length + 1), name: "", poly: [] }]); });
-        this._draw = { i: (this._site().areas || []).length - 1, pts: [] };
-        this._canvas();
-      });
       host.querySelector('[data-a="addu"]').addEventListener("click", () => {
         const c = JSON.parse(JSON.stringify(this._config));
         const f = c.follow && !Array.isArray(c.follow) ? c.follow : {};
-        let n = "", k = 1;
         const taken = (x) => Object.prototype.hasOwnProperty.call(f, x);
-        const free = (this._users || []).map((u) => u.name).filter((x) => !taken(x))[0];
-        n = free || "benutzer";
+        let n = (this._users || []).map((u) => u.name).filter((x) => !taken(x))[0] || "benutzer", k = 1;
         while (taken(n)) n = "benutzer_" + k++;
         f[n] = { art: "standort" };
         c.follow = f;
-        this._emit(c);
-        this._renderSite();
+        this._emit(c); this._renderSite();
       });
       const opt = document.createElement("ha-form");
       opt.computeLabel = (sc) => this._t[sc.name] || sc.name;
       opt.addEventListener("value-changed", (e) => this._optChanged(e.detail.value));
       host.querySelector(".fl-opts").appendChild(opt);
       this._opt = opt;
-      this._subforms.push(opt);
+      this._subforms = (this._subforms || []).concat([opt]);
     }
-    // buildings
-    const plans = (this._plans || []).map((p) => ({ value: p.id, label: p.name }));
-    this._list(host.querySelector(".fl-blds"), site.buildings || [],
-      (hd, b, i) => {
-        hd.innerHTML = `<b>${esc(b.name || b.plan || "?")}</b><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
-        hd.querySelector("[data-del]").addEventListener("click", () => this._setSite((c, s) => { s.buildings.splice(i, 1); }));
-      },
-      (b) => {
-        const p = this._sp && this._sp[b.plan];
-        const lv = p ? (p.levels || []).map((l) => ({ value: l.id, label: l.name })) : [];
-        const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }];
-        if (lv.length > 1) sc.push({ name: "site_floor", selector: this._sel([{ value: "", label: "–" }].concat(lv)) });
-        if (p && (p.buildings || []).length > 1) sc.push({ name: "building", selector: this._sel([{ value: "", label: "–" }].concat(p.buildings.map((x) => ({ value: x.id, label: x.name })))) });
-        sc.push({ name: "x", selector: { number: { mode: "box", step: 0.1 } } }, { name: "y", selector: { number: { mode: "box", step: 0.1 } } },
-          { name: "rotation", selector: { number: { mode: "box", step: 1, min: -360, max: 360 } } },
-          { name: "scale", selector: { number: { mode: "box", step: 0.01, min: 0.05, max: 10 } } });
-        return sc;
-      },
-      (b) => ({ plan: b.plan || "", name: b.name || "", site_floor: b.site_floor || "", building: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
-      (i, v) => this._setSite((c, s) => {
-        const b = s.buildings[i];
-        ["plan", "name", "site_floor", "building"].forEach((k) => { if (v[k]) b[k] = v[k]; else delete b[k]; });
-        ["x", "y"].forEach((k) => { if (typeof v[k] === "number") b[k] = v[k]; else delete b[k]; });
-        if (v.rotation) b.rotation = v.rotation; else delete b.rotation;
-        if (v.scale && v.scale !== 1) b.scale = v.scale; else delete b.scale;
-      }));
-    // areas outside
+    this._subforms = (this._forms || []).concat([this._opt]);
     const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
-    this._list(host.querySelector(".fl-areas"), site.areas || [],
-      (hd, a, i) => {
-        hd.innerHTML = `<b>${esc(a.name || a.id)}</b>${a.poly && a.poly.length > 2 ? "" : ` <i>${esc(t.notDrawn)}</i>`}` +
-          `<button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
-        hd.querySelector("[data-draw]").addEventListener("click", () => { this._draw = { i: i, pts: [] }; this._canvas(); });
-        hd.querySelector("[data-del]").addEventListener("click", () => this._setSite((c, s) => { s.areas.splice(i, 1); }));
-      },
-      () => [{ name: "area", selector: { area: {} } }, { name: "name", selector: { text: {} } },
-        { name: "licht", selector: ents(["light", "switch"], true) }, { name: "hauptlicht", selector: ents(["light", "switch"]) },
-        { name: "musik", selector: ents("media_player", true) }, { name: "praesenz", selector: ents("binary_sensor", true) },
-        { name: "bewegung", selector: ents("binary_sensor", true) }, { name: "fenster", selector: ents(["binary_sensor", "cover"], true) },
-        { name: "beschattung", selector: ents("cover", true) }, { name: "temp", selector: ents(["climate", "sensor"]) }],
-      (a) => ({ area: a.area || a.id || "", name: a.name || "", licht: a.licht || [], hauptlicht: a.hauptlicht || "", musik: a.musik || [],
-        praesenz: a.praesenz || [], bewegung: a.bewegung || [], fenster: a.fenster || [], beschattung: a.beschattung || [], temp: a.temp || "" }),
-      (i, v) => this._setSite((c, s) => {
-        const a = s.areas[i], ha = (this._hass.areas || {})[v.area];
-        if (v.area) { a.id = v.area; a.area = v.area; if (!v.name && ha) v.name = ha.name; }
-        if (v.name) a.name = v.name; else delete a.name;
-        ["licht", "musik", "praesenz", "bewegung", "fenster", "beschattung"].forEach((k) => { if (v[k] && v[k].length) a[k] = v[k]; else delete a[k]; });
-        ["hauptlicht", "temp"].forEach((k) => { if (v[k]) a[k] = v[k]; else delete a[k]; });
-      }));
-    // users
-    const fol = this._config.follow && !Array.isArray(this._config.follow) ? this._config.follow : {};
+    const fol = cfg.follow && !Array.isArray(cfg.follow) ? cfg.follow : {};
     const users = Object.keys(fol).map((k) => Object.assign({ user: k }, fol[k]));
     const uopts = (this._users || []).map((u) => ({ value: u.name, label: u.name + (u.username ? " (" + u.username + ")" : "") }));
     this._list(host.querySelector(".fl-users"), users,
@@ -2486,11 +2662,9 @@ class FloorplanLiteCardEditor extends HTMLElement {
         const nf = {};
         Object.keys(f).forEach((k) => { if (k === old) nf[v.user || old] = e; else nf[k] = f[k]; });
         c.follow = nf;
-        this._emit(c);
-        this._renderSite();
+        this._emit(c); this._renderSite();
       });
-    // more settings
-    const cfg = this._config;
+    this._subforms = (this._forms || []).concat([this._opt]);
     this._opt.hass = this._hass;
     this._opt.schema = [
       { name: "sstart", selector: this._sel(this._viewOptions(geo, false).concat(this._roomOptions(geo).slice(1))) },
@@ -2500,31 +2674,26 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "nachbar_rand", selector: { number: { mode: "slider", min: 0, max: 60, step: 5, unit_of_measurement: "%" } } },
       { name: "musik_aus", selector: this._sel([{ value: "pause", label: t.pause }, { value: "stop", label: t.stop }, { value: "off", label: t.off }]) },
       { name: "aus_mit_aussen", selector: { boolean: {} } },
-      { name: "raster", selector: { boolean: {} } },
       { name: "aus_schalter", selector: { object: {} } },
       { name: "buttons", selector: { object: {} } },
-      { name: "site_background", selector: { object: {} } },
     ];
-    this._opt.data = { sstart: cfg.start || "grundstueck", show: listOf(site.show), follow_floor: cfg.follow_floor !== false,
+    this._opt.data = { sstart: cfg.start || "grundstueck", show: listOf(cfg.site && cfg.site.show), follow_floor: cfg.follow_floor !== false,
       follow_hold: typeof cfg.follow_hold === "number" ? cfg.follow_hold : 120,
       nachbar_rand: Math.round((typeof cfg.nachbar_rand === "number" ? cfg.nachbar_rand : 0.15) * 100), musik_aus: cfg.musik_aus || "pause",
-      aus_mit_aussen: cfg.aus_mit_aussen === true, raster: !!site.raster, aus_schalter: cfg.aus_schalter || {}, buttons: cfg.buttons || {},
-      site_background: site.site_background || {} };
-    this._canvas(geo);
+      aus_mit_aussen: cfg.aus_mit_aussen === true, aus_schalter: cfg.aus_schalter || {}, buttons: cfg.buttons || {} };
   }
 
   _optChanged(v) {
-    const c = JSON.parse(JSON.stringify(this._config)), s = c.site, set = (o, k, val, keep) => { if (keep) o[k] = val; else delete o[k]; };
+    const c = JSON.parse(JSON.stringify(this._config)), set = (o, k, val, keep) => { if (keep) o[k] = val; else delete o[k]; };
     set(c, "start", v.sstart, v.sstart && v.sstart !== "grundstueck");
-    set(s, "show", v.show, v.show && v.show.length);
+    if (v.show && v.show.length) c.site = Object.assign({}, c.site || {}, { show: v.show });
+    else if (c.site) { delete c.site.show; if (!Object.keys(c.site).length) delete c.site; }
     set(c, "follow_floor", false, v.follow_floor === false);
     set(c, "follow_hold", v.follow_hold, typeof v.follow_hold === "number" && v.follow_hold !== 120);
     set(c, "nachbar_rand", v.nachbar_rand / 100, typeof v.nachbar_rand === "number" && v.nachbar_rand !== 15);
     set(c, "musik_aus", v.musik_aus, v.musik_aus && v.musik_aus !== "pause");
     set(c, "aus_mit_aussen", true, v.aus_mit_aussen === true);
-    set(s, "raster", true, v.raster === true);
     ["aus_schalter", "buttons"].forEach((k) => set(c, k, v[k], v[k] && typeof v[k] === "object" && Object.keys(v[k]).length));
-    set(s, "site_background", v.site_background, v.site_background && v.site_background.image);
     this._emit(c);
     this._renderSite();
   }
@@ -2540,144 +2709,16 @@ class FloorplanLiteCardEditor extends HTMLElement {
       if (un) un();
     }, { type: "render_template", template: u.vorlage, variables: { benutzer: u.user, geraet: dev || "" } })
       .then((x) => { un = x; if (done) x(); })
-      .catch((e) => { out.textContent = (e && e.message) || "Fehler"; });
-  }
-
-  /* The site to arrange: buildings dragged into place, areas outside drawn as polygons. */
-  _canvas(geo) {
-    const host = this._box && this._box.querySelector(".fl-canvas");
-    if (!host) return;
-    const t = this._t;
-    geo = geo || this._geo();
-    if (!geo) { host.innerHTML = `<p class="fl-hint">${esc(t.loading)}</p>`; return; }
-    const d = geo.d, sf = d.floors.site, site = this._site();
-    if (!sf) { host.innerHTML = ""; return; }
-    const v = [sf.view[0], sf.view[1] - 2.5, sf.view[2], sf.view[3] + 2.5];  // room for the names above the buildings
-    let g = "";
-    if (sf.background) {
-      const b = sf.background;
-      g += `<image href="${esc(b.image)}" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height || b.width * 4}" opacity="${b.opacity}"` +
-        ` preserveAspectRatio="${b.height ? "none" : "xMinYMin meet"}"${b.rotation ? ` transform="rotate(${b.rotation} ${b.x} ${b.y})"` : ""}/>`;
-    }
-    for (let x = Math.ceil(v[0] / 5) * 5; x <= v[0] + v[2]; x += 5) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}"/><text class="gt" x="${x + 0.2}" y="${v[1] + 1}">${x}</text>`;
-    for (let y = Math.ceil(v[1] / 5) * 5; y <= v[1] + v[3]; y += 5) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}"/><text class="gt" x="${v[0] + 0.2}" y="${y - 0.2}">${y}</text>`;
-    (site.areas || []).forEach((a, i) => {
-      if (!a.poly || a.poly.length < 3) return;
-      const c = centroid(a.poly);
-      g += `<polygon class="ea" points="${pts(a.poly)}"/><text class="et" x="${c[0]}" y="${c[1]}">${esc(a.name || a.id)}</text>`;
-      void i;
-    });
-    const shapes = {};
-    sf.bldShapes.forEach((s) => { (shapes[s.bld] || (shapes[s.bld] = [])).push(s.poly); });
-    const warn = [];
-    d.blds.forEach((b, i) => {
-      const own = shapes[b.id] || [];
-      const idx = (site.buildings || []).map((x) => x.plan).indexOf(b.id);
-      g += `<g class="eb" data-b="${idx}">` + own.map((p) => `<polygon points="${pts(p)}"/>`).join("") +
-        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 0.6}">${esc(b.name)}</text></g>`;
-      d.blds.slice(i + 1).forEach((o) => {
-        const hit = own.some((p) => (shapes[o.id] || []).some((q) => polysOverlap(p, q)));
-        if (hit) warn.push(b.name + " / " + o.name);
-      });
-    });
-    const dr = this._draw;
-    if (dr) {
-      g += `<polyline class="ed" points="${pts(dr.pts)}"/>` + dr.pts.map((p) => `<circle class="ep" cx="${p[0]}" cy="${p[1]}" r=".35"/>`).join("");
-    }
-    host.innerHTML = `<svg viewBox="${v[0]} ${v[1]} ${v[2]} ${v[3]}" class="${dr ? "drawing" : ""}">${g}</svg>` +
-      (dr ? `<div class="fl-drawbar">${esc(t.drawHint)} <button class="fl-mini" data-a="done">${esc(t.done)}</button><button class="fl-mini" data-a="cancel">${esc(t.cancel)}</button></div>` : "");
-    this._box.querySelector(".fl-warn").textContent = warn.length ? t.overlap + warn.join(", ") : "";
-    const svg = host.querySelector("svg");
-    const at = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); const q = m ? pt.matrixTransform(m.inverse()) : pt; return [q.x, q.y]; };
-    const coord = this._box.querySelector(".fl-coord");
-    svg.addEventListener("pointermove", (e) => {
-      const p = at(e);
-      coord.textContent = "x " + p[0].toFixed(1) + " · y " + p[1].toFixed(1) + " m";
-      if (this._drag && this._drag.id === e.pointerId) {  // move only the dragged building; the site is redrawn on release
-        const dg = this._drag, dx = +(p[0] - dg.p[0]).toFixed(1), dy = +(p[1] - dg.p[1]).toFixed(1);
-        dg.pos = { x: +(dg.ox + dx).toFixed(1), y: +(dg.oy + dy).toFixed(1) };
-        dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
-      }
-    });
-    if (dr) {
-      const snap = (p) => [Math.round(p[0] * 4) / 4, Math.round(p[1] * 4) / 4];
-      const finish = () => {
-        const poly = dr.pts.slice();
-        this._draw = null;
-        if (poly.length > 2) this._setSite((c, s) => { s.areas[dr.i].poly = poly; }); else this._canvas();
-      };
-      svg.addEventListener("click", (e) => {
-        const p = snap(at(e));
-        if (dr.pts.length > 2 && Math.abs(p[0] - dr.pts[0][0]) + Math.abs(p[1] - dr.pts[0][1]) < 0.8) { finish(); return; }
-        dr.pts.push(p);
-        this._canvas();
-      });
-      svg.addEventListener("dblclick", (e) => { e.preventDefault(); dr.pts.pop(); finish(); });
-      host.querySelector('[data-a="done"]').addEventListener("click", finish);
-      host.querySelector('[data-a="cancel"]').addEventListener("click", () => { this._draw = null; this._canvas(); });
-      if (!this._escBound) {
-        this._escBound = true;
-        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._draw) { this._draw = null; this._canvas(); } });
-      }
-      return;
-    }
-    svg.querySelectorAll(".eb").forEach((el) => {
-      const i = +el.getAttribute("data-b");
-      el.addEventListener("pointerdown", (e) => {
-        const b = d.blds.filter((x) => x.id === (site.buildings[i] || {}).plan)[0];
-        if (!b) return;
-        e.preventDefault();
-        svg.setPointerCapture(e.pointerId);
-        this._drag = { i: i, el: el, id: e.pointerId, p: at(e), ox: b.pos.x, oy: b.pos.y, pos: { x: b.pos.x, y: b.pos.y } };
-      });
-      el.addEventListener("wheel", (e) => {
-        if (!e.shiftKey && !e.altKey) return;
-        e.preventDefault();
-        this._setSite((c, s) => {
-          const b = s.buildings[i];
-          if (e.shiftKey) b.rotation = (((b.rotation || 0) + (e.deltaY < 0 ? 5 : -5)) % 360);
-          else b.scale = Math.max(0.05, +((b.scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2));
-        });
-      }, { passive: false });
-    });
-    svg.addEventListener("pointerup", () => {
-      const dg = this._drag;
-      if (!dg) return;
-      this._drag = null;
-      if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._setSite((c, s) => { Object.assign(s.buildings[dg.i], dg.pos); });
-    });
+      .catch((e) => { out.textContent = (e && e.message) || "?"; });
   }
 }
-
-FloorplanLiteCardEditor.styles = `
-  .fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; } .fl-hint a { color: var(--primary-color); }
-  .fl-warn { color: var(--error-color, #db4437); opacity: 1; }
-  .fl-site h3 { margin: 18px 0 6px; } .fl-site h4 { margin: 16px 0 6px; }
-  .fl-canvas svg { width: 100%; height: auto; max-height: 420px; background: #141c32; border-radius: 8px; touch-action: none; display: block; }
-  .fl-canvas svg.drawing { cursor: crosshair; }
-  .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); stroke-width: .05; } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); font-size: .9px; }
-  .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; stroke-width: .12; }
-  .fl-canvas .et { fill: #ffd6a0; font-size: 1.2px; text-anchor: middle; }
-  .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; stroke-width: .15; }
-  .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
-  .fl-canvas .en { fill: #eef2fb; font-size: 1.6px; text-anchor: middle; }
-  .fl-canvas .ed { fill: none; stroke: #ffd166; stroke-width: .12; } .fl-canvas .ep { fill: #ffd166; }
-  .fl-coord { font-size: 12px; opacity: .7; min-height: 16px; }
-  .fl-drawbar { font-size: 13px; margin: 6px 0; }
-  .fl-item { border: 1px solid var(--divider-color, rgba(127, 127, 127, .3)); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
-  .fl-head { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 6px; } .fl-head b { margin-right: 8px; }
-  .fl-btn, .fl-mini { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4));
-    background: transparent; color: var(--primary-text-color); }
-  .fl-btn { padding: 6px 12px; } .fl-mini { padding: 2px 8px; margin-left: 6px; font-size: 12px; }
-  .fl-prev { font-size: 12px; margin-left: 10px; } .fl-prev input { width: 110px; font: inherit; }
-`;
 
 /* Register the elements. Another dashboard plugin may swap window.customElements for a polyfilled registry right after
    start-up (seen in the wild: this file loads first, its elements were then unknown and every card showed a
    configuration error). So check again for a few seconds and register again where needed – with a subclass if the
    registry refuses a constructor it has seen before. */
 const flDefine = () => {
-  [["floorplan-lite-card-editor", FloorplanLiteCardEditor], ["floorplan-lite-card", FloorplanLiteCard]].forEach((d) => {
+  [["floorplan-lite-site-editor", FloorplanLiteSiteEditor], ["floorplan-lite-card-editor", FloorplanLiteCardEditor], ["floorplan-lite-card", FloorplanLiteCard]].forEach((d) => {
     if (customElements.get(d[0])) return;
     try { customElements.define(d[0], d[1]); } catch (e) {
       try { customElements.define(d[0], class extends d[1] {}); } catch (e2) { /* someone else defined it meanwhile */ }

@@ -97,7 +97,19 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
 
 ## Grundstück: mehrere Gebäude in einer Karte
 
-Mit `site` zeigt eine Karte mehrere Grundrisse (Gebäude) auf einem Grundstück – ohne `site` bleibt alles wie bisher.
+Ein **Grundstück** legst du im Grundriss-Editor an: oben ⌂+ („Neues Grundstück“). Seine Gebäude sind deine anderen
+Grundrisse – an ihre Stelle ziehen (Umschalt+Rad dreht, Alt+Rad skaliert, Warnung bei Überlappung) – und gemeinsame
+Außenbereiche (Hof, Garten) zeichnest du dort und verknüpfst sie mit einem Home-Assistant-Bereich samt Entitäten. In
+der Karte genügt dann `plan: <grundstück>`; was zum Dashboard gehört – Startansicht, Benutzer, Schaltflächen,
+Aus-Schalter, „nur diese Gebäude“ – stellst du im visuellen Karten-Editor ein. (`buildings` innerhalb eines einzelnen
+Grundrisses sind *Gebäudeteile* einer Zeichnung, z. B. Stall und Garage.)
+
+```yaml
+type: custom:floorplan-lite-card
+plan: gelaende          # ein Grundstück aus dem Grundriss-Editor
+```
+
+Das Grundstück kann auch direkt in der Karte stehen (`site:`), mit denselben Schlüsseln, die der Editor speichert:
 
 ```yaml
 type: custom:floorplan-lite-card
@@ -157,9 +169,7 @@ buttons:                    # eigene Schaltflächen links oben, je Ebene, mit de
   eingetragenen Räume, die an sind bzw. spielen; zweimal innerhalb von 3 s drücken, ein kurzer Hinweis nennt die Anzahl.
 - **Nur ein Gebäude:** `site.show: [ranch]` zeigt nur dieses Gebäude (mit den angrenzenden Außenbereichen). Innerhalb
   eines einzelnen Grundrisses mit mehreren `buildings` zeigt die Kartenoption `building: <id>` nur dieses Gebäude.
-- Der visuelle Karten-Editor hat einen Schritt *Grundstück*: Gebäude an ihre Stelle ziehen (Umschalt+Rad dreht,
-  Alt+Rad skaliert, Warnung bei Überlappung), Außenbereiche zeichnen und mit einem HA-Bereich verknüpfen, Benutzer und
-  ihre Startansicht wählen mit Live-Vorschau der Vorlage, dazu alle Einstellungen oben.
+- Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.
 
 ## Format eines Grundrisses
 

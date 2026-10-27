@@ -2,7 +2,7 @@ blueprint:
   name: Floorplan Lite – keys, clicks and wheel over a room
   description: >-
     The Floorplan Lite card sends every key, click, wheel step and tap over a room to this script as
-    `{raum, aktion, lichter, player}`. Here you choose what each of them does – or nothing.
+    `{room, event, lights, players}`. Here you choose what each of them does – or nothing.
 
 
     **Scenes of a room** are the scenes assigned to its area and (optionally) the scenes whose name starts with the
@@ -30,8 +30,8 @@ blueprint:
         With the pointer over a room. ↑/↓ are the arrow keys of a keyboard or the TV remote's D-pad, the wheel is the
         mouse wheel or the Magic Remote's wheel, right click is the right mouse button or the LG remote's yellow key.
       input:
-        hoch:
-          name: "↑ arrow up (hoch)"
+        up:
+          name: "↑ arrow up (up)"
           default: scene_next
           selector: &actions
             select:
@@ -52,10 +52,10 @@ blueprint:
                 - { value: volume_down, label: "Quieter" }
                 - { value: next_track, label: "Next track" }
                 - { value: previous_track, label: "Previous track" }
-        runter: { name: "↓ arrow down (runter)", default: scene_previous, selector: *actions }
-        lauter: { name: "Wheel up (lauter)", default: volume_up, selector: *actions }
-        leiser: { name: "Wheel down (leiser)", default: volume_down, selector: *actions }
-        gelb: { name: "Right click / LG yellow (gelb)", default: nothing, selector: *actions }
+        down: { name: "↓ arrow down (down)", default: scene_previous, selector: *actions }
+        wheel_up: { name: "Wheel up (wheel_up)", default: volume_up, selector: *actions }
+        wheel_down: { name: "Wheel down (wheel_down)", default: volume_down, selector: *actions }
+        yellow: { name: "Right click / LG yellow (yellow)", default: nothing, selector: *actions }
     media:
       name: "Media keys – TV remote and PC keyboard"
       description: >-
@@ -67,8 +67,8 @@ blueprint:
         pause: { name: "Pause (pause) – TV remote, some keyboards", default: music_pause, selector: *actions }
         play_pause: { name: "Play/pause (play_pause) – PC keyboard", default: music_toggle, selector: *actions }
         stop: { name: "Stop (stop) – TV remote, PC keyboard", default: music_stop, selector: *actions }
-        weiter: { name: "Next track (weiter) – PC keyboard", default: next_track, selector: *actions }
-        zurueck: { name: "Previous track (zurueck) – PC keyboard", default: previous_track, selector: *actions }
+        next: { name: "Next track (next) – PC keyboard", default: next_track, selector: *actions }
+        previous: { name: "Previous track (previous) – PC keyboard", default: previous_track, selector: *actions }
     colours:
       name: "Colour keys – TV remote (TV Streamer)"
       collapsed: true
@@ -76,22 +76,22 @@ blueprint:
         Only LG remotes through the TV Streamer send these – and the streamer and Moonlight use them themselves, see
         each key.
       input:
-        blau:
-          name: "Blue (blau)"
+        blue:
+          name: "Blue (blue)"
           description: >-
             ⚠ The TV Streamer uses blue itself: it shows Home Assistant, and reloads it when it is shown already. What
             you choose here runs as well – only for things that may happen together with that.
           default: nothing
           selector: *actions
-        gruen:
-          name: "Green (gruen)"
+        green:
+          name: "Green (green)"
           description: >-
             ⚠ The TV Streamer uses green itself: it opens the tab chosen under „Green key“ in the streamer's options.
             Set that to „none“ to use green only here.
           default: nothing
           selector: *actions
-        rot:
-          name: "Red (rot)"
+        red:
+          name: "Red (red)"
           description: >-
             ⚠ Red opens Moonlight's own menu while streaming and never reaches the page – it only works with other
             remotes or browsers that pass it on.
@@ -101,8 +101,8 @@ blueprint:
       name: "Touch – phone, tablet"
       description: A single tap opens the room's pop-up; double and triple taps go here.
       input:
-        tipp2: { name: "Double tap (tipp2)", default: light_toggle, selector: *actions }
-        tipp3: { name: "Triple tap (tipp3)", default: room_off, selector: *actions }
+        double_tap: { name: "Double tap (double_tap)", default: light_toggle, selector: *actions }
+        triple_tap: { name: "Triple tap (triple_tap)", default: room_off, selector: *actions }
     twice:
       name: "Pressed twice – arrow keys, right click, media and colour keys"
       description: >-
@@ -114,18 +114,18 @@ blueprint:
           name: Time for the second press
           default: 400
           selector: { number: { min: 200, max: 1000, step: 50, unit_of_measurement: ms, mode: slider } }
-        hoch2: { name: "↑ twice (hoch2)", default: nothing, selector: *actions }
-        runter2: { name: "↓ twice (runter2)", default: nothing, selector: *actions }
-        gelb2: { name: "Right click / LG yellow twice (gelb2)", default: room_off, selector: *actions }
-        play2: { name: "Play twice (play2)", default: next_track, selector: *actions }
-        pause2: { name: "Pause twice (pause2)", default: nothing, selector: *actions }
-        play_pause2: { name: "Play/pause twice (play_pause2)", default: nothing, selector: *actions }
-        stop2: { name: "Stop twice (stop2)", default: nothing, selector: *actions }
-        weiter2: { name: "Next track twice (weiter2)", default: nothing, selector: *actions }
-        zurueck2: { name: "Previous track twice (zurueck2)", default: nothing, selector: *actions }
-        blau2: { name: "Blue twice (blau2) – ⚠ TV Streamer, see Blue", default: nothing, selector: *actions }
-        gruen2: { name: "Green twice (gruen2) – ⚠ TV Streamer, see Green", default: nothing, selector: *actions }
-        rot2: { name: "Red twice (rot2) – ⚠ Moonlight, see Red", default: nothing, selector: *actions }
+        up_twice: { name: "↑ twice (up_twice)", default: nothing, selector: *actions }
+        down_twice: { name: "↓ twice (down_twice)", default: nothing, selector: *actions }
+        yellow_twice: { name: "Right click / LG yellow twice (yellow_twice)", default: room_off, selector: *actions }
+        play_twice: { name: "Play twice (play_twice)", default: next_track, selector: *actions }
+        pause_twice: { name: "Pause twice (pause_twice)", default: nothing, selector: *actions }
+        play_pause_twice: { name: "Play/pause twice (play_pause_twice)", default: nothing, selector: *actions }
+        stop_twice: { name: "Stop twice (stop_twice)", default: nothing, selector: *actions }
+        next_twice: { name: "Next track twice (next_twice)", default: nothing, selector: *actions }
+        previous_twice: { name: "Previous track twice (previous_twice)", default: nothing, selector: *actions }
+        blue_twice: { name: "Blue twice (blue_twice) – ⚠ TV Streamer, see Blue", default: nothing, selector: *actions }
+        green_twice: { name: "Green twice (green_twice) – ⚠ TV Streamer, see Green", default: nothing, selector: *actions }
+        red_twice: { name: "Red twice (red_twice) – ⚠ Moonlight, see Red", default: nothing, selector: *actions }
     music:
       name: Music
       input:
@@ -252,59 +252,57 @@ mode: parallel
 max: 10
 icon: mdi:gesture-tap-button
 fields:
-  raum:
+  room:
     name: Room
     description: Area of the room
     required: true
     selector: { area: {} }
-  aktion:
+  event:
     name: Event
     description: >-
-      hoch, runter, lauter, leiser, gelb, play, pause, play_pause, stop, weiter, zurueck, blau, gruen, rot, tipp2, tipp3,
-      the same with 2 for twice (hoch2, gelb2 …) – or config: answers which keys use twice and the waiting time
+      up, down, wheel_up, wheel_down, yellow, play, pause, play_pause, stop, next, previous, blue, green, red,
+      double_tap, triple_tap, the same with _twice for a key pressed twice (up_twice, yellow_twice …) – or config:
+      answers which keys use twice and the waiting time
     selector: { text: {} }
-  lichter:
+  lights:
     name: Lights
     description: The room's lights from the floor plan (default – the area's lights)
     selector: { entity: { multiple: true } }
-  player:
+  players:
     name: Players
     description: The room's media players from the floor plan (default – the area's players)
     selector: { entity: { multiple: true, domain: media_player } }
-  klicks:
-    name: Clicks (older cards)
-    selector: { number: { min: 2, max: 3, mode: box } }
 
 variables:
   settings:
-    hoch: !input hoch
-    runter: !input runter
-    lauter: !input lauter
-    leiser: !input leiser
-    gelb: !input gelb
+    up: !input up
+    down: !input down
+    wheel_up: !input wheel_up
+    wheel_down: !input wheel_down
+    yellow: !input yellow
     play: !input play
     pause: !input pause
     play_pause: !input play_pause
     stop: !input stop
-    weiter: !input weiter
-    zurueck: !input zurueck
-    blau: !input blau
-    gruen: !input gruen
-    rot: !input rot
-    tipp2: !input tipp2
-    tipp3: !input tipp3
-    hoch2: !input hoch2
-    runter2: !input runter2
-    gelb2: !input gelb2
-    play2: !input play2
-    pause2: !input pause2
-    play_pause2: !input play_pause2
-    stop2: !input stop2
-    weiter2: !input weiter2
-    zurueck2: !input zurueck2
-    blau2: !input blau2
-    gruen2: !input gruen2
-    rot2: !input rot2
+    next: !input next
+    previous: !input previous
+    blue: !input blue
+    green: !input green
+    red: !input red
+    double_tap: !input double_tap
+    triple_tap: !input triple_tap
+    up_twice: !input up_twice
+    down_twice: !input down_twice
+    yellow_twice: !input yellow_twice
+    play_twice: !input play_twice
+    pause_twice: !input pause_twice
+    play_pause_twice: !input play_pause_twice
+    stop_twice: !input stop_twice
+    next_twice: !input next_twice
+    previous_twice: !input previous_twice
+    blue_twice: !input blue_twice
+    green_twice: !input green_twice
+    red_twice: !input red_twice
   double_ms: !input double_ms
   volume_mode: !input volume_mode
   standard_players: !input standard_players
@@ -326,22 +324,19 @@ variables:
 
 sequence:
   - alias: "The card asks which keys use „twice“ and how long it waits for the second press"
-    if: "{{ aktion is defined and aktion == 'config' }}"
+    if: "{{ event is defined and event == 'config' }}"
     then:
       - variables:
           answer:
             double: >-
-              {{ settings.items() | selectattr('0', 'match', '.+2$') | rejectattr('0', 'eq', 'tipp2')
-                 | rejectattr('1', 'eq', 'nothing') | map(attribute='0') | map('regex_replace', '2$', '') | list }}
+              {{ settings.items() | selectattr('0', 'match', '.+_twice$')
+                 | rejectattr('1', 'eq', 'nothing') | map(attribute='0') | map('regex_replace', '_twice$', '') | list }}
             ms: "{{ double_ms | int(400) }}"
       - stop: config
         response_variable: answer
   - variables:
-      event: >-
-        {% set a = aktion if aktion is defined and aktion else '' %}
-        {% set k = (klicks if klicks is defined else 0) | int(0) %}
-        {{ 'play_pause' if a == 'musik' else a if a else 'tipp3' if k >= 3 else 'tipp2' if k == 2 else '' }}
-      todo: "{{ settings.get(event, 'nothing') }}"
+      key: "{{ event if event is defined and event else '' }}"
+      todo: "{{ settings.get(key, 'nothing') }}"
   - condition: template
     value_template: "{{ todo != 'nothing' }}"
   - variables:
@@ -361,28 +356,28 @@ sequence:
         {% for l in players_block_labels or [] %}{% set ns.b = ns.b + label_entities(l) %}{% endfor %}
         {{ [ns.a + ns.al, ns.al, ns.b, (players_allow_integrations or []) | count + (players_allow_labels or []) | count > 0] }}
   - variables:
-      lights: >-
-        {% set area = area_entities(raum) %}
-        {% set plan = lichter is defined and lichter | count > 0 %}
-        {% set l = lichter if plan
+      use_lights: >-
+        {% set area = area_entities(room) %}
+        {% set plan = lights is defined and lights | count > 0 %}
+        {% set l = lights if plan
              else (area | select('match', 'light\.') | list) + (light_lists[1] | select('in', area) | reject('match', 'light\.') | list) %}
         {% if plan and lights_plan_always %}{{ l }}
         {% else %}{{ (l | select('in', light_lists[0]) | list if light_lists[3] else l) | reject('in', light_lists[2]) | list }}{% endif %}
-      players: >-
-        {% set area = area_entities(raum) %}
-        {% set plan = player is defined and player | count > 0 %}
-        {% set p = player if plan
+      use_players: >-
+        {% set area = area_entities(room) %}
+        {% set plan = players is defined and players | count > 0 %}
+        {% set p = players if plan
              else (area | select('match', 'media_player\.') | reject('is_state_attr', 'device_class', 'tv') | list)
                   + (player_lists[1] | select('in', area) | select('match', 'media_player\.') | reject('in', area | select('match', 'media_player\.') | list) | list) %}
         {% if plan and players_plan_always %}{{ p }}
         {% else %}{{ (p | select('in', player_lists[0]) | list if player_lists[3] else p) | reject('in', player_lists[2]) | list }}{% endif %}
-      prefix: "{{ room_names.get(raum, area_name(raum) or raum) }}"
+      prefix: "{{ room_names.get(room, area_name(room) or room) }}"
       # [entity_id, short name] of the room's scenes
       scenes: >-
         {% set n = prefix | length %}
         {% set ns = namespace(l=[]) %}
         {% for s in states.scene | sort(attribute='name') %}
-          {% if s.entity_id in area_entities(raum) %}
+          {% if s.entity_id in area_entities(room) %}
             {% set ns.l = ns.l + [[s.entity_id, s.name[n:] | trim(' -–:') if s.name[:n] | lower == prefix | lower else s.name]] %}
           {% elif scenes_by_name and n and s.name[:n] | lower == prefix | lower and s.name[n:n+1] in [' ', '-', '–', ':', '_'] %}
             {% set ns.l = ns.l + [[s.entity_id, s.name[n:] | trim(' -–:_')]] %}
@@ -420,14 +415,14 @@ sequence:
         {% endfor %}
         {{ [ns.off or 'lights_off'] + (ns2.l if ns2.l else ['lights_on']) }}
       light_on: >-
-        {{ lights | select('is_state', 'on') | list | count > 0 }}
+        {{ use_lights | select('is_state', 'on') | list | count > 0 }}
   - variables:
       current: >-
         {% set ns = namespace(id='', t='') %}
         {% for e in order if e.startswith('scene.') and has_value(e) and states(e) > ns.t %}
           {% set ns.t = states(e) %}{% set ns.id = e %}
         {% endfor %}
-        {% set on = light_on if lights | count > 0 else (ns.id != '' and ns.id != order[0]) %}
+        {% set on = light_on if use_lights | count > 0 else (ns.id != '' and ns.id != order[0]) %}
         {% if not on %}0{% elif ns.id in order and ns.id != order[0] %}{{ order.index(ns.id) }}{% else %}1{% endif %}
       target: >-
         {% set n = order | count %}
@@ -438,29 +433,29 @@ sequence:
         {% elif todo == 'light_on' %}{{ order[1] if i == 0 else '' }}
         {% elif todo in ['light_off', 'room_off'] %}{{ order[0] }}
         {% endif %}
-      playing: "{{ players | select('is_state', 'playing') | list }}"
+      playing: "{{ use_players | select('is_state', 'playing') | list }}"
       standard: >-
-        {% set s = standard_players.get(raum, []) | select('in', players) | list %}
-        {{ s if s else players }}
+        {% set s = standard_players.get(room, []) | select('in', use_players) | list %}
+        {{ s if s else use_players }}
   - choose:
       - conditions: "{{ target.startswith('scene.') }}"
         sequence:
           - action: scene.turn_on
             target: { entity_id: "{{ target }}" }
-      - conditions: "{{ target == 'lights_off' and lights | count > 0 }}"
+      - conditions: "{{ target == 'lights_off' and use_lights | count > 0 }}"
         sequence:
           - action: homeassistant.turn_off
-            target: { entity_id: "{{ lights }}" }
-      - conditions: "{{ target == 'lights_on' and lights | count > 0 }}"
+            target: { entity_id: "{{ use_lights }}" }
+      - conditions: "{{ target == 'lights_on' and use_lights | count > 0 }}"
         sequence:
           - action: homeassistant.turn_on
-            target: { entity_id: "{{ lights }}" }
+            target: { entity_id: "{{ use_lights }}" }
   - choose:
-      - conditions: "{{ todo in ['room_off', 'music_stop'] and players | count > 0 }}"
+      - conditions: "{{ todo in ['room_off', 'music_stop'] and use_players | count > 0 }}"
         sequence:
           - action: media_player.media_stop
             continue_on_error: true
-            target: { entity_id: "{{ players }}" }
+            target: { entity_id: "{{ use_players }}" }
       - conditions: "{{ todo == 'music_play' or (todo == 'music_toggle' and playing | count == 0) }}"
         sequence:
           - condition: template

@@ -192,6 +192,85 @@ function areaEntities(hass, areaId, hidden) {
 
 const CARDS = [];
 const DOUBLE = {};  // script → {keys: keys with an action for „twice“, ms: waiting time}
+/* English names for the card's options (YAML in English or German – both work; inside the card the German ones). */
+const OPT_EN = { off_buttons: "aus_schalter", music_off: "musik_aus", off_with_outside: "aus_mit_aussen", orientation: "ausrichtung",
+  compass: "kompass", other_floors: "andere_geschosse", neighbour_margin: "nachbar_rand" };
+const ROOM_EN = { light: "licht", lights: "licht", main_light: "hauptlicht", presence: "praesenz", motion: "bewegung", temperature: "temp",
+  window: "fenster", windows: "fenster", shade: "beschattung", shades: "beschattung", music: "musik", light_colour: "lichtfarbe", light_color: "lichtfarbe" };
+const FOLLOW_EN = { type: "art", template: "vorlage", view: "ansicht", room: "raum", ble_last: "ble_letzter", max_age: "max_alter" };
+const VAL_EN = { location: "standort", fixed: "fest", floor: "stockwerk", both: "beide", all: "alle", axis: "achse", north: "norden", site: "grundstueck" };
+const renameKeys = (o, map) => {
+  if (!o || typeof o !== "object" || Array.isArray(o)) return o;
+  const out = {};
+  Object.keys(o).forEach((k) => { out[map[k] || k] = o[k]; });
+  return out;
+};
+const val = (v) => (typeof v === "string" && VAL_EN[v] ? VAL_EN[v] : v);
+/* The config with the English names turned into the German ones the card uses. */
+function normConfig(c) {
+  c = renameKeys(c, OPT_EN);
+  if (c.ausrichtung) c.ausrichtung = val(c.ausrichtung);
+  if (c.start === "site") c.start = "grundstueck";
+  if (c.aus_schalter && typeof c.aus_schalter === "object") {
+    const a = {};
+    Object.keys(c.aus_schalter).forEach((k) => { a[k] = val(c.aus_schalter[k]); });
+    c.aus_schalter = a;
+  }
+  if (c.rooms && typeof c.rooms === "object") {
+    const r = {};
+    Object.keys(c.rooms).forEach((k) => { r[k] = renameKeys(c.rooms[k], ROOM_EN); });
+    c.rooms = r;
+  }
+  if (c.follow && typeof c.follow === "object" && !Array.isArray(c.follow)) {
+    const f = {};
+    Object.keys(c.follow).forEach((k) => {
+      const e = renameKeys(c.follow[k], FOLLOW_EN);
+      if (e && e.art) e.art = val(e.art);
+      if (e && e.ansicht === "site") e.ansicht = "grundstueck";
+      f[k] = e;
+    });
+    c.follow = f;
+  }
+  if (c.site && typeof c.site === "object") {
+    const st = renameKeys(c.site, { orientation: "ausrichtung" });
+    if (st.ausrichtung) st.ausrichtung = val(st.ausrichtung);
+    if (Array.isArray(st.areas)) st.areas = st.areas.map((a) => renameKeys(a, ROOM_EN));
+    c.site = st;
+  }
+  return c;
+}
+/* Does a config use the English names? (the card editor then writes English as well) */
+const usesEnglish = (c) => !!c && (Object.keys(c).some((k) => OPT_EN[k]) ||
+  Object.keys(c.follow && typeof c.follow === "object" ? c.follow : {}).some((k) => c.follow[k] && (c.follow[k].type || c.follow[k].template)) ||
+  Object.keys(c.rooms && typeof c.rooms === "object" ? c.rooms : {}).some((k) => c.rooms[k] && ROOM_EN[Object.keys(c.rooms[k])[0]]));
+/* … and back, for the card editor */
+function toEnglish(c) {
+  const inv = (m) => { const o = {}; Object.keys(m).forEach((k) => { if (!o[m[k]]) o[m[k]] = k; }); return o; };
+  const iv = inv(VAL_EN), v2 = (v) => (typeof v === "string" && iv[v] ? iv[v] : v);
+  c = renameKeys(c, inv(OPT_EN));
+  if (c.orientation) c.orientation = v2(c.orientation);
+  if (c.start === "grundstueck") c.start = "site";
+  if (c.off_buttons && typeof c.off_buttons === "object") { const a = {}; Object.keys(c.off_buttons).forEach((k) => { a[k] = v2(c.off_buttons[k]); }); c.off_buttons = a; }
+  const rInv = { licht: "light", hauptlicht: "main_light", praesenz: "presence", bewegung: "motion", temp: "temperature", fenster: "windows", beschattung: "shades", musik: "music", lichtfarbe: "light_colour" };
+  if (c.rooms && typeof c.rooms === "object") { const r = {}; Object.keys(c.rooms).forEach((k) => { r[k] = renameKeys(c.rooms[k], rInv); }); c.rooms = r; }
+  if (c.follow && typeof c.follow === "object" && !Array.isArray(c.follow)) {
+    const f = {};
+    Object.keys(c.follow).forEach((k) => {
+      const e = renameKeys(c.follow[k], inv(FOLLOW_EN));
+      if (e && e.type) e.type = v2(e.type);
+      if (e && e.view === "grundstueck") e.view = "site";
+      f[k] = e;
+    });
+    c.follow = f;
+  }
+  return c;
+}
+
+/* Events: the card's own names → the script's (English) names, and back */
+const EV_EN = { hoch: "up", runter: "down", lauter: "wheel_up", leiser: "wheel_down", gelb: "yellow", play: "play", pause: "pause",
+  play_pause: "play_pause", stop: "stop", weiter: "next", zurueck: "previous", blau: "blue", gruen: "green", rot: "red", tipp2: "double_tap", tipp3: "triple_tap" };
+const EV_DE = {};
+Object.keys(EV_EN).forEach((k) => { EV_DE[EV_EN[k]] = k; });
 /* Remote keys → aktion for the script: the TV Streamer's names (tv-streamer-key) and the browser's media keys */
 const TV_KEYS = { blue: "blau", green: "gruen", red: "rot", yellow: "gelb", play: "play", pause: "pause", stop: "stop",
   next: "weiter", previous: "zurueck" };
@@ -459,7 +538,8 @@ class FloorplanLiteCard extends HTMLElement {
 
   setConfig(config) {
     if (!config) throw new Error("config missing");
-    this._config = Object.assign({}, config);
+    this._config = normConfig(JSON.parse(JSON.stringify(config)));
+    config = this._config;
     this._refs = null;
     this._sig = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
@@ -1273,18 +1353,23 @@ class FloorplanLiteCard extends HTMLElement {
   _double() {
     const sc = this._scriptName(), c = DOUBLE[sc] || (DOUBLE[sc] = { at: 0 }), h = this._hass;
     const svc = h && h.services && h.services.script && h.services.script[sc];
-    if (svc && svc.fields && svc.fields.lichter && !c.busy && Date.now() - c.at > 60000) {
+    const en = !!(svc && svc.fields && svc.fields.lights);
+    if (svc && svc.fields && (svc.fields.lichter || en) && !c.busy && Date.now() - c.at > 60000) {
       c.busy = true;
-      h.callWS({ type: "call_service", domain: "script", service: sc, service_data: { aktion: "config" }, return_response: true })
+      h.callWS({ type: "call_service", domain: "script", service: sc, service_data: en ? { event: "config" } : { aktion: "config" }, return_response: true })
         .then((r) => {
           const a = r && r.response;
-          if (a && Array.isArray(a.double)) { c.keys = a.double; c.ms = Math.max(150, Math.min(1500, +a.ms || 400)); }
+          if (a && Array.isArray(a.double)) { c.keys = a.double.map((k) => (en ? EV_DE[k] || k : k)); c.ms = Math.max(150, Math.min(1500, +a.ms || 400)); }
         })
         .catch(() => { /* older script: keep the default */ })
         .then(() => { c.busy = false; c.at = Date.now(); });
     }
     return c.keys ? c : { keys: ["gelb"], ms: 500 };
   }
+
+  /* The script speaks English (room, event, lights, players; up, wheel_up, yellow_twice …); a script from an older
+     blueprint (field „lichter“) still gets the German names. Inside the card the German names stay. */
+  _scriptEn() { const s = this._hass && this._hass.services && this._hass.services.script && this._hass.services.script[this._scriptName()]; return !!(s && s.fields && s.fields.lights); }
 
   _scriptName() { return String(this._config.script || "raum_klick").replace(/^script\./, ""); }
 
@@ -1299,7 +1384,11 @@ class FloorplanLiteCard extends HTMLElement {
     if (svc.script && svc.script[sc]) {  // with the room's lights and players from the plan, so the script needs no guessing
       const pr = (this._info || {})[room];
       const lights = (r.licht || []).concat(r.hauptlicht && (r.licht || []).indexOf(r.hauptlicht) < 0 ? [r.hauptlicht] : []).filter(ok);
-      this._hass.callService("script", sc, { raum: (pr && pr.area) || room, aktion: aktion, lichter: lights, player: players });
+      const area = (pr && pr.area) || room;
+      if (this._scriptEn()) {
+        const tw = /2$/.test(aktion) && EV_EN[aktion.slice(0, -1)], ev = tw ? tw + "_twice" : EV_EN[aktion] || aktion;
+        this._hass.callService("script", sc, { room: area, event: ev, lights: lights, players: players });
+      } else this._hass.callService("script", sc, { raum: area, aktion: aktion, lichter: lights, player: players });
       return true;
     }
     if (aktion !== "play" && aktion !== "pause") return false;
@@ -1728,7 +1817,9 @@ class FloorplanLiteCard extends HTMLElement {
     const out = {}, h = this._hashState();
     let q = null;
     try { q = new URLSearchParams(location.search); } catch (e) { q = null; }
-    ["raum", "ansicht", "geraet"].forEach((k) => { const v = (q && q.get(k)) || h[k]; if (v) out[k] = v; });
+    const al = { raum: "room", ansicht: "view", geraet: "device" };  // English names work as well
+    ["raum", "ansicht", "geraet"].forEach((k) => { const v = (q && (q.get(k) || q.get(al[k]))) || h[k] || h[al[k]]; if (v) out[k] = v; });
+    if (out.ansicht === "site") out.ansicht = "grundstueck";
     if (out.geraet) { try { localStorage.setItem("floorplan_geraet", out.geraet); } catch (e) { /* private mode */ } }
     return out;
   }
@@ -1826,7 +1917,7 @@ class FloorplanLiteCard extends HTMLElement {
     this._hass.connection.subscribeMessage((m) => {
       const r = m && m.result !== undefined && m.result !== null ? String(m.result).trim() : "";
       if (r !== this._tplResult) { this._tplResult = r; this._applyStart("tpl"); }
-    }, { type: "render_template", template: f.vorlage, variables: { benutzer: u.name || "", geraet: this._geraet() } })
+    }, { type: "render_template", template: f.vorlage, variables: { benutzer: u.name || "", geraet: this._geraet(), user: u.name || "", device: this._geraet() } })
       .then((un) => { if (this._tplKey === key) this._tplUnsub = un; else un(); })
       .catch(() => { /* template error: no start view from it */ });
   }
@@ -2162,7 +2253,7 @@ const ED = {
     praesenz: "Präsenz", bewegung: "Bewegung", fenster: "Fenster", beschattung: "Beschattung", temp: "Temperatur",
     user: "Benutzer", art: "Art", standort: "Standort (folgen)", fest: "Fest", geofence: "Geofence (person / device_tracker / binary_sensor)",
     ble: "Bluetooth-Bereich (z. B. Bermuda), mehrere möglich", ble_letzter: "Letzter Bluetooth-Bereich", max_alter: "Letzter Bereich höchstens (Minuten)",
-    ansicht: "Ansicht", raum: "Raum (mit Markierung)", vorlage: "Vorlage (liefert Raum oder Ansicht; Variablen benutzer, geraet)",
+    ansicht: "Ansicht", raum: "Raum (mit Markierung)", vorlage: "Vorlage (liefert Raum oder Ansicht; Variablen benutzer und geraet, englisch user und device)",
     preview: "Vorschau für Gerät", result: "Ergebnis",
     sstart: "Startansicht", show: "Nur diese Gebäude zeigen (eines = ohne Grundstücksebene)", follow_floor: "Beim Folgen auch das Stockwerk wechseln", ausrichtung: "Gebäudeansichten ausrichten", kompass: "Windrose zeigen",
     oSite: "wie im Grundstück", oAxis: "an der Hauptachse des Gebäudes", oNorth: "Norden oben",
@@ -2174,7 +2265,7 @@ const ED = {
     labelHint: "Gebäudenamen ziehen, um das Badge zu verschieben; Doppelklick setzt es zurück. Ecken von Außenbereichen ziehen (mit Punktfang), Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie.", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
     gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Außenbereich: Klicken setzt Punkte – sie fangen Ecken und Kanten von Gebäuden und Außenbereichen, sonst 45°-Schritte und 0,25-m-Raster (Umschalt: frei). Doppelklick oder Klick auf den ersten Punkt schließt, Esc bricht ab.",
     dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab, Rad = zoomen, freie Fläche ziehen = Ansicht verschieben.",
-    params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
+    params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst). Englisch auch ?room=, ?view=site, ?device=.",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
     start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines",
@@ -2199,7 +2290,7 @@ const ED = {
     praesenz: "Presence", bewegung: "Motion", fenster: "Windows", beschattung: "Shades", temp: "Temperature",
     user: "User", art: "Kind", standort: "Location (follow)", fest: "Fixed", geofence: "Geofence (person / device_tracker / binary_sensor)",
     ble: "Bluetooth area (e.g. Bermuda), several allowed", ble_letzter: "Last Bluetooth area", max_alter: "Last area at most (minutes)",
-    ansicht: "View", raum: "Room (marked)", vorlage: "Template (returns a room or a view; variables benutzer, geraet)",
+    ansicht: "View", raum: "Room (marked)", vorlage: "Template (returns a room or a view; variables user and device – German benutzer, geraet)",
     preview: "Preview for device", result: "Result",
     sstart: "Start view", show: "Show only these buildings (one = without the site level)", follow_floor: "Following also changes the level", ausrichtung: "Align building views", kompass: "Show compass rose",
     oSite: "as set in the site", oAxis: "along the building's main axis", oNorth: "north up",
@@ -2211,7 +2302,7 @@ const ED = {
     labelHint: "Drag a building name to move its badge; double-click resets it. Drag corners of areas (with snapping); double-click an edge adds a corner, a corner removes it.", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
     gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points – they snap to corners and edges of buildings and areas, else 45° steps and a 0.25 m grid (Shift: free). A double click or a click on the first point closes, Esc cancels.",
     dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales, wheel zooms, dragging empty space pans.",
-    params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own).",
+    params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own). English names work too: ?room=, ?view=site, ?device=.",
     notDrawn: "not drawn yet", loading: "loading …" },
 };
 
@@ -2915,7 +3006,8 @@ FloorplanLiteSiteEditor.styles = `
 class FloorplanLiteCardEditor extends HTMLElement {
   setConfig(config) {
     const reload = !this._config || this._config.plan !== config.plan;
-    this._config = JSON.parse(JSON.stringify(config || {}));
+    this._en = usesEnglish(config);  // the YAML uses the English names: the editor keeps them
+    this._config = normConfig(JSON.parse(JSON.stringify(config || {})));
     if (reload && this._hass) this._loadPlan(); else this._render();
   }
 
@@ -2974,7 +3066,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
 
   _emit(c) {
     this._config = c;
-    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: JSON.parse(JSON.stringify(c)) }, bubbles: true, composed: true }));
+    const out = JSON.parse(JSON.stringify(c));
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._en ? toEnglish(out) : out }, bubbles: true, composed: true }));
   }
 
   _sel(options, extra) { return { select: Object.assign({ mode: "dropdown", options: options }, extra || {}) }; }
@@ -3269,7 +3362,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       done = true;
       out.textContent = m && m.result !== undefined ? String(m.result) : "?";
       if (un) un();
-    }, { type: "render_template", template: u.vorlage, variables: { benutzer: u.user, geraet: dev || "" } })
+    }, { type: "render_template", template: u.vorlage, variables: { benutzer: u.user, geraet: dev || "", user: u.user, device: dev || "" } })
       .then((x) => { un = x; if (done) x(); })
       .catch((e) => { out.textContent = (e && e.message) || "?"; });
   }

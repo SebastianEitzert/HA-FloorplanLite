@@ -37,9 +37,9 @@ und CSS, kein WebGL, kein Framework.
 Tippen auf einen Raum öffnet das [Bubble-Card](https://github.com/Clooos/Bubble-Card)-Pop-up mit dem Hash `#<raum>`.
 ←/→ wechseln das Stockwerk. Alles andere über einem Raum – ↑/↓, Mausrad, Rechtsklick (LG-Fernbedienung: Gelb) ein- oder
 zweimal, Medientasten, die Farb- und Wiedergabetasten des [TV Streamers](https://github.com/SebastianEitzert/TV-Streamer),
-Doppel-/Dreifachtippen – geht an ein Skript (Kartenoption `script`, Standard `script.raum_klick`) mit `raum` (Bereich des
-Raums), `aktion` (`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `play`, `pause`, `play_pause`, `stop`, `weiter`,
-`zurueck`, `blau`, `gruen`, `rot`, `tipp2`, `tipp3` und `…2` für zweimal gedrückt) sowie `lichter` und `player` des Raums. Was passiert, entscheidet das Skript.
+Doppel-/Dreifachtippen – geht an ein Skript (Kartenoption `script`, Standard `script.raum_klick`) mit `room` (Bereich des
+Raums), `event` (`up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`, `next`,
+`previous`, `blue`, `green`, `red`, `double_tap`, `triple_tap` und `…_twice` für zweimal gedrückt) sowie `lights` und `players` des Raums. Was passiert, entscheidet das Skript.
 
 Die Integration bringt dafür eine Vorlage mit: *Einstellungen → Automationen & Szenen → Blueprints → **Floorplan Lite –
 keys, clicks and wheel over a room** → Skript erstellen* und als `script.raum_klick` speichern. Je Ereignis wählst du:
@@ -219,8 +219,8 @@ zeigt die Ecken aller Bereiche zum Ziehen (Gebäude bleiben stehen); *Bearbeiten
 
 ## Skript-Vorlage (Tasten, Klicks, Mausrad)
 
-Die Karte schickt jede Taste, jeden Klick, jeden Radschritt und jedes Tippen über einem Raum an ein Skript – mit `raum`
-(Bereich), `aktion`, `lichter` und `player`. Die Integration installiert dafür eine Blueprint-Vorlage (mit jedem Release
+Die Karte schickt jede Taste, jeden Klick, jeden Radschritt und jedes Tippen über einem Raum an ein Skript – mit `room`
+(Bereich), `event`, `lights` und `players`. Die Integration installiert dafür eine Blueprint-Vorlage (mit jedem Release
 aktualisiert):
 
 1. *Einstellungen → Automationen & Szenen → Blueprints → **Floorplan Lite – keys, clicks and wheel over a room** →
@@ -235,15 +235,15 @@ Musik Stopp), `music_play`, `music_pause`, `music_toggle`, `music_stop`, `volume
 
 | Einstellung | Standard | Bedeutung |
 |---|---|---|
-| `hoch` / `runter` | Szene weiter / zurück | ↑ / ↓ – Pfeiltasten der Tastatur, Steuerkreuz der TV-Fernbedienung (Zeiger über einem Raum) |
-| `lauter` / `leiser` | lauter / leiser | Mausrad, Rad der Magic Remote |
-| `gelb` | nichts | Rechtsklick, LG-Taste Gelb |
+| `up` / `down` | Szene weiter / zurück | ↑ / ↓ – Pfeiltasten der Tastatur, Steuerkreuz der TV-Fernbedienung (Zeiger über einem Raum) |
+| `wheel_up` / `wheel_down` | lauter / leiser | Mausrad, Rad der Magic Remote |
+| `yellow` | nichts | Rechtsklick, LG-Taste Gelb |
 | `play`, `pause`, `play_pause`, `stop` | Start, Pause, Start/Pause, Stopp | Medientasten von TV-Fernbedienung / PC-Tastatur |
-| `weiter`, `zurueck` | Titel weiter / zurück | Titeltasten der PC-Tastatur |
-| `blau`, `gruen`, `rot` | nichts | LG-Farbtasten über den TV Streamer – Blau lädt beim Streamer zusätzlich neu, Grün hat dort eine eigene Funktion, Rot öffnet das Moonlight-Menü |
-| `tipp2`, `tipp3` | Licht an/aus, Raum aus | Doppel- / Dreifachtippen auf einem Touchscreen |
-| `double_ms` | 400 ms | Wartezeit auf den zweiten Druck – nur bei Tasten, deren `…2` nicht `nothing` ist |
-| `hoch2` … `rot2` | `gelb2` Raum aus, `play2` nächster Titel, sonst nichts | dieselbe Taste zweimal; eine Taste mit Aktion hier führt ihre Einzelaktion erst nach der Wartezeit aus |
+| `next`, `previous` | Titel weiter / zurück | Titeltasten der PC-Tastatur |
+| `blue`, `green`, `red` | nichts | LG-Farbtasten über den TV Streamer – Blau lädt beim Streamer zusätzlich neu, Grün hat dort eine eigene Funktion, Rot öffnet das Moonlight-Menü |
+| `double_tap`, `triple_tap` | Licht an/aus, Raum aus | Doppel- / Dreifachtippen auf einem Touchscreen |
+| `double_ms` | 400 ms | Wartezeit auf den zweiten Druck – nur bei Tasten, deren `…_twice` nicht `nothing` ist |
+| `up_twice` … `red_twice` | `yellow_twice` Raum aus, `play_twice` nächster Titel, sonst nichts | dieselbe Taste zweimal; eine Taste mit Aktion hier führt ihre Einzelaktion erst nach der Wartezeit aus |
 | `volume_mode` | nur bei laufender Musik | lauter / leiser ändern nur spielende Player oder immer |
 | `standard_players` | `{}` | `{bereich: [media_player…]}` – Play startet diese, wenn nichts läuft (ohne: alle Player des Raums) |
 | `players_plan_always` | an | im Grundriss eingetragene Player zählen immer; aus = die Listen unten filtern sie auch |
@@ -258,9 +258,9 @@ Musik Stopp), `music_play`, `music_pause`, `music_toggle`, `music_stop`, `volume
 | `lights_allow_integrations` / `_labels` | leer | nicht leer: nur Bereichs-Lichter dieser Integrationen (`loxone`, `shelly`, `hue`, `template`, `group` …) / Labels zählen – Schalter des Bereichs zählen, wenn sie ein erlaubtes Label tragen |
 | `lights_block_integrations` / `_labels` | leer | diese schalten nie und halten den Raum nie „an“ (z. B. Status-LEDs) |
 
-**Felder, die die Karte schickt:** `raum` (Bereichs-ID), `aktion` (Ereignisname, `…2` für zweimal, oder `config` – das
-Skript antwortet, welche Tasten zweimal nutzen und `double_ms`; die Karte fragt höchstens einmal pro Minute), `lichter`
-und `player` (die Entitäten des Raums aus dem Plan; leer = das Skript nimmt die des Bereichs, gefiltert). Modus
+**Felder, die die Karte schickt:** `room` (Bereichs-ID), `event` (Ereignisname, `…_twice` für zweimal, oder `config` – das
+Skript antwortet, welche Tasten zweimal nutzen und `double_ms`; die Karte fragt höchstens einmal pro Minute), `lights`
+und `players` (die Entitäten des Raums aus dem Plan; leer = das Skript nimmt die des Bereichs, gefiltert). Modus
 `parallel`, höchstens 10 gleichzeitig.
 
 **Abhängigkeiten:** Für die Szenen-Aktionen braucht es Szenen (sonst Licht an/aus); `off_names` / `first_names` /
@@ -415,6 +415,30 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
+
+## Englische und deutsche Namen
+
+Jede Option kann englisch oder deutsch geschrieben werden – beides funktioniert, auch gemischt; der Karten-Editor
+behält die Sprache deines YAML bei (neue Karten: deutsch). Die Skript-Vorlage ist nur englisch (Felder `room`, `event`,
+`lights`, `players`; Ereignisse `up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`,
+`next`, `previous`, `blue`, `green`, `red`, `double_tap`, `triple_tap`, zweimal gedrückt mit `_twice`).
+
+| Deutsch | Englisch | | Deutsch | Englisch |
+|---|---|---|---|---|
+| `aus_schalter` | `off_buttons` | | `licht` | `light` |
+| `musik_aus` | `music_off` | | `hauptlicht` | `main_light` |
+| `aus_mit_aussen` | `off_with_outside` | | `praesenz` | `presence` |
+| `ausrichtung` | `orientation` | | `bewegung` | `motion` |
+| `kompass` | `compass` | | `temp` | `temperature` |
+| `andere_geschosse` | `other_floors` | | `fenster` | `windows` |
+| `nachbar_rand` | `neighbour_margin` | | `beschattung` | `shades` |
+| `follow.<benutzer>.art` | `type` | | `musik` | `music` |
+| `vorlage` | `template` | | `lichtfarbe` | `light_colour` |
+| `ansicht` | `view` | | Werte `standort` / `fest` | `location` / `fixed` |
+| `raum` | `room` | | `stockwerk` / `beide` / `alle` | `floor` / `both` / `all` |
+| `ble_letzter` | `ble_last` | | `achse` / `norden` | `axis` / `north` |
+| `max_alter` | `max_age` | | `grundstueck` (Startansicht) | `site` |
+| Vorlagen-Variablen `benutzer`, `geraet` | `user`, `device` | | Adresse `?raum=`, `?ansicht=`, `?geraet=` | `?room=`, `?view=`, `?device=` |
 
 ## Probleme und Lösungen
 

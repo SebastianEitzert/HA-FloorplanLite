@@ -23,7 +23,7 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 
 | | |
 |---|---|
-| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. With a **main light** per room (`hauptlicht`) only the main light fills the room and all other lights glow as the seam – main light off and others on: just the seam, the middle stays dark. White light reported as RGB (warm white from RGBW controllers) counts as white. Switches can be chosen as lights or main light by hand; lights and switches without a colour of their own glow in the room's *light colour* (warm white, neutral, cold, amber or a colour of your own). |
+| **Light** | The room fills softly in the light colour (colour temperature or RGB), brightness = strength. The light shines slightly through the walls into neighbouring rooms. Coloured LEDs next to white light glow as a seam along the walls. With a **main light** per room (`main_light`) only the main light fills the room and all other lights glow as the seam – main light off and others on: just the seam, the middle stays dark. White light reported as RGB (warm white from RGBW controllers) counts as white. Switches can be chosen as lights or main light by hand; lights and switches without a colour of their own glow in the room's *light colour* (warm white, neutral, cold, amber or a colour of your own). |
 | **Presence** | a calmly breathing dot (blue-violet) |
 | **Motion** | an aqua dot with ripples up to the walls |
 | **Temperature** | from a `climate` entity (current temperature) or a sensor |
@@ -36,9 +36,9 @@ music appear right in the room. It runs smoothly on old tablets, TV browsers and
 Tap a room to open the [Bubble Card](https://github.com/Clooos/Bubble-Card) pop-up with the hash `#<room>`.
 ←/→ switch the level. Everything else over a room – ↑/↓, mouse wheel, right click (LG remote: yellow) once or twice,
 media keys, the [TV Streamer](https://github.com/SebastianEitzert/TV-Streamer)'s colour and play keys, double / triple
-tap – goes to a script (card option `script`, default `script.raum_klick`) with `raum` (the room's area), `aktion`
-(`hoch`, `runter`, `lauter`, `leiser`, `gelb`, `play`, `pause`, `play_pause`, `stop`, `weiter`, `zurueck`,
-`blau`, `gruen`, `rot`, `tipp2`, `tipp3`, and `…2` for a key pressed twice) and the room's `lichter` and `player`.
+tap – goes to a script (card option `script`, default `script.raum_klick`) with `room` (the room's area), `event`
+(`up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`, `next`, `previous`,
+`blue`, `green`, `red`, `double_tap`, `triple_tap`, and `…_twice` for a key pressed twice) and the room's `lights` and `players`.
 The script decides what happens.
 
 The integration installs a blueprint for it: *Settings → Automations & scenes → Blueprints → **Floorplan Lite – keys,
@@ -84,14 +84,14 @@ scroll_keys: true    # optional: ↑/↓ scroll the page (default: no – the wh
 intro: false          # optional: no build-up animation
 rooms:                # optional: entities per room – override the ones stored with the plan
   kitchen:
-    licht: [light.kitchen_ceiling, light.kitchen_strip]
-    hauptlicht: light.kitchen_ceiling   # optional: fills the room, the other lights only as a seam
-    praesenz: [binary_sensor.kitchen_presence]
-    bewegung: [binary_sensor.kitchen_motion]
+    light: [light.kitchen_ceiling, light.kitchen_strip]
+    main_light: light.kitchen_ceiling   # optional: fills the room, the other lights only as a seam
+    presence: [binary_sensor.kitchen_presence]
+    motion: [binary_sensor.kitchen_motion]
     temp: climate.kitchen
-    fenster: [binary_sensor.kitchen_window]
-    beschattung: [cover.kitchen_blinds]
-    musik: [media_player.kitchen]
+    windows: [binary_sensor.kitchen_window]
+    shades: [cover.kitchen_blinds]
+    music: [media_player.kitchen]
 ```
 
 ### Card options – complete reference
@@ -100,14 +100,14 @@ rooms:                # optional: entities per room – override the ones stored
 |---|---|---|
 | `plan` | plan or site id | the stored plan; a site switches the card to site mode (see *Site*) |
 | `mode` | `swipe` / – (all levels side by side) | `swipe`: one level large, change with swipe, tabs, ←/→ |
-| `start` | level id (first level) | first level in `swipe`; in a site: `grundstueck`, `<plan>`, `<plan>:<level>` or a room |
+| `start` | level id (first level) | first level in `swipe`; in a site: `site`, `<plan>`, `<plan>:<level>` or a room |
 | `floors` | list of level ids (all) | only these levels, in this order |
 | `building` | building part id | only this building part of the plan (the plan's `buildings`) |
 | `background` | `false` (shown) | hides all background images |
 | `align` | `true` / `false` (plan's `align_levels`) | all levels in one frame – upper levels stay above the lower ones when swiping |
-| `ausrichtung` | `achse` / `norden` (plan / site setting) | `norden` turns plan or building views so north is up; `achse` keeps the drawing's own axis |
-| `kompass` | `false` (shown) | hides the compass rose |
-| `andere_geschosse` | `true` (`false`) | outer walls of the other levels as faint dashed helper lines – e.g. the attic shows where the ground floor ends; with `align: true` all levels share one frame so the lines are fully in view |
+| `orientation` | `axis` / `north` (plan / site setting) | `north` turns plan or building views so north is up; `axis` keeps the drawing's own axis |
+| `compass` | `false` (shown) | hides the compass rose |
+| `other_floors` | `true` (`false`) | outer walls of the other levels as faint dashed helper lines – e.g. the attic shows where the ground floor ends; with `align: true` all levels share one frame so the lines are fully in view |
 | `tap` | `none` (pop-up + script) | `none`: no pop-up on tap and no events to the script |
 | `script` | script entity (`script.raum_klick`) | receives keys, clicks, wheel and taps over a room (see *Script blueprint*) |
 | `scroll_keys` | `true` (`false`) | ↑/↓ also scroll the page – only for remotes without a wheel |
@@ -116,22 +116,22 @@ rooms:                # optional: entities per room – override the ones stored
 | `rooms` | `{<room key>: {…}}` | entities per room, override the ones stored in the plan – keys in the next table |
 | `site` | object | a site written into the card (wins over a stored one); also `site.show` |
 | `site_title` | text | title of the site level |
-| `follow`, `follow_floor`, `follow_hold`, `nachbar_rand`, `buttons`, `aus_schalter`, `musik_aus`, `aus_mit_aussen` | | site options, see *Site* |
+| `follow`, `follow_floor`, `follow_hold`, `neighbour_margin`, `buttons`, `off_buttons`, `music_off`, `off_with_outside` | | site options, see *Site* |
 | `plan_data` / `plans_data` | plan JSON | a plan (or plans by id) inline instead of the stored ones – for tests and sharing |
 
 **Entities per room** (`rooms.<key>` in the card, or in the editor's side panel – the same keys):
 
 | Key | Entities | Shown as / used for |
 |---|---|---|
-| `licht` | lights, switches (list) | light fill and seam; script „light on/off“ and scenes' „room on“ |
-| `hauptlicht` | one light or switch | fills the room alone, the others only glow as the seam |
-| `lichtfarbe` | `warm`, `neutral`, `cold`, `amber`, `red`, `green`, `blue`, `purple` or `#rrggbb` | colour for lights / switches without a colour of their own |
-| `praesenz` | binary_sensors | breathing dot |
-| `bewegung` | binary_sensors | dot with ripples |
+| `light` | lights, switches (list) | light fill and seam; script „light on/off“ and scenes' „room on“ |
+| `main_light` | one light or switch | fills the room alone, the others only glow as the seam |
+| `light_colour` | `warm`, `neutral`, `cold`, `amber`, `red`, `green`, `blue`, `purple` or `#rrggbb` | colour for lights / switches without a colour of their own |
+| `presence` | binary_sensors | breathing dot |
+| `motion` | binary_sensors | dot with ripples |
 | `temp` | climate or sensor | temperature in the label |
-| `fenster` | binary_sensors / covers | „window open“ chip (tilted dashed) |
-| `beschattung` | covers | „shade closed“ chip |
-| `musik` | media_players | equaliser chip; script music actions and volume; „off“ buttons |
+| `windows` | binary_sensors / covers | „window open“ chip (tilted dashed) |
+| `shades` | covers | „shade closed“ chip |
+| `music` | media_players | equaliser chip; script music actions and volume; „off“ buttons |
 
 Without entities a room with an `area` (and `area_live`) takes them from its Home Assistant area. Entities with a
 label from `hide_label` never count.
@@ -213,8 +213,8 @@ area shows all buildings, the lists are in the side panel. *Edit areas outside* 
 
 ## Script blueprint (keys, clicks, wheel)
 
-The card sends every key, click, wheel step and tap over a room to a script as `raum` (area), `aktion`, `lichter` and
-`player`. The integration installs a blueprint for it (updated with every release):
+The card sends every key, click, wheel step and tap over a room to a script as `room` (area), `event`, `lights` and
+`players`. The integration installs a blueprint for it (updated with every release):
 
 1. *Settings → Automations & scenes → Blueprints → **Floorplan Lite – keys, clicks and wheel over a room** → Create
    script*.
@@ -228,15 +228,15 @@ The card sends every key, click, wheel step and tap over a room to a script as `
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `hoch` / `runter` | next / previous scene | ↑ / ↓ – keyboard arrows, TV remote D-pad (pointer over a room) |
-| `lauter` / `leiser` | louder / quieter | mouse wheel, Magic Remote wheel |
-| `gelb` | nothing | right click, LG yellow key |
+| `up` / `down` | next / previous scene | ↑ / ↓ – keyboard arrows, TV remote D-pad (pointer over a room) |
+| `wheel_up` / `wheel_down` | louder / quieter | mouse wheel, Magic Remote wheel |
+| `yellow` | nothing | right click, LG yellow key |
 | `play`, `pause`, `play_pause`, `stop` | play, pause, play/pause, stop | media keys of the TV remote / PC keyboard |
-| `weiter`, `zurueck` | next / previous track | PC keyboard track keys |
-| `blau`, `gruen`, `rot` | nothing | LG colour keys through the TV Streamer – blue is also the streamer's reload, green its own function, red Moonlight's menu |
-| `tipp2`, `tipp3` | light on/off, room off | double / triple tap on a touch screen |
-| `double_ms` | 400 ms | waiting time for a second press – only for keys whose `…2` is not `nothing` |
-| `hoch2` … `rot2` | `gelb2` room off, `play2` next track, others nothing | the same key pressed twice; a key with an action here runs its single action only after the waiting time |
+| `next`, `previous` | next / previous track | PC keyboard track keys |
+| `blue`, `green`, `red` | nothing | LG colour keys through the TV Streamer – blue is also the streamer's reload, green its own function, red Moonlight's menu |
+| `double_tap`, `triple_tap` | light on/off, room off | double / triple tap on a touch screen |
+| `double_ms` | 400 ms | waiting time for a second press – only for keys whose `…_twice` is not `nothing` |
+| `up_twice` … `red_twice` | `yellow_twice` room off, `play_twice` next track, others nothing | the same key pressed twice; a key with an action here runs its single action only after the waiting time |
 | `volume_mode` | only while playing | louder / quieter only change players that play, or always |
 | `standard_players` | `{}` | `{area: [media_player…]}` – play starts these when nothing plays (without: all players of the room) |
 | `players_plan_always` | on | players entered in the floor plan always count; off = the lists below filter them too |
@@ -251,8 +251,8 @@ The card sends every key, click, wheel step and tap over a room to a script as `
 | `lights_allow_integrations` / `_labels` | empty | not empty: only area lights of these integrations (`loxone`, `shelly`, `hue`, `template`, `group` …) / labels count – switches of the area count when they carry an allowed label |
 | `lights_block_integrations` / `_labels` | empty | these never switch and never keep the room „on“ (e.g. status LEDs) |
 
-**Fields the card sends:** `raum` (area id), `aktion` (event name, `…2` for twice, or `config` – the script answers
-which keys use twice and `double_ms`, the card asks at most once a minute), `lichter` and `player` (the room's entities
+**Fields the card sends:** `room` (area id), `event` (event name, `…_twice` for twice, or `config` – the script answers
+which keys use twice and `double_ms`, the card asks at most once a minute), `lights` and `players` (the room's entities
 from the plan; empty = the script uses the area's, filtered). Mode `parallel`, at most 10 at once.
 
 **Dependencies:** scenes are needed for the scene actions (otherwise light on/off); `off_names` / `first_names` /
@@ -297,20 +297,20 @@ site:
     - id: front_yard        # Home Assistant area id = pop-up #front_yard
       name: Front yard
       poly: [[14, -2], [37, -2], [37, 12], [14, 12]]
-      licht: [light.yard]   # same fields as rooms: licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp
+      light: [light.yard]   # same fields as rooms: light, main_light, music, presence, motion, windows, shades, temp
   show: [ranch]             # optional: only these buildings – one = that building alone, without the site level
   raster: true              # optional: 5 m grid in the site view (for placing)
   site_background: {image: /local/site.jpg, x: -10, y: -10, width: 120, opacity: 0.6}
-start: grundstueck          # start view: grundstueck, <plan>, <plan>:<level> or a room
+start: site          # start view: site, <plan>, <plan>:<level> or a room
 follow:                     # per Home Assistant user (name or id)
-  Sebastian: {art: standort, geofence: person.sebastian, ble: [sensor.phone_area], ble_letzter: [sensor.phone_area_last_seen], max_alter: 30}
-  TV: {art: fest, vorlage: "{{ 'living_room' if geraet == 'living_room' else 'bedroom' }}"}
+  Sebastian: {type: location, geofence: person.sebastian, ble: [sensor.phone_area], ble_last: [sensor.phone_area_last_seen], max_age: 30}
+  TV: {type: fixed, template: "{{ 'living_room' if device == 'living_room' else 'bedroom' }}"}
 follow_floor: true          # following also changes the level (false: only the building)
 follow_hold: 120            # no jumps for 120 s after own navigation
-nachbar_rand: 0.15          # margin around a building in which areas outside are shown (15 %)
-aus_schalter: {site: true, home: alle, ranch: false}   # off buttons – values and examples below
-musik_aus: pause            # pause | stop | off
-aus_mit_aussen: false       # „building off“ includes the areas outside
+neighbour_margin: 0.15          # margin around a building in which areas outside are shown (15 %)
+off_buttons: {site: true, home: all, ranch: false}   # off buttons – values and examples below
+music_off: pause            # pause | stop | off
+off_with_outside: false       # „building off“ includes the areas outside
 buttons:                    # own buttons top left, per level, with the standard HA actions
   site:
     - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
@@ -318,7 +318,7 @@ buttons:                    # own buttons top left, per level, with the standard
     - {icon: mdi:cctv, name: Cameras, tap_action: {action: navigate, navigation_path: "#cameras"}}
 ```
 
-**Site keys** (stored by the site editor, or in the card's `site:`):
+**Site keys** (stored by the site editor, or in the card's `site:`; the editor stores the German names – `licht`, `ausrichtung` … –, both work):
 
 | Key | Values (default) | Effect |
 |---|---|---|
@@ -328,10 +328,10 @@ buttons:                    # own buttons top left, per level, with the standard
 | `buildings[].building` | building part id | only this part of the plan |
 | `buildings[].x`, `y`, `rotation`, `scale` | metres, degrees, factor (side by side, 0, 1) | position on the site; set by dragging, measure lines or alignment |
 | `buildings[].label_at` | `[x, y]` (middle) | where the badge sits – drag the name in the editor |
-| `areas[]` | `{id, name, area, poly, licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp, area_live}` | shared areas outside, work like rooms |
+| `areas[]` | `{id, name, area, poly, light, main_light, music, presence, motion, windows, shades, temp, area_live}` | shared areas outside, work like rooms |
 | `links[]` | `{plan, at, to, to_at, dx, dy}` | measure lines: corner `at` of `plan` sits at corner `to_at` of `to` + offset; 1 line = position, 2 = also turn |
 | `north` | degrees (0 = up) | north in the site view; building views get theirs from it and their rotation |
-| `ausrichtung` | `achse` / `norden` (`achse`) | building views along their own axis or north up (card option overrides) |
+| `orientation` | `axis` / `north` (`axis`) | building views along their own axis or north up (card option overrides) |
 | `raster` | `true` (`false`) | 5 m grid in the site view |
 | `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | background of the site (shared site plan) |
 | `show` | list of plan ids (all) | only these buildings; one = that building alone without the site level |
@@ -342,12 +342,12 @@ buttons:                    # own buttons top left, per level, with the standard
   ↑/↓ zoom in / out while the pointer is not over a room (over a room they stay the light scenes), ←/→ change the level.
 - **Site view:** every building on its `site_floor` with light, presence and motion, above each building a summary
   (lights on, windows open, music). Areas outside are shown completely; in a building's view the part next to it
-  (within `nachbar_rand`) – they work exactly like rooms (pop-up, script, wheel, keys).
-- **Start view:** the address wins (`?raum=<room>` or `?ansicht=<plan>[:<level>]` / `?ansicht=grundstueck`, also as
-  `#raum=…`), then the user's `follow` entry, then `start`. *Standort*: geofence not at home → site; otherwise the
-  newest Bluetooth area (e.g. Bermuda), else the last one if it is at most `max_alter` minutes old; „You are here“ marks
-  the room. *Fest*: a fixed view or room, or a template returning one (variables `benutzer`, `geraet`); `geraet` is the
-  TV Streamer's name (from 0.4.7) or set once with `?geraet=<name>`. Rooms and areas are found by room id, HA area id
+  (within `neighbour_margin`) – they work exactly like rooms (pop-up, script, wheel, keys).
+- **Start view:** the address wins (`?room=<room>` or `?view=<plan>[:<level>]` / `?view=site`, also as
+  `#room=…`), then the user's `follow` entry, then `start`. *location*: geofence not at home → site; otherwise the
+  newest Bluetooth area (e.g. Bermuda), else the last one if it is at most `max_age` minutes old; „You are here“ marks
+  the room. *fixed*: a fixed view or room, or a template returning one (variables `user`, `device`); `device` is the
+  TV Streamer's name (from 0.4.7) or set once with `?device=<name>`. Rooms and areas are found by room id, HA area id
   or area name.
 - **Off** (top right): „All off“ on the site, „<building> off“ in a building – lights and music of the rooms entered in
   the card that are on or playing; press twice within 3 s, a short note tells how many devices were switched.
@@ -366,23 +366,23 @@ buttons:
     - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
   ranch:
     - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stable_temperature}}
-aus_schalter:              # off buttons (top right) – key: site, <plan id> (building) or <plan id>:<level> (one floor, wins)
+off_buttons:              # off buttons (top right) – key: site, <plan id> (building) or <plan id>:<level> (one floor, wins)
   site: true                # site view: „All off“ (true = default, false = none)
   ranch: false              # no off button in the ranch
-  home: alle                # house: „House off“ + „House EG off“ + „House OG off“ + … (one per floor)
+  home: all                # house: „House off“ + „House EG off“ + „House OG off“ + … (one per floor)
   home:dg: false            # but none at all in the attic view
 ```
 
 | Value | Buttons in a building view |
 |---|---|
 | `true` / not set | „<building> off“ – the whole building |
-| `stockwerk` | „<building> OG off“ – only the rooms of the floor shown |
-| `beide` | „<building> off“ + „<building> OG off“ (the floor shown) |
-| `alle` | „<building> off“ + one button per floor („EG off“, „OG off“ …), on every floor |
+| `floor` | „<building> OG off“ – only the rooms of the floor shown |
+| `both` | „<building> off“ + „<building> OG off“ (the floor shown) |
+| `all` | „<building> off“ + one button per floor („EG off“, „OG off“ …), on every floor |
 | `false` | none |
 
 Every off button needs two presses within 3 s; it switches off the lights (lights, switches) and stops the music
-(`musik_aus`) of the rooms entered in the plan that are on or playing; areas outside only with `aus_mit_aussen: true`.
+(`music_off`) of the rooms entered in the plan that are on or playing; areas outside only with `off_with_outside: true`.
 In the card editor: *Off button per level*, a choice per building.
 
 ## Plan format
@@ -406,6 +406,28 @@ Coordinates are in metres; `y` points down. A plan has:
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
 | `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
+
+## English and German names
+
+Every option can be written in English or in German – both work, also mixed; the card editor keeps the language your
+YAML uses (new cards: German). The script blueprint uses English only.
+
+| English | German | | English | German |
+|---|---|---|---|---|
+| `off_buttons` | `aus_schalter` | | `light` | `licht` |
+| `music_off` | `musik_aus` | | `main_light` | `hauptlicht` |
+| `off_with_outside` | `aus_mit_aussen` | | `presence` | `praesenz` |
+| `orientation` | `ausrichtung` | | `motion` | `bewegung` |
+| `compass` | `kompass` | | `temperature` | `temp` |
+| `other_floors` | `andere_geschosse` | | `windows` | `fenster` |
+| `neighbour_margin` | `nachbar_rand` | | `shades` | `beschattung` |
+| `follow.<user>.type` | `art` | | `music` | `musik` |
+| `template` | `vorlage` | | `light_colour` | `lichtfarbe` |
+| `view` | `ansicht` | | values `location` / `fixed` | `standort` / `fest` |
+| `room` | `raum` | | `floor` / `both` / `all` | `stockwerk` / `beide` / `alle` |
+| `ble_last` | `ble_letzter` | | `axis` / `north` | `achse` / `norden` |
+| `max_age` | `max_alter` | | `site` (start view) | `grundstueck` |
+| template variables `user`, `device` | `benutzer`, `geraet` | | address `?room=`, `?view=`, `?device=` | `?raum=`, `?ansicht=`, `?geraet=` |
 
 ## Troubleshooting
 

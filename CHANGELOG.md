@@ -3,6 +3,14 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- **Script blueprint in English** (breaking for the script's own settings): fields `room`, `event`, `lights`, `players`;
+  events `up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`, `next`, `previous`,
+  `blue`, `green`, `red`, `double_tap`, `triple_tap`, twice with `_twice` (`yellow_twice` …). The card speaks to a script
+  from the new blueprint in English and to one from an older blueprint in German. Settings of an existing script made
+  from the blueprint (e.g. `gelb2`) have to be set again under their new names.
+- **English names for every card option, value, room entity key, follow entry, template variable and address
+  parameter** (`off_buttons`, `music_off`, `orientation: north`, `light`, `main_light`, `follow: {type: fixed, template}`,
+  `device`, `?room=` …) next to the German ones; the card editor keeps the language the YAML uses. README with a table.
 - Card option `andere_geschosse: true` (card editor: „Outer walls of the other levels as helper lines“): every level shows the outer walls of the other levels of the building as faint dashed lines, so the space between a smaller floor and the areas outside keeps a border.
 - Several off buttons in a building: `aus_schalter: {<plan>: beide}` (building + floor shown) or `alle` (building + one per floor, e.g. „House off“, „House EG off“, „House OG off“); README with all values and an example.
 - Off button per floor: `aus_schalter: {<plan>: stockwerk}` makes a building's off button switch only the floor shown („House OG off“); `<plan>:<level>` keys set single floors (`false` hides it there). In the card editor a choice per building: whole building / only the floor shown / none.

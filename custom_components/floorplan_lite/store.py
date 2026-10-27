@@ -175,6 +175,9 @@ SITE = vol.Schema(
         vol.Optional("areas", default=list): vol.All([SITE_AREA], vol.Length(max=100)),
         vol.Optional("site_background"): BACKGROUND,
         vol.Optional("raster", default=False): bool,
+        vol.Optional("boundary", default=list): vol.All(  # property line(s), open or closed
+            [vol.Schema({vol.Required("poly"): POLY, vol.Optional("closed", default=False): bool})], vol.Length(max=20)
+        ),
         vol.Optional("north", default=0): NUM,  # direction of north on the site (degrees, 0 = up)
         vol.Optional("ausrichtung"): vol.In(["achse", "norden"]),  # building views: along their own axis or north up
         vol.Optional("links", default=list): vol.All([SITE_LINK], vol.Length(max=60)),

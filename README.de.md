@@ -211,6 +211,7 @@ zeigt die Ecken aller Bereiche zum Ziehen (Gebäude bleiben stehen); *Bearbeiten
   Ecken eines Gebäudes auf zwei Punkte eines Lageplans, wahlweise mit Skalieren) – Platzieren nach einem gemeinsamen
   Lageplan.
 - *Maße anzeigen* (Lineal): Kantenlängen von Gebäuden und Außenbereichen; bleibt je Browser gespeichert.
+- *Grundstücksgrenze zeichnen* (Zaun): offen oder geschlossen (Klick auf den ersten Punkt), mehrere Linien möglich, Ecken bearbeitbar mit Punktfang wie bei Bereichen; in der Grundstücksansicht der Karte strichpunktiert, die Ansicht schließt sie ein.
 - *Außenbereich zeichnen*: gemeinsame Bereiche (Hof, Garten) mit HA-Bereich und Entitäten. Punkte fangen Ecken und
   Kanten von Gebäuden und anderen Außenbereichen, sonst 45°-Schritte und 0,25-m-Raster (Umschalt: frei). Ecken eines
   Bereichs ziehen bearbeitet ihn (gleicher Punktfang); Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie.
@@ -343,6 +344,7 @@ buttons:                    # eigene Schaltflächen links oben, je Ebene, mit de
 | `north` | Grad (0 = oben) | Norden in der Grundstücksansicht; Gebäudeansichten berechnen ihren daraus und aus ihrer Drehung |
 | `ausrichtung` | `achse` / `norden` (`achse`) | Gebäudeansichten an der eigenen Achse oder Norden oben (Karten-Option übersteuert) |
 | `raster` | `true` (`false`) | 5-m-Raster in der Grundstücksansicht |
+| `boundary` | `[{poly, closed?}]` | Grundstücksgrenze(n), offen oder geschlossen |
 | `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | Hintergrund des Grundstücks (gemeinsamer Lageplan) |
 | `show` | Liste von Grundriss-IDs (alle) | nur diese Gebäude; eines = dieses Gebäude allein ohne Grundstücksebene |
 

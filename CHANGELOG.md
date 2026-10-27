@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- **Property line** for a site: tool „Draw property line“ (fence icon) – open or closed (click the first point), several lines possible, corners editable with snapping like areas; shown dash-dotted in the site editor and the card's site view, which includes it in its frame (`site.boundary`).
 - Editor: a stair can be clicked anywhere on it to select it (then edit or delete it) – before only its thin walking line reacted.
 
 ## 0.9.0 – 2026-10-27

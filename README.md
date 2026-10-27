@@ -206,6 +206,7 @@ area shows all buildings, the lists are in the side panel. *Edit areas outside* 
 - *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
   a building onto two points of a site plan, optionally scaling) – placing to a shared site plan.
 - *Show dimensions* (ruler): edge lengths of buildings and areas outside; remembered per browser.
+- *Draw property line* (fence): open or closed (click the first point), several lines possible, corners editable and snapping like areas; dash-dotted in the card's site view, which keeps it in its frame.
 - *Draw area outside*: shared areas (yard, garden) with HA area and entities. Points snap to corners and edges of
   buildings and other areas, else 45° steps and a 0.25 m grid (Shift: free). Drag an area's corners to edit it (same
   snapping); double-click an edge adds a corner, double-click a corner removes it.
@@ -334,6 +335,7 @@ buttons:                    # own buttons top left, per level, with the standard
 | `north` | degrees (0 = up) | north in the site view; building views get theirs from it and their rotation |
 | `orientation` | `axis` / `north` (`axis`) | building views along their own axis or north up (card option overrides) |
 | `raster` | `true` (`false`) | 5 m grid in the site view |
+| `boundary` | `[{poly, closed?}]` | property line(s), open or closed |
 | `site_background` | `{image, x, y, width, height, rotation, opacity, mode}` | background of the site (shared site plan) |
 | `show` | list of plan ids (all) | only these buildings; one = that building alone without the site level |
 

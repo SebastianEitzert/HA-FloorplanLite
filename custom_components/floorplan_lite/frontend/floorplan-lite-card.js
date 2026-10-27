@@ -609,6 +609,8 @@ function buildSite(site, plans, cfg) {
     const all = [];
     sf.outlines.forEach((o) => o.forEach((q) => all.push(q)));
     sf.rooms.forEach((r) => r.poly.forEach((q) => all.push(q)));
+    sf.boundary = (site.boundary || []).filter((b) => b && Array.isArray(b.poly) && b.poly.length > 1);
+    sf.boundary.forEach((b) => b.poly.forEach((q) => all.push(q)));  // the property belongs in the view
     const bg = site.site_background;
     if (bg && bg.image) {
       sf.background = { image: bg.image, x: bg.x || 0, y: bg.y || 0, width: bg.width || 50, height: bg.height, rotation: bg.rotation || 0,
@@ -1032,6 +1034,7 @@ class FloorplanLiteCard extends HTMLElement {
       walls += `<poly${w.closed ? "gon" : "line"} points="${pts(w.poly)}"${w.width ? ` stroke-width="${w.width}"` : ""} stroke-linecap="square"/>`;
     });
     const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("") +
+      (f.boundary || []).map((b) => `<poly${b.closed ? "gon" : "line"} class="boundary" points="${pts(b.poly)}"/>`).join("") +
       (f.stairs || []).map((st) => `<g class="stair${st.above ? " above" : ""}"><polyline points="${pts(st.left)}"/><polyline points="${pts(st.right)}"/>` +
         st.steps.map((q) => `<line x1="${q[0][0]}" y1="${q[0][1]}" x2="${q[1][0]}" y2="${q[1][1]}"/>`).join("") +
         (st.above ? "" : `<polyline class="walk" points="${pts(st.line)}"/><circle cx="${st.start[0]}" cy="${st.start[1]}" r=".12"/><polyline class="walk" points="${pts(st.arrow)}"/>`) +
@@ -2153,6 +2156,7 @@ FloorplanLiteCard.styles = `
   .wa { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; }      /* stroke-width per plan (wall_width) */
   .outline { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; } /* stroke-width per plan (outer_width) */
   .rim { fill: none; stroke: var(--n-edge); stroke-width: .05; stroke-linejoin: miter; opacity: .55; }
+  .boundary { fill: none; stroke: var(--n-edge); stroke-width: .12; stroke-dasharray: .9 .3 .15 .3; opacity: .6; }
   .stair { fill: none; stroke: var(--n-edge); stroke-width: .04; opacity: .6; }
   .stair .walk { stroke-width: .035; } .stair circle { fill: var(--n-edge); stroke: none; }
   .stair.above { stroke-dasharray: .12 .1; opacity: .35; }
@@ -2347,7 +2351,7 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
-    tMove: "Gebäude verschieben", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen", tDims: "Maße anzeigen", dec: ",", tDims: "Maße anzeigen", dec: ",",
+    tMove: "Gebäude verschieben", tBoundary: "Grundstücksgrenze zeichnen", sBoundary: "Grundstücksgrenze", addBoundary: "+ Grenze zeichnen", boundaryN: "Grenze %n", closedB: "geschlossen", openB: "offen", points: "Punkte", boundaryHint: "Grundstücksgrenze: Klicken setzt Punkte (fangen Ecken und Kanten, Umschalt: frei). Doppelklick oder „Fertig“ beendet eine offene Linie, Klick auf den ersten Punkt schließt sie. Esc bricht ab.", tBgMove: "Hintergrund verschieben", tBgTurn: "Hintergrund drehen (an einer Linie ausrichten)", bgMoveHint: "Hintergrund ziehen · Umschalt+Rad dreht ihn, Alt+Rad skaliert ihn – jeweils um den Mauszeiger.", bgTurnHint: "Zwei Punkte auf einer Linie des Hintergrunds anklicken (z. B. eine Grundstücksgrenze oder Hauswand).", lineDir: "Richtung dieser Linie (0 = waagerecht, 90 = senkrecht)", noBg: "Erst einen Hintergrund (Bild/PDF) einfügen.", tEdit: "Außenbereich bearbeiten", edit: "Bearbeiten", tDraw: "Außenbereich zeichnen", editHint: "Ecken der Außenbereiche und der Grundstücksgrenze ziehen (fangen Ecken und Kanten, Umschalt: frei) · Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie · Name und Entitäten rechts in der Liste.", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen", tDims: "Maße anzeigen", dec: ",", tDims: "Maße anzeigen", dec: ",",
     cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", fixLink: "dauerhaft als Maßlinie", fixed: "Fest über Maßlinien – zum Lösen die Maßlinie anklicken.", delLink: "Diese Maßlinie löschen?", loop: "Die Gebäude hängen sonst im Kreis voneinander ab.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
     offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
     alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
@@ -2384,7 +2388,7 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
-    tMove: "Move buildings", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit", tDims: "Show dimensions", dec: ".",
+    tMove: "Move buildings", tBoundary: "Draw property line", sBoundary: "Property line", addBoundary: "+ Draw line", boundaryN: "Line %n", closedB: "closed", openB: "open", points: "points", boundaryHint: "Property line: clicks set points (they snap to corners and edges, Shift: free). A double click or „Done“ ends an open line, a click on the first point closes it. Esc cancels.", tBgMove: "Move background", tBgTurn: "Turn background (align to a line)", bgMoveHint: "Drag the background · Shift+wheel turns it, Alt+wheel scales it – around the pointer.", bgTurnHint: "Click two points on a line of the background (e.g. a boundary or a house wall).", lineDir: "Direction of this line (0 = horizontal, 90 = vertical)", noBg: "Add a background (image/PDF) first.", tEdit: "Edit areas outside", edit: "Edit", tDraw: "Draw area outside", editHint: "Drag the corners of areas and property lines (they snap to corners and edges, Shift: free) · double-click an edge adds a corner, a corner removes it · name and entities in the list on the right.", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit", tDims: "Show dimensions", dec: ".",
     cornerA: "1. Click a corner of the building to move.", fixLink: "keep as measure line", fixed: "Fixed by measure lines – click a measure line to release it.", delLink: "Delete this measure line?", loop: "The buildings would depend on each other in a circle.", cornerB: "2. Click the target corner on another building.",
     offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
     alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
@@ -2507,6 +2511,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       this._sd.className = "fl-sd";
       this._sd.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style>` +
         `<h4>${esc(t.sBlds)}</h4><div class="fl-blds"></div><button class="fl-btn" data-a="addb">${esc(t.addBld)}</button>` +
+        `<h4>${esc(t.sBoundary)}</h4><div class="fl-bds"></div><button class="fl-btn" data-a="addbd">${esc(t.addBoundary)}</button>` +
         `<h4>${esc(t.sAreas)}</h4><div class="fl-areas"></div><button class="fl-btn" data-a="adda">${esc(t.addArea)}</button>` +
         `<h4>${esc(t.sView)}</h4><div class="fl-opts"></div>`;
       (this._sideHost || this).appendChild(this._sd);
@@ -2515,6 +2520,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         const free = (this._planList || []).filter((p) => used.indexOf(p.id) < 0 && p.id !== this._siteId)[0];
         s.buildings.push({ plan: free ? free.id : "" });
       }));
+      this._sd.querySelector('[data-a="addbd"]').addEventListener("click", () => this._setTool("draw", { bd: (this._s.boundary || []).length }));
       this._sd.querySelector('[data-a="adda"]').addEventListener("click", () => {
         this._emit((s) => { s.areas.push({ id: "bereich_" + (s.areas.length + 1), poly: [] }); });
         this._setTool("draw", { i: this._s.areas.length - 1 });
@@ -2560,6 +2566,14 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         if (v.rotation) b.rotation = v.rotation; else delete b.rotation;
         if (v.scale && v.scale !== 1) b.scale = v.scale; else delete b.scale;
       }));
+    const bdBox = this._sd.querySelector(".fl-bds");
+    bdBox.innerHTML = (site.boundary || []).map((b, bi) => `<div class="fl-item"><div class="fl-hd"><b>${esc(t.boundaryN.replace("%n", bi + 1))}</b> <i>${esc(b.closed ? t.closedB : t.openB)} · ${b.poly.length} ${esc(t.points)}</i>` +
+      `<button class="fl-mini" data-bdraw="${bi}">${esc(t.redraw)}</button><button class="fl-mini" data-bdel="${bi}">${esc(t.del)}</button></div></div>`).join("");
+    bdBox.querySelectorAll("[data-bdraw]").forEach((x) => x.addEventListener("click", () => this._setTool("draw", { bd: +x.getAttribute("data-bdraw") })));
+    bdBox.querySelectorAll("[data-bdel]").forEach((x) => x.addEventListener("click", () => this._emit((s) => {
+      s.boundary.splice(+x.getAttribute("data-bdel"), 1);
+      if (!s.boundary.length) delete s.boundary;
+    })));
     const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
     this._list(this._sd.querySelector(".fl-areas"), site.areas,
       (hd, a, i) => {
@@ -2605,12 +2619,12 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     if (!box) return;
     const t = this._t, st = this._step || { pts: [] }, k = this._tool;
     const btn = (id, icon, label) => `<button class="fl-tb${k === id ? " on" : ""}" data-t="${id}" title="${esc(label)}"><ha-icon icon="${icon}"></ha-icon><span>${esc(label)}</span></button>`;
-    let html = btn("move", "mdi:cursor-move", t.tMove) + btn("edit", "mdi:vector-polygon", t.tEdit) + btn("newarea", "mdi:vector-square-plus", t.tDraw) +
+    let html = btn("move", "mdi:cursor-move", t.tMove) + btn("edit", "mdi:vector-polygon", t.tEdit) + btn("newarea", "mdi:vector-square-plus", t.tDraw) + btn("boundary", "mdi:fence", t.tBoundary) +
       btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
       `<button class="fl-tb" data-t="upload" title="${esc(t.tUpload)}"><ha-icon icon="mdi:image-plus"></ha-icon><span>${esc(t.tUpload)}</span></button>` +
       btn("bgmove", "mdi:arrow-all", t.tBgMove) + btn("bgturn", "mdi:rotate-left", t.tBgTurn) + btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb${this._dims ? " on" : ""}" data-t="dims" title="${esc(t.tDims)}"><ha-icon icon="mdi:ruler-square"></ha-icon><span>${esc(t.tDims)}</span></button>` +
       `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
-    let hint = k === "edit" ? t.editHint : k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? t.drawHint : "";
+    let hint = k === "edit" ? t.editHint : k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? (st.bd !== undefined ? t.boundaryHint : t.drawHint) : "";
     if (k === "corner") hint = st.pts.length === 0 ? t.cornerA : st.pts.length === 1 ? t.cornerB : "";
     if (k === "align") hint = [t.alignP1, t.alignQ1, t.alignP2, t.alignQ2][st.pts.length] || "";
     if (k === "bgscale") hint = st.pts.length < 2 ? t.bgScaleHint : "";
@@ -2643,6 +2657,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         try { localStorage.setItem("floorplan_site_dims", this._dims ? "1" : ""); } catch (e) { /* private mode */ }
         this._toolbar(); this._canvas(); return;
       }
+      if (id === "boundary") { this._setTool("draw", { bd: (this._s.boundary || []).length }); return; }
       if (id === "newarea") { this._sd.querySelector('[data-a="adda"]').click(); return; }
       if (id === "upload") { this.dispatchEvent(new CustomEvent("site-upload", { bubbles: true, composed: true })); return; }
       this._setTool(id);
@@ -2757,8 +2772,16 @@ class FloorplanLiteSiteEditor extends HTMLElement {
   _finishDraw() {
     const st = this._step, poly = st.pts.slice();
     this._setTool("move");
+    if (st.bd !== undefined) {  // property line: open, or closed when it ended on its first point
+      if (poly.length > 1) this._emit((s) => { const b = { poly: poly }; if (st.closed && poly.length > 2) b.closed = true; s.boundary = (s.boundary || []).slice(); s.boundary[st.bd] = b; });
+      return;
+    }
     if (poly.length > 2) this._emit((s) => { if (s.areas[st.i]) s.areas[st.i].poly = poly; });
   }
+
+  /* An area („3“) or a property line („b0“): its points in the site s */
+  _polyOf(s, key) { return typeof key === "string" && key[0] === "b" ? ((s.boundary || [])[+key.slice(1)] || {}).poly : (s.areas[+key] || {}).poly; }
+  _polyMin(s, key) { return typeof key === "string" && key[0] === "b" ? (((s.boundary || [])[+key.slice(1)] || {}).closed ? 3 : 2) : 3; }
 
   /* ---------- Drawing area ---------- */
   _canvas() {
@@ -2795,6 +2818,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const c = centroid(a.poly);
       g += `<polygon class="ea" data-ea="${ai}" points="${pts(a.poly)}" stroke-width="${2 * u}"/><text class="et" x="${c[0]}" y="${c[1]}" font-size="${13 * u}">${esc(a.name || a.id)}</text>`;
       if (this._tool === "move" || this._tool === "edit") handles += a.poly.map((q, vi) => `<circle class="av" data-ea="${ai}" data-v="${vi}" cx="${q[0]}" cy="${q[1]}" r="${5 * u}" stroke-width="${1.5 * u}"/>`).join("");
+    });
+    (site.boundary || []).forEach((b, bi) => {  // property lines
+      if (!b.poly || b.poly.length < 2) return;
+      g += `<poly${b.closed ? "gon" : "line"} class="ebd" data-ea="b${bi}" points="${pts(b.poly)}" stroke-width="${2.5 * u}" stroke-dasharray="${10 * u} ${4 * u} ${2 * u} ${4 * u}"/>`;
+      if (this._tool === "move" || this._tool === "edit") handles += b.poly.map((q, vi) => `<circle class="av bd" data-ea="b${bi}" data-v="${vi}" cx="${q[0]}" cy="${q[1]}" r="${5 * u}" stroke-width="${1.5 * u}"/>`).join("");
     });
     const shapes = {};
     sf.bldShapes.forEach((x) => { (shapes[x.bld] || (shapes[x.bld] = [])).push(x.poly); });
@@ -2843,7 +2871,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     }
     g += labels + handles + `<circle class="esnap" r="${7 * u}" cx="-99999" cy="-99999" stroke-width="${2 * u}"/>`;
     this._snapPolys = Object.keys(shapes).reduce((l, kk) => l.concat(shapes[kk].map((q) => ({ poly: q }))), [])
-      .concat(site.areas.map((a, ai) => ({ poly: a.poly || [], area: ai })).filter((x) => x.poly.length > 1));
+      .concat(site.areas.map((a, ai) => ({ poly: a.poly || [], area: ai })).filter((x) => x.poly.length > 1))
+      .concat((site.boundary || []).map((b, bi) => ({ poly: b.poly || [], area: "b" + bi, open: !b.closed })).filter((x) => x.poly.length > 1));
     {  // compass rose, bottom right
       const nr = site.north || 0, cx = v[0] + v[2] - 34 * u, cy = v[1] + v[3] - 34 * u;
       g += `<g class="erose" transform="translate(${cx} ${cy}) rotate(${nr}) scale(${u})"><circle r="20"/><path class="rs" d="M0 -17 L5 0 L0 17 L-5 0 Z"/>` +
@@ -2884,7 +2913,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       (this._snapPolys || []).forEach((sp) => sp.poly.forEach((a, vi) => {
         const b = sp.poly[(vi + 1) % sp.poly.length];
         if (skip && sp.area === skip[0] && (vi === skip[1] || (vi + 1) % sp.poly.length === skip[1])) return;
-        if (sp.area !== undefined && vi === sp.poly.length - 1 && sp.poly.length < 3) return;
+        if ((sp.open || (sp.area !== undefined && sp.poly.length < 3)) && vi === sp.poly.length - 1) return;
         const ex = b[0] - a[0], ey = b[1] - a[1], L = ex * ex + ey * ey;
         if (!L) return;
         const tt = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / L)), q = [a[0] + ex * tt, a[1] + ey * tt];
@@ -2947,11 +2976,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         return;
       }
       if (dg.av) {  // moving a corner of an area
-        const poly = this._s.areas[dg.av[0]].poly, n = poly.length;
+        const poly = this._polyOf(this._s, dg.av[0]), n = poly.length;
         dg.q = snap(p, dg.av, null, e.shiftKey);
         dg.el.setAttribute("cx", dg.q[0]); dg.el.setAttribute("cy", dg.q[1]);
         const np = poly.slice(); np[dg.av[1]] = dg.q;
-        const pg = svg.querySelector(`.ea[data-ea="${dg.av[0]}"]`);
+        const pg = svg.querySelector(`.ea[data-ea="${dg.av[0]}"], .ebd[data-ea="${dg.av[0]}"]`);
         if (pg && n) pg.setAttribute("points", pts(np));
         return;
       }
@@ -2988,7 +3017,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const av = e.target.closest ? e.target.closest(".av") : null;
       if (av) {
         svg.setPointerCapture(e.pointerId);
-        this._drag = { av: [+av.getAttribute("data-ea"), +av.getAttribute("data-v")], el: av, id: e.pointerId };
+        const ak = av.getAttribute("data-ea");
+        this._drag = { av: [ak[0] === "b" ? ak : +ak, +av.getAttribute("data-v")], el: av, id: e.pointerId };
         return;
       }
       const lb = e.target.closest ? e.target.closest(".en") : null;
@@ -3015,7 +3045,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       this._drag = null;
       if (dg.pan) { if (dg.nv) { this._vb = dg.nv; this._canvas(); } return; }
       if (dg.bg) { if (dg.d) this._emit((s) => { s.site_background.x = +(dg.o[0] + dg.d[0]).toFixed(3); s.site_background.y = +(dg.o[1] + dg.d[1]).toFixed(3); }); return; }
-      if (dg.av) { if (dg.q) this._emit((s) => { s.areas[dg.av[0]].poly[dg.av[1]] = dg.q; }); return; }
+      if (dg.av) { if (dg.q) this._emit((s) => { this._polyOf(s, dg.av[0])[dg.av[1]] = dg.q; }); return; }
       if (dg.lab !== undefined) { if (dg.at) this._emit((s) => { s.buildings[dg.lab].label_at = dg.at; }); return; }
       if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { s.buildings[dg.i].x = dg.pos.x; s.buildings[dg.i].y = dg.pos.y; });
     });
@@ -3024,7 +3054,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (k === "move" || k === "edit") return;
       if (k === "draw") {
         const q = snap(p, null, st.pts[st.pts.length - 1], e.shiftKey);
-        if (st.pts.length > 2 && Math.abs(q[0] - st.pts[0][0]) + Math.abs(q[1] - st.pts[0][1]) < 10 * u) { this._finishDraw(); return; }
+        if (st.pts.length > 2 && Math.abs(q[0] - st.pts[0][0]) + Math.abs(q[1] - st.pts[0][1]) < 10 * u) { st.closed = true; this._finishDraw(); return; }
         st.pts.push(q);
       } else if (k === "corner") {
         const c = corner(p);
@@ -3044,13 +3074,13 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     svg.addEventListener("dblclick", (e) => {
       const av = e.target.closest ? e.target.closest(".av") : null;
       if (av && (this._tool === "move" || this._tool === "edit")) {  // double-click on an area corner removes it
-        const ai = +av.getAttribute("data-ea"), vi = +av.getAttribute("data-v");
-        if (this._s.areas[ai].poly.length > 3) this._emit((s) => { s.areas[ai].poly.splice(vi, 1); });
+        const ak = av.getAttribute("data-ea"), ai = ak[0] === "b" ? ak : +ak, vi = +av.getAttribute("data-v");
+        if (this._polyOf(this._s, ai).length > this._polyMin(this._s, ai)) this._emit((s) => { this._polyOf(s, ai).splice(vi, 1); });
         return;
       }
-      const ea = e.target.closest ? e.target.closest(".ea") : null;
+      const ea = e.target.closest ? e.target.closest(".ea, .ebd") : null;
       if (ea && (this._tool === "move" || this._tool === "edit")) {  // double-click on an area edge adds a corner there
-        const ai = +ea.getAttribute("data-ea"), poly = this._s.areas[ai].poly, p = at(e);
+        const ak = ea.getAttribute("data-ea"), ai = ak[0] === "b" ? ak : +ak, poly = this._polyOf(this._s, ai), p = at(e);
         let bi = 0, bd = Infinity;
         poly.forEach((a, i) => {
           const b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1], L = ex * ex + ey * ey || 1;
@@ -3058,7 +3088,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
           const dd = Math.pow(a[0] + ex * tt - p[0], 2) + Math.pow(a[1] + ey * tt - p[1], 2);
           if (dd < bd) { bd = dd; bi = i; }
         });
-        this._emit((s) => { s.areas[ai].poly.splice(bi + 1, 0, [+p[0].toFixed(2), +p[1].toFixed(2)]); });
+        this._emit((s) => { this._polyOf(s, ai).splice(bi + 1, 0, [+p[0].toFixed(2), +p[1].toFixed(2)]); });
         return;
       }
       const lb = e.target.closest ? e.target.closest(".en") : null;
@@ -3087,6 +3117,7 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas .edim { fill: #cfe1ff; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: #141c32; }
   .fl-canvas .edim.ar { fill: #ffd6a0; }
   .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; }
+  .fl-canvas .ebd { fill: none; stroke: #b9f27c; cursor: pointer; } .fl-canvas .av.bd { fill: #b9f27c; }
   .fl-canvas .av { fill: #ffd6a0; stroke: #141c32; cursor: move; } .fl-canvas .av:hover { fill: #fff; }
   .fl-canvas .esnap { fill: none; stroke: #7dffb0; pointer-events: none; }
   .fl-canvas .et { fill: #ffd6a0; text-anchor: middle; }

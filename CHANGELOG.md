@@ -2,6 +2,22 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.6.0 – 2026-10-27
+- **Site** (card option `site`, without it nothing changes): several plans as buildings on one property, placed by
+  `x`/`y`/`rotation`/`scale` or automatically side by side. Three levels – site, building, level – with a bar on top,
+  zoom by tap, „⤢ Site“, pinch, Ctrl+wheel, the remote's ↑/↓ (not over a room) and Back (view in the address,
+  `#plan=…&floor=…`). Site view with every building's `site_floor` and a summary per building.
+- Shared **areas outside** (`site.areas`) in site coordinates: complete on the site, the part next to a building in its
+  view (`nachbar_rand`); operated like rooms.
+- **Start view and following the location:** address (`?raum=`, `?ansicht=`, also as hash) → per-user `follow`
+  (*standort*: geofence and Bluetooth areas such as Bermuda; *fest*: view, room or template with `benutzer` / `geraet`)
+  → `start`. „You are here“ / „This TV“ marks the room; `follow_floor`, `follow_hold`.
+- **Off button** per level (two presses, only what is on or playing, `musik_aus`, `aus_mit_aussen`, `aus_schalter`) and
+  **own buttons** top left (`buttons`, standard HA actions).
+- Only one building: `site.show`, and the card option `building` for a plan with several buildings.
+- Visual editor: site step (drag buildings, turn / scale, overlap warning, draw areas outside), users with live template
+  preview, all site options.
+
 ## 0.5.1 – 2026-10-26
 - ↑/↓ no longer scroll the page while a floor plan card is visible – the wheel does. Card option `scroll_keys: true`
   (visual editor: „Arrow keys ↑/↓ scroll the page“) brings scrolling back for remotes without a wheel. Text fields,

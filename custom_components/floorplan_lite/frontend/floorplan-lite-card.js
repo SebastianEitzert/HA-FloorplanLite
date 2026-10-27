@@ -132,13 +132,17 @@ const TEXT = {
     loading: "Grundriss wird geladen …", missing: "Grundriss „%s“ nicht gefunden – im Editor (Seitenleiste → Floorplan Lite) anlegen.",
     noPlan: "Bitte einen Grundriss wählen (plan: …).",
     cancel: "Abbrechen", details: "Details", unlock: "Aufschließen", lock: "Abschließen", openDoor: "Türöffner", open: "Öffnen",
-    close: "Schließen", stop: "Stopp", press: "Auslösen", toggle: "Umschalten" },
+    close: "Schließen", stop: "Stopp", press: "Auslösen", toggle: "Umschalten",
+    site: "Grundstück", allOff: "Alles aus", bOff: "%s aus", really: "Wirklich? Nochmal drücken", offDone: "%n Geräte ausgeschaltet",
+    here: "Du bist hier", thisTv: "Dieser Fernseher", thisDevice: "Dieses Gerät", noSite: "Bitte Gebäude für das Grundstück angeben (site.buildings)." },
   en: { tilt: "Window tilted", win: "Window open", shade: "Shade closed", music: "Music playing", presence: "Presence", motion: "Motion",
     light: "Light in its colour", musicL: "Music", prev: "Previous level", next: "Next level",
     loading: "Loading floor plan …", missing: "Floor plan “%s” not found – create it in the editor (sidebar → Floorplan Lite).",
     noPlan: "Please choose a floor plan (plan: …).",
     cancel: "Cancel", details: "Details", unlock: "Unlock", lock: "Lock", openDoor: "Open latch", open: "Open",
-    close: "Close", stop: "Stop", press: "Press", toggle: "Toggle" },
+    close: "Close", stop: "Stop", press: "Press", toggle: "Toggle",
+    site: "Site", allOff: "All off", bOff: "%s off", really: "Sure? Press again", offDone: "%n devices switched off",
+    here: "You are here", thisTv: "This TV", thisDevice: "This device", noSite: "Please list the site's buildings (site.buildings)." },
 };
 const chips = (t) => ({
   w: `<span class="chip win" title="${t.win}"><ha-icon icon="mdi:window-open"></ha-icon></span>`,
@@ -204,21 +208,23 @@ const sceneLabel = (name, room) => {
 
 const planLabels = (plan) => ((plan && plan.hide_labels) || []).concat(plan && plan.hide_label ? [plan.hide_label] : []);
 
-function prepare(plan, align) {
+function prepare(plan, align, building) {
   const rot = rotator(plan.rotation || 0), st = plan.style || {};
+  // building: only the outer walls and rooms of this building of the plan (option building / site.buildings[].building)
+  const mine = (x) => !building || !x.building || x.building === building;
   const ow = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
   // the drawn line of an outer wall may be its outside or inside face; the wall is drawn around its centre line
   const centre = (o) => (o.ref === "outside" ? grow(o.poly, -ow / 2) : o.ref === "inside" ? grow(o.poly, ow / 2) : o.poly);
   const R = (poly) => poly.map(rot);
   const floors = {};
   (plan.levels || []).forEach((lv) => {
-    const at = (x) => x.level === lv.id;
+    const at = (x) => x.level === lv.id && mine(x);
     const outlines = (plan.outlines || []).filter(at).map((o) => R(centre(o)));
     const extra = (plan.lines || []).filter(at).map((l) => ({ poly: R(l.poly), open: !!l.open }));
     const walls = (plan.walls || []).filter(at).map((w) => ({ poly: R(w.poly), width: w.width, closed: !!w.closed }));
     const rooms = (plan.rooms || []).filter(at).map((r) => ({
       id: r.id, key: r.key, name: r.name === undefined ? r.id : r.name, poly: R(r.poly),
-      labelAt: r.label_at ? rot(r.label_at) : null, small: !!r.small, outdoor: !!r.outdoor, color: r.color,
+      labelAt: r.label_at ? rot(r.label_at) : null, small: !!r.small, outdoor: !!r.outdoor, color: r.color, area: r.area,
     }));
     const openings = (plan.openings || []).filter(at).map((o) => {
       const q = Object.assign({}, o, { at: rot(o.at), angle: (o.angle || 0) + (plan.rotation || 0) });
@@ -256,6 +262,173 @@ function prepare(plan, align) {
   return floors;
 }
 
+/* ---------- Site: several plans (buildings) on one property ---------- */
+const clipRect = (poly, r) => {  // Sutherland–Hodgman: the part of a polygon inside the rectangle [x1, y1, x2, y2]
+  let out = poly;
+  [[0, r[0], 1], [0, r[2], -1], [1, r[1], 1], [1, r[3], -1]].forEach((e) => {
+    const ax = e[0], v = e[1], sg = e[2], src = out;
+    const inn = (p) => (p[ax] - v) * sg >= 0;
+    const cut = (a, b) => { const t = (v - a[ax]) / (b[ax] - a[ax]); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+    out = [];
+    src.forEach((cur, i) => {
+      const prev = src[(i + src.length - 1) % src.length];
+      if (inn(cur)) { if (!inn(prev)) out.push(cut(prev, cur)); out.push(cur); } else if (inn(prev)) out.push(cut(prev, cur));
+    });
+  });
+  return out.map((p) => [+p[0].toFixed(3), +p[1].toFixed(3)]);
+};
+/* A pop-up (Bubble Card) is open: the address ends in #name. #plan=…&floor=… is the card's own view, no pop-up. */
+const popupOpen = () => location.hash.length > 1 && location.hash.indexOf("=") < 0;
+const listOf = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+const ENT_KEYS = ["licht", "hauptlicht", "praesenz", "bewegung", "temp", "fenster", "beschattung", "musik", "lichtfarbe"];
+
+/* Building plan coordinates → site coordinates: turned by rotation, scaled, its frame's upper left corner at (x, y). */
+const placer = (b, origin) => {
+  const r = (b.rotation || 0) * Math.PI / 180, c = Math.cos(r), s = Math.sin(r), k = b.scale > 0 ? b.scale : 1;
+  const f = (p) => {
+    const x = (p[0] - origin[0]) * k, y = (p[1] - origin[1]) * k;
+    return [+(b.x + x * c - y * s).toFixed(3), +(b.y + x * s + y * c).toFixed(3)];
+  };
+  f.inv = (q) => {
+    const x = q[0] - b.x, y = q[1] - b.y;
+    return [+((x * c + y * s) / k + origin[0]).toFixed(3), +((-x * s + y * c) / k + origin[1]).toFixed(3)];
+  };
+  f.deg = b.rotation || 0; f.k = k;
+  return f;
+};
+
+/* Floors for a site: "site" (every building's site_floor where it stands, plus the shared areas outside) and
+   "<plan>:<level>" per building level (with the parts of the shared areas next to it). Room keys get the plan as prefix
+   ("<plan>/<room>", areas "site/<id>"), so the same room id in two plans keeps its own entities. */
+function buildSite(site, plans, cfg) {
+  const out = { floors: {}, order: [], blds: [], rooms: {}, live: {}, labels: [], info: {} };
+  const rand = typeof cfg.nachbar_rand === "number" && cfg.nachbar_rand >= 0 ? cfg.nachbar_rand : 0.15;
+  const show = listOf(site.show);
+  const list = (site.buildings || []).filter((b) => b && plans[b.plan] && (!show.length || show.indexOf(b.plan) >= 0));
+  const prepared = list.map((b) => {
+    const plan = plans[b.plan];
+    const fl = prepare(plan, cfg.align === undefined ? !!plan.align_levels : !!cfg.align, b.building);
+    const levels = (plan.levels || []).map((l) => l.id).filter((id) => fl[id]);
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    levels.forEach((id) => { const v = fl[id].view; x1 = Math.min(x1, v[0]); y1 = Math.min(y1, v[1]); x2 = Math.max(x2, v[0] + v[2]); y2 = Math.max(y2, v[1] + v[3]); });
+    if (!levels.length) { x1 = 0; y1 = 0; x2 = 10; y2 = 10; }
+    return { b: b, plan: plan, fl: fl, levels: levels, origin: [x1, y1], w: x2 - x1, h: y2 - y1 };
+  });
+  // buildings without a position: side by side to the right, gap ≥ 10 % of the widest, never overlapping
+  const gap = Math.max(1, 0.1 * Math.max.apply(null, prepared.map((p) => p.w * (p.b.scale > 0 ? p.b.scale : 1)).concat([0])));
+  let right = -Infinity;
+  const pos = prepared.map((p) => {
+    const b = Object.assign({}, p.b);
+    if (typeof b.x === "number" && typeof b.y === "number") {
+      const T = placer(b, p.origin);
+      [[0, 0], [p.w, 0], [0, p.h], [p.w, p.h]].forEach((d) => { right = Math.max(right, T([p.origin[0] + d[0], p.origin[1] + d[1]])[0]); });
+    }
+    return b;
+  });
+  let cursor = right === -Infinity ? 0 : right + gap;
+  prepared.forEach((p, i) => {
+    const b = pos[i];
+    if (typeof b.x !== "number" || typeof b.y !== "number") { b.x = +cursor.toFixed(2); b.y = 0; cursor += p.w * (b.scale > 0 ? b.scale : 1) + gap; }
+    p.pos = b; p.T = placer(b, p.origin);
+  });
+  const areas = (site.areas || []).filter((a) => a && a.id && Array.isArray(a.poly) && a.poly.length > 2);
+  areas.forEach((a) => {
+    const e = {};
+    ENT_KEYS.forEach((k) => { if (a[k] !== undefined) e[k] = a[k]; });
+    out.rooms["site/" + a.id] = e;
+    if (a.area_live || a.live) out.live["site/" + a.id] = a.area || a.id;
+  });
+  const areaRoom = (a, poly) => ({ id: a.id, key: "site/" + a.id, name: a.name || a.id, poly: poly, labelAt: null, small: false,
+    outdoor: true, color: a.color, area: a.area || a.id, site: true });
+  const single = prepared.length === 1 && show.length === 1;
+  // site floor
+  const sf = { title: cfg.site_title || "", short: "", outlines: [], extra: [], walls: [], rooms: [], openings: [], roomWalls: true,
+    background: null, site: true, bldShapes: [], style: null };
+  prepared.forEach((p) => {
+    const plan = p.plan, pid = p.b.plan, T = p.T;
+    planLabels(plan).forEach((l) => { if (out.labels.indexOf(l) < 0) out.labels.push(l); });
+    Object.keys(plan.entities || {}).forEach((k) => { out.rooms[pid + "/" + k] = plan.entities[k]; });
+    (plan.rooms || []).forEach((r) => { if (r.area && r.area_live) out.live[pid + "/" + (r.key || r.id)] = r.area; });
+    p.levels.forEach((lv) => p.fl[lv].rooms.forEach((r) => { r.key = pid + "/" + (r.key || r.id); r.bld = pid; }));
+    const keys = p.levels.map((lv) => pid + ":" + lv);
+    const siteLv = p.fl[p.b.site_floor] ? p.b.site_floor : p.levels[0];
+    const name = p.b.name || plan.name || pid;
+    // building views, with the parts of the shared areas around it
+    let big = null;
+    const near = [];
+    if (areas.length && p.levels.length) {
+      const v = p.fl[p.levels[0]].view;
+      let vx1 = Infinity, vy1 = Infinity, vx2 = -Infinity, vy2 = -Infinity;
+      p.levels.forEach((lv) => { const q = p.fl[lv].view; vx1 = Math.min(vx1, q[0]); vy1 = Math.min(vy1, q[1]); vx2 = Math.max(vx2, q[0] + q[2]); vy2 = Math.max(vy2, q[1] + q[3]); });
+      void v;
+      const w = vx2 - vx1, h = vy2 - vy1;
+      const box = [vx1 - w * rand, vy1 - h * rand, vx2 + w * rand, vy2 + h * rand];
+      areas.forEach((a) => {
+        const poly = clipRect(a.poly.map(T.inv), box);
+        if (poly.length > 2 && Math.abs(area2(poly)) > 0.1) near.push(areaRoom(a, poly));
+      });
+      if (near.length) big = [box[0], box[1], box[2] - box[0], box[3] - box[1]];
+    }
+    p.levels.forEach((lv, i) => {
+      const f = p.fl[lv];
+      f.rooms = f.rooms.concat(near.map((r) => Object.assign({}, r)));
+      if (big) f.view = big.slice();
+      f.style = plan.style || {}; f.bgRot = plan.rotation || 0; f.bld = pid;
+      out.floors[keys[i]] = f;
+      f.rooms.forEach((r) => {
+        if (!r.name) return;
+        if (!out.info[r.id] || (out.info[r.id].site && !r.site)) out.info[r.id] = { id: r.id, area: r.area, name: r.name, view: keys[i], bld: r.site ? null : pid, site: !!r.site };
+      });
+    });
+    // this building on the site
+    const g = p.fl[siteLv];
+    if (g) {
+      const k = T.k;
+      g.outlines.forEach((o) => { const q = o.map(T); sf.outlines.push(q); sf.bldShapes.push({ bld: pid, poly: q }); });
+      g.extra.forEach((e) => sf.extra.push({ poly: e.poly.map(T), open: e.open }));
+      g.walls.forEach((w) => sf.walls.push({ poly: w.poly.map(T), width: w.width ? w.width * k : w.width, closed: w.closed }));
+      g.rooms.forEach((r) => { if (!r.site) sf.rooms.push(Object.assign({}, r, { poly: r.poly.map(T), labelAt: r.labelAt ? T(r.labelAt) : null, nolabel: true })); });
+      g.openings.forEach((o) => {
+        const q = Object.assign({}, o, { at: T(o.at), angle: (o.angle || 0) + T.deg, width: (o.width || 0.9) * k, depth: (o.depth || 0.24) * k });
+        q.rect = openingRect(q);
+        sf.openings.push(q);
+      });
+      if (!sf.style) {
+        const st = Object.assign({}, plan.style || {});
+        if (typeof st.outer_width === "number") st.outer_width *= k;
+        if (typeof st.wall_width === "number") st.wall_width *= k;
+        sf.style = st;
+      }
+    }
+    const corners = [];
+    [[0, 0], [p.w, 0], [0, p.h], [p.w, p.h]].forEach((d) => corners.push(T([p.origin[0] + d[0], p.origin[1] + d[1]])));
+    out.blds.push({ id: pid, name: name, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos,
+      titles: p.levels.map((lv) => ({ key: pid + ":" + lv, name: p.fl[lv].title, short: p.fl[lv].short })) });
+  });
+  areas.forEach((a) => { sf.rooms.push(areaRoom(a, a.poly)); if (!out.info[a.id]) out.info[a.id] = { id: a.id, area: a.area || a.id, name: a.name || a.id, view: "site", site: true }; });
+  if (!single) {
+    const all = [];
+    sf.outlines.forEach((o) => o.forEach((q) => all.push(q)));
+    sf.rooms.forEach((r) => r.poly.forEach((q) => all.push(q)));
+    const bg = site.site_background;
+    if (bg && bg.image) {
+      sf.background = { image: bg.image, x: bg.x || 0, y: bg.y || 0, width: bg.width || 50, height: bg.height, rotation: bg.rotation || 0,
+        opacity: bg.opacity === undefined ? 1 : bg.opacity, mode: bg.mode || "under" };
+      all.push([sf.background.x, sf.background.y]);
+    }
+    if (site.raster) sf.raster = true;
+    const bb = all.length ? bbox(all) : [0, 0, 20, 20];
+    sf.view = [bb[0] - 1.5, bb[1] - 1.5, bb[2] - bb[0] + 3, bb[3] - bb[1] + 3];
+    sf.style = sf.style || {}; sf.bgRot = 0;
+    out.floors.site = sf;
+    out.order.push("site");
+    out.info.__site = { view: "site" };
+  }
+  out.blds.forEach((b) => b.levels.forEach((k) => out.order.push(k)));
+  out.single = single ? out.blds[0].id : null;
+  return out;
+}
+
 class FloorplanLiteCard extends HTMLElement {
   static getConfigElement() { return document.createElement("floorplan-lite-card-editor"); }
 
@@ -271,12 +444,22 @@ class FloorplanLiteCard extends HTMLElement {
     this._refs = null;
     this._sig = null;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-    if (this._planId !== config.plan) {
+    const site = config.site && typeof config.site === "object" ? config.site : null;
+    const ids = site ? (site.buildings || []).map((b) => b && b.plan).filter(Boolean) : [];
+    const sig = site ? ids.join(",") : "";
+    if (!!site !== !!this._siteMode || this._planId !== config.plan || this._siteIds !== sig) {
       this._unsubscribe();
-      this._planId = config.plan;
+      this._planId = site ? null : config.plan;
       this._plan = undefined;
+      this._siteMode = !!site;
+      this._siteIds = sig;
+      this._plans = {};
+      ids.forEach((id) => { this._plans[id] = undefined; });
     }
-    if (config.plan_data) this._setPlan(config.plan_data);  // plan inline (tests, sharing)
+    if (site && config.plans_data) { Object.keys(config.plans_data).forEach((id) => { this._plans[id] = config.plans_data[id]; }); }
+    if (site) this._setSite();
+    else if (config.plan_data) this._setPlan(config.plan_data);  // plan inline (tests, sharing)
+    this._subscribe();
     this._render();
   }
 
@@ -311,10 +494,27 @@ class FloorplanLiteCard extends HTMLElement {
       this._onTvKey = (e) => this._remote(TV_KEYS[e.detail && e.detail.key]);  // TV Streamer: remote keys the page itself does not get
       window.addEventListener("tv-streamer-key", this._onTvKey);
     }
+    if (!this._onHash) {  // site: the view lives in the address (#plan=…&floor=…), Back goes from the building to the site
+      this._onHash = () => this._hashChanged();
+      window.addEventListener("popstate", this._onHash);
+      window.addEventListener("hashchange", this._onHash);
+      window.addEventListener("location-changed", this._onHash);
+      this._onVis = () => { if (document.visibilityState === "visible") this._applyStart("entry"); };
+      document.addEventListener("visibilitychange", this._onVis);
+    }
     this._subscribe();
+    if (this._siteMode && this._refs) this._applyStart("entry");  // view opened again: start view anew
   }
 
   disconnectedCallback() {
+    if (this._onHash) {
+      window.removeEventListener("popstate", this._onHash);
+      window.removeEventListener("hashchange", this._onHash);
+      window.removeEventListener("location-changed", this._onHash);
+      document.removeEventListener("visibilitychange", this._onVis);
+      this._onHash = null;
+    }
+    this._tplStop();
     if (CARDS.indexOf(this) >= 0) CARDS.splice(CARDS.indexOf(this), 1);
     if (this._ro) this._ro.disconnect();
     if (this._onResize) { window.removeEventListener("resize", this._onResize); this._onResize = null; }
@@ -325,6 +525,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* ---------- Plan from the integration ---------- */
   _subscribe() {
+    if (this._siteMode) return this._subscribeSite();
     if (this._unsub || this._subscribing || !this._hass || !this._planId || !this.isConnected || (this._config && this._config.plan_data)) return;
     this._subscribing = true;
     this._hass.connection.subscribeMessage((msg) => this._setPlan(msg.plan || null),
@@ -336,19 +537,63 @@ class FloorplanLiteCard extends HTMLElement {
   _unsubscribe() {
     if (this._unsub) { try { this._unsub(); } catch (e) { /* connection gone */ } }
     this._unsub = null;
+    const subs = this._siteSubs || {};
+    Object.keys(subs).forEach((id) => { if (typeof subs[id] === "function") { try { subs[id](); } catch (e) { /* gone */ } } });
+    this._siteSubs = {};
+  }
+
+  _subscribeSite() {  // one subscription per building plan
+    if (!this._hass || !this.isConnected || (this._config && this._config.plans_data)) return;
+    const subs = this._siteSubs || (this._siteSubs = {});
+    Object.keys(this._plans || {}).forEach((id) => {
+      if (subs[id]) return;
+      subs[id] = "…";
+      this._hass.connection.subscribeMessage((msg) => { this._plans[id] = msg.plan || null; this._setSite(); },
+        { type: "floorplan_lite/subscribe", plan_id: id })
+        .then((unsub) => { if (this._siteSubs === subs) subs[id] = unsub; else unsub(); })
+        .catch(() => { subs[id] = "x"; this._plans[id] = null; this._setSite(); });
+    });
+  }
+
+  _setSite() {
+    const cfg = this._config || {}, site = cfg.site || {};
+    const ids = Object.keys(this._plans || {});
+    if (ids.some((id) => this._plans[id] === undefined)) { this._plan = undefined; this._render(); return; }
+    const plans = {};
+    ids.forEach((id) => { if (this._plans[id]) plans[id] = this._plans[id]; });
+    const d = buildSite(site, plans, cfg);
+    this._site = d;
+    this._plan = d.blds.length ? plans[d.blds[0].id] : null;
+    this._floors = d.floors;
+    this._fl = d.order;
+    this._rooms = d.rooms;
+    this._info = d.info;
+    this._single = d.single;
+    this._hideLabels = cfg.hide_label !== undefined ? listOf(cfg.hide_label) : d.labels;
+    this._liveAreas = d.live;
+    this._live = {}; this._liveSrc = null;
+    this._lastFloor = this._lastFloor || {};
+    d.blds.forEach((b) => { if (!this._floors[this._lastFloor[b.id]]) this._lastFloor[b.id] = b.siteLevel; });
+    if (!this._floors[this._view]) this._view = null;
+    this._idl = this._ids();
+    this._refs = null;
+    this._sig = null;
+    this._render();
   }
 
   _setPlan(plan) {
     this._plan = plan;
     const cfg = this._config || {};
     const align = cfg.align === undefined ? !!(plan && plan.align_levels) : !!cfg.align;
-    this._floors = plan ? prepare(plan, align) : null;
+    this._floors = plan ? prepare(plan, align, cfg.building) : null;
     const keys = this._floors ? Object.keys(this._floors) : [];
     this._fl = (cfg.floors || keys).filter((k) => this._floors && this._floors[k]);
     if (this._idx === undefined || this._idx >= this._fl.length) this._idx = Math.max(0, this._fl.indexOf(cfg.start || this._fl[0]));
     this._rooms = Object.assign({}, plan && plan.entities || {}, cfg.rooms || {});
     const list = (x) => (Array.isArray(x) ? x : x ? [x] : []);
     this._hideLabels = cfg.hide_label !== undefined ? list(cfg.hide_label) : planLabels(plan);
+    this._info = {};
+    ((plan && plan.rooms) || []).forEach((r) => { if (!this._info[r.id]) this._info[r.id] = { id: r.id, area: r.area, name: r.name === undefined ? r.id : r.name }; });
     this._liveAreas = {};  // room key → area, for rooms that take their entities from the area every time
     ((plan && plan.rooms) || []).forEach((r) => { if (r.area && r.area_live) this._liveAreas[r.key || r.id] = r.area; });
     this._live = {}; this._liveSrc = null;
@@ -360,6 +605,13 @@ class FloorplanLiteCard extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot) return;
+    if (this._siteMode) {
+      if (!Object.keys(this._plans || {}).length) return this._message(this._t.noSite);
+      if (this._plan === undefined) return this._message(this._t.loading);
+      if (!this._fl || !this._fl.length) return this._message(this._t.missing.replace("%s", Object.keys(this._plans).join(", ")));
+      if (this._hass) this.hass = this._hass;
+      return;
+    }
     if (!this._planId && !(this._config && this._config.plan_data)) return this._message(this._t.noPlan);
     if (this._plan === undefined) return this._message(this._t.loading);
     if (this._plan === null || !this._fl.length) return this._message(this._t.missing.replace("%s", this._planId || ""));
@@ -431,6 +683,10 @@ class FloorplanLiteCard extends HTMLElement {
       const a = s.attributes || {};
       return `${s.state}|${v(a.current_temperature)}|${v(a.current_position)}|${v(a.current_tilt_position)}|${v(a.volume_level)}|${v(a.brightness)}|${v(a.rgb_color)}|${v(a.color_mode)}|${v(a.color_temp_kelvin)}|${v(a.zustand)}|${v(a.state)}|${v(a.schloss)}`;
     }).join(";") + "#" + this._flashText();
+    if (this._siteMode) {  // follow the location: geofence and Bluetooth area sensors of this user
+      const fs = this._followIds().map((id) => { const x = hass.states[id]; return x ? x.state + "@" + x.last_changed : "x"; }).join("|");
+      if (fs !== this._followSig) { const had = this._followSig !== undefined; this._followSig = fs; if (had) this._applyStart("update"); }
+    }
     if (sig === this._sig) return;
     this._sig = sig;
     this._update();
@@ -488,13 +744,13 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   /* ---------- Frame of one level ---------- */
-  _floorHtml(key, swipe, intro) {
+  _floorHtml(key, swipe, intro, bare) {
     const f = this._floors[key];
     const [vx, vy, vw, vh] = f.view;
     const X = (x) => pc((x - vx) / vw), Y = (y) => pc((y - vy) / vh);
     const n = (s, i) => `${s}-${key}${i === undefined ? "" : "-" + i}`;
     const region = `filterUnits="userSpaceOnUse" x="${vx}" y="${vy}" width="${vw}" height="${vh}"`;
-    const style = (this._plan && this._plan.style) || {};
+    const style = f.style || (this._plan && this._plan.style) || {};
     const fl = Array.isArray(style.floor) && style.floor.length >= 2 ? style.floor : ["#2a3657", "#1c2541"];
     let defs = `<linearGradient id="${n("fl")}" gradientUnits="userSpaceOnUse" x1="${vx}" y1="${vy}" x2="${vx + vw}" y2="${vy + vh}">` +
       `<stop offset="0" stop-color="${esc(fl[0])}"/><stop offset="1" stop-color="${esc(fl[1])}"/></linearGradient>` +
@@ -528,7 +784,7 @@ class FloorplanLiteCard extends HTMLElement {
       lights += `<g class="light" data-i="${i}"><polygon points="${p}" fill="url(#${n("g", i)})"/></g>`;
       edges += `<polygon class="edge" data-i="${i}" points="${p}" filter="url(#${n("ed")})" clip-path="url(#${n("c", i)})"/>`;
       if (!room.outdoor && f.roomWalls) walls += `<polygon points="${p}"/>`;
-      hits += `<polygon class="hit" data-room="${esc(room.id)}" points="${p}"/>`;
+      hits += `<polygon class="hit${room.site ? " area" : ""}" data-room="${esc(room.id)}"${room.bld ? ` data-bld="${esc(room.bld)}"` : ""} points="${p}"/>`;
       if (!room.name) return;  // part of another room: no own dot, no label
       // presence/motion dot: HTML layer, so the animation runs on the graphics card and the SVG is not redrawn
       const d = Math.max(1.8, Math.min(4.2, Math.min(bw, bh)));
@@ -540,8 +796,9 @@ class FloorplanLiteCard extends HTMLElement {
         `<div class="core p"><i></i></div><div class="core m"><i></i></div></div>` +
         `<div class="o" style="left:${pc((lx - x1) / bw)};top:${pc((ly - y1) / bh)};width:${pc(rr / bw)};height:${pc(rr / bh)}">` +
         `<div class="ring"></div><div class="ring r2"></div></div></div>`;
-      lbls += `<div class="lbl${room.small ? " small" : ""}" data-i="${i}" data-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(room.name)}" ` +
-        `style="left:${X(lx)};top:${Y(ly)}"><div class="name">${esc(room.name)}</div><div class="temp"></div><div class="chips"></div></div>`;
+      if (room.nolabel) return;  // site view: the buildings' rooms without labels (the building's summary says enough)
+      lbls += `<div class="lbl${room.small ? " small" : ""}${room.site ? " area" : ""}" data-i="${i}" data-room="${esc(room.id)}" tabindex="0" role="button" aria-label="${esc(room.name)}" ` +
+        `style="left:${X(lx)};top:${Y(ly)}"><div class="here"></div><div class="name">${esc(room.name)}</div><div class="temp"></div><div class="chips"></div></div>`;
     });
     f.openings.forEach((o, i) => {  // windows, doors and gates with entities can be tapped (above the rooms)
       if (o.ents.length || o.shade) hits += `<polygon class="ohit" data-o="${i}" points="${pts(openingRect(Object.assign({}, o, { width: Math.max(o.width || 0.9, 0.6), depth: Math.max(o.depth || 0.24, 0.6) })))}"/>`;
@@ -558,15 +815,30 @@ class FloorplanLiteCard extends HTMLElement {
     });
     const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("");
     const shadows = f.outlines.map((o) => `<polygon class="shadow" points="${pts(o)}" transform="translate(.15 .45)" filter="url(#${n("sh")})"/>`).join("");
-    const st = (this._plan && this._plan.style) || {};
+    const st = f.style || (this._plan && this._plan.style) || {};
     const wall = typeof st.wall_width === "number" && st.wall_width > 0 ? st.wall_width : WALL;  // thickness from the editor
     const outer = typeof st.outer_width === "number" && st.outer_width > 0 ? st.outer_width : OUTER;
     const outlines = f.outlines.map((o) => `<polygon class="outline" points="${pts(o)}" stroke-width="${outer}"${dash(o)}${omask}/>`).join("");
     const rims = f.outlines.map((o) => `<polygon class="rim" points="${pts(grow(o, outer / 2))}"${omask}/>`).join("");
     const bg = this._background(f);
     const vb = `viewBox="${vx} ${vy} ${vw} ${vh}" preserveAspectRatio="xMidYMin meet"`;
+    let raster = "";
+    if (f.raster) {  // site: a 5 m grid with metre labels, to place buildings and areas
+      const g0x = Math.ceil(vx / 5) * 5, g0y = Math.ceil(vy / 5) * 5;
+      for (let x = g0x; x <= vx + vw; x += 5) raster += `<line x1="${x}" y1="${vy}" x2="${x}" y2="${vy + vh}"/><text x="${x + 0.2}" y="${vy + 1}">${x}</text>`;
+      for (let y = g0y; y <= vy + vh; y += 5) raster += `<line x1="${vx}" y1="${y}" x2="${vx + vw}" y2="${y}"/><text x="${vx + 0.2}" y="${y - 0.2}">${y}</text>`;
+      raster = `<g class="raster">${raster}</g>`;
+    }
+    if (f.site && this._site) {  // site: a building (its outer walls) can be tapped to zoom in; its summary above it
+      hits = (f.bldShapes || []).map((b) => `<polygon class="bhit" data-bld="${esc(b.bld)}" points="${pts(b.poly)}"/>`).join("") + hits;
+      this._site.blds.forEach((b) => {
+        const bx = b.box;
+        lbls += `<div class="bsum" data-bld="${esc(b.id)}" role="button" tabindex="0" style="left:${X((bx[0] + bx[2]) / 2)};top:${Y(bx[1])}">` +
+          `<span class="bn">${esc(b.name)}</span><span class="bs"></span></div>`;
+      });
+    }
     const svg = `<svg class="base" ${vb} aria-hidden="true"><defs>${defs}</defs>` +
-      (bg && bg.mode === "under" ? bg.html : "") + shadows +
+      (bg && bg.mode === "under" ? bg.html : "") + raster + shadows +
       `<g class="fl">${floors}</g>` +
       `<g class="sp" filter="url(#${n("sp")})">${spills}</g>` +
       `<g class="li">${lights}</g><g class="ed">${edges}</g>` +
@@ -577,6 +849,7 @@ class FloorplanLiteCard extends HTMLElement {
       `<div class="ratio" style="padding-top:${((vh / vw) * 100).toFixed(3)}%"></div>${svg}` +
       `<div class="fxs">${fx}</div><div class="lbls">${lbls}</div>` +
       `<svg class="hits" ${vb}>${hits}</svg></div>`;
+    if (bare) return plan;
     return swipe ? `<div class="slide">${plan}</div>` : `<div class="floor"><div class="ftitle">${esc(f.title)}</div>${plan}</div>`;
   }
 
@@ -584,8 +857,9 @@ class FloorplanLiteCard extends HTMLElement {
   _background(f) {
     const b = f.background;
     if (!b || !b.image || b.mode === "hidden" || this._config.background === false) return null;
-    const rot = ((b.rotation || 0) + ((this._plan && this._plan.rotation) || 0));
-    const rp = rotator((this._plan && this._plan.rotation) || 0)([b.x || 0, b.y || 0]);
+    const pr = f.bgRot !== undefined ? f.bgRot : (this._plan && this._plan.rotation) || 0;
+    const rot = (b.rotation || 0) + pr;
+    const rp = rotator(pr)([b.x || 0, b.y || 0]);
     const h = b.height || b.width * 4;  // without a height the image keeps its aspect ratio (meet, anchored top left)
     const html = `<image class="bgimg" href="${esc(b.image)}" x="${rp[0]}" y="${rp[1]}" width="${b.width}" height="${h}" ` +
       `preserveAspectRatio="${b.height ? "none" : "xMinYMin meet"}" opacity="${b.opacity === undefined ? 1 : b.opacity}"` +
@@ -619,6 +893,7 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _build() {
+    if (this._siteMode) return this._buildSite();
     const root = this.shadowRoot, cfg = this._config, t = this._t;
     const fl = this._fl, swipe = cfg.mode === "swipe";
     const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -642,50 +917,7 @@ class FloorplanLiteCard extends HTMLElement {
       html = `<ha-card class="night${intro ? " intro" : ""}"><div class="floors">${body}</div>${legend}</ha-card>`;
     }
     root.innerHTML = `<style>${FloorplanLiteCard.styles}${this._styleVars()}</style>${html}`;
-
-    this._refs = []; this._orefs = [];
-    const plans = root.querySelectorAll(".plan");
-    for (let k = 0; k < plans.length; k++) {
-      const plan = plans[k], key = plan.getAttribute("data-f");
-      this._floors[key].rooms.forEach((room, i) => {
-        const q = (sel) => plan.querySelector(`${sel}[data-i="${i}"]`);
-        const lbl = q(".lbl");
-        this._refs.push({
-          key: room.key || room.id,
-          light: q(".light"), spill: q(".spill"), edge: q(".edge"), fx: q(".fx"), lbl: lbl,
-          stops: plan.querySelectorAll(`[id="g-${key}-${i}"] stop`),
-          temp: lbl ? lbl.querySelector(".temp") : null,
-          chips: lbl ? lbl.querySelector(".chips") : null,
-          st: {},
-        });
-      });
-      this._floors[key].openings.forEach((o, i) => {
-        if (o.ents.length || o.tilt_entity || o.shade) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`),
-          sh: plan.querySelector(`.op .shd[data-sh="${i}"]`), cls: "", sk: null });
-      });
-    }
-
-    root.querySelectorAll(".hit").forEach((el) => {
-      el.addEventListener("click", (e) => this._click(el, e));
-      el.addEventListener("pointerenter", () => { this._hover = el.getAttribute("data-room"); });
-      el.addEventListener("pointerleave", () => { if (this._hover === el.getAttribute("data-room")) this._hover = null; });
-      el.addEventListener("wheel", (e) => {   // mouse wheel over a room = music louder/quieter
-        e.preventDefault();
-        const now = Date.now();
-        if (this._wheelT && now - this._wheelT < 250) return;   // at most 4 steps per second
-        this._wheelT = now;
-        this._send(el.getAttribute("data-room"), e.deltaY < 0 ? "lauter" : "leiser");
-      }, { passive: false });
-      el.addEventListener("contextmenu", (e) => {   // right click / yellow: gelb, twice gelb2
-        e.preventDefault();
-        el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 280);
-        this._press(el.getAttribute("data-room"), "gelb");
-      });
-    });
-    this._orefs.forEach((r) => { if (r.hit) r.hit.addEventListener("click", (e) => { e.stopPropagation(); this._opTap(r.o); }); });
-    root.querySelectorAll(".lbl").forEach((el) => el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " " || e.keyCode === 13) { e.preventDefault(); this._open(el.getAttribute("data-room")); }
-    }));
+    this._wire(root);
 
     this._track = root.querySelector(".track");
     this._ind = root.querySelector(".ind");
@@ -713,6 +945,55 @@ class FloorplanLiteCard extends HTMLElement {
     }
     this._lastW = 0;
     requestAnimationFrame(() => this._resized());
+  }
+
+  /* References for the state updates and the operation of rooms, windows and doors (all levels / views). */
+  _wire(root) {
+    this._refs = []; this._orefs = [];
+    const plans = root.querySelectorAll(".plan");
+    for (let k = 0; k < plans.length; k++) {
+      const plan = plans[k], key = plan.getAttribute("data-f");
+      this._floors[key].rooms.forEach((room, i) => {
+        const q = (sel) => plan.querySelector(`${sel}[data-i="${i}"]`);
+        const lbl = q(".lbl");
+        this._refs.push({
+          key: room.key || room.id,
+          light: q(".light"), spill: q(".spill"), edge: q(".edge"), fx: q(".fx"), lbl: lbl,
+          stops: plan.querySelectorAll(`[id="g-${key}-${i}"] stop`),
+          temp: lbl ? lbl.querySelector(".temp") : null,
+          chips: lbl ? lbl.querySelector(".chips") : null,
+          here: lbl ? lbl.querySelector(".here") : null,
+          st: {},
+        });
+      });
+      this._floors[key].openings.forEach((o, i) => {
+        if (o.ents.length || o.tilt_entity || o.shade) this._orefs.push({ o: o, g: plan.querySelector(`.op .os[data-o="${i}"]`), hit: plan.querySelector(`.ohit[data-o="${i}"]`),
+          sh: plan.querySelector(`.op .shd[data-sh="${i}"]`), cls: "", sk: null });
+      });
+    }
+
+    root.querySelectorAll(".hit").forEach((el) => {
+      el.addEventListener("click", (e) => this._click(el, e));
+      el.addEventListener("pointerenter", () => { this._hover = el.getAttribute("data-room"); this._hoverBld = el.getAttribute("data-bld"); });
+      el.addEventListener("pointerleave", () => { if (this._hover === el.getAttribute("data-room")) this._hover = null; });
+      el.addEventListener("wheel", (e) => {   // mouse wheel over a room = music louder/quieter (Ctrl+wheel: zoom, see the site)
+        if (e.ctrlKey) return;
+        e.preventDefault();
+        const now = Date.now();
+        if (this._wheelT && now - this._wheelT < 250) return;   // at most 4 steps per second
+        this._wheelT = now;
+        this._send(el.getAttribute("data-room"), e.deltaY < 0 ? "lauter" : "leiser");
+      }, { passive: false });
+      el.addEventListener("contextmenu", (e) => {   // right click / yellow: gelb, twice gelb2
+        e.preventDefault();
+        el.classList.add("pressed"); setTimeout(() => el.classList.remove("pressed"), 280);
+        this._press(el.getAttribute("data-room"), "gelb");
+      });
+    });
+    this._orefs.forEach((r) => { if (r.hit) r.hit.addEventListener("click", (e) => { e.stopPropagation(); this._opTap(r.o); }); });
+    root.querySelectorAll(".lbl").forEach((el) => el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " " || e.keyCode === 13) { e.preventDefault(); this._open(el.getAttribute("data-room")); }
+    }));
   }
 
   /* Colours from the plan (editor → style) as CSS variables; defaults = the original night look. */
@@ -760,10 +1041,13 @@ class FloorplanLiteCard extends HTMLElement {
         if (o.fl !== !!fl) { o.fl = !!fl; ref.temp.classList.toggle("flash", !!fl); }
         const ink = !!pool && this._bright(pool.rgb, +lop);
         if (o.ink !== ink) { o.ink = ink; ref.lbl.classList.toggle("ink", ink); }
+        const here = this._here && ref.lbl.getAttribute("data-room") === this._here.room ? this._here.text : "";
+        if (o.here !== here) { o.here = here; if (ref.here) ref.here.textContent = here; ref.lbl.classList.toggle("mark", !!here); }
         const ck = (s.win === "open" ? "w" : s.win === "tilted" ? "k" : "") + (s.shade ? "s" : "") + (s.music ? "m" : "");
         if (o.ck !== ck) { o.ck = ck; ref.chips.innerHTML = ck.split("").map((c) => this._chips[c]).join(""); }
       }
     });
+    if (this._siteMode) this._summaries();
     (this._orefs || []).forEach((r) => {  // open windows, doors and gates light up, an unlocked lock shows red
       const cls = "os" + this._opState(r.o.ents, r.o);
       if (r.cls !== cls && r.g) { r.cls = cls; r.g.setAttribute("class", cls); }
@@ -885,6 +1169,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   /* ---------- Operation ---------- */
   _click(el, e) {  // touch → multi-tap logic, mouse/remote → pop-up right away
+    if (this._siteMode && this._view === "site" && el.getAttribute("data-bld")) { this._zoomIn(el.getAttribute("data-bld")); return; }
     if (e && e.pointerType === "touch") { this._multi(el); return; }
     this._tap(el);
   }
@@ -920,7 +1205,7 @@ class FloorplanLiteCard extends HTMLElement {
   /* Remote keys over a room (media keys, or the TV Streamer's tv-streamer-key event). */
   _remote(aktion) {
     if (!aktion || !this._hover || !this._hass || !this._config || this._config.tap === "none") return false;
-    if (location.hash && location.hash.length > 1) return false;  // a pop-up is open
+    if (popupOpen()) return false;  // a pop-up is open
     this._press(this._hover, aktion);
     return true;
   }
@@ -965,7 +1250,7 @@ class FloorplanLiteCard extends HTMLElement {
     const st = this._hass.states, r = this._roomEnts(this._keyOf(room)), ok = (id) => !!st[id] && !this._hidden(id);
     const players = (r.musik || []).filter(ok);
     if (svc.script && svc.script[sc]) {  // with the room's lights and players from the plan, so the script needs no guessing
-      const pr = ((this._plan && this._plan.rooms) || []).filter((x) => x.id === room)[0];
+      const pr = (this._info || {})[room];
       const lights = (r.licht || []).concat(r.hauptlicht && (r.licht || []).indexOf(r.hauptlicht) < 0 ? [r.hauptlicht] : []).filter(ok);
       this._hass.callService("script", sc, { raum: (pr && pr.area) || room, aktion: aktion, lichter: lights, player: players });
       return true;
@@ -1019,7 +1304,7 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _roomName(id) {
-    const r = ((this._plan && this._plan.rooms) || []).filter((x) => x.id === id)[0];
+    const r = (this._info || {})[id];
     return (r && r.name) || "";
   }
 
@@ -1042,9 +1327,19 @@ class FloorplanLiteCard extends HTMLElement {
     if (MEDIA_KEYS[e.key] && this._remote(MEDIA_KEYS[e.key])) { e.preventDefault(); return; }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const v = e.key === "ArrowUp" || e.keyCode === 38 ? "hoch" : e.key === "ArrowDown" || e.keyCode === 40 ? "runter" : "";
-    if (v && this._hover && !(location.hash && location.hash.length > 1)) {
+    if (v && this._hover && !popupOpen()) {
       e.preventDefault();
       if (!e.repeat) this._press(this._hover, v);
+      return;
+    }
+    const lr = e.key === "ArrowLeft" || e.keyCode === 37 ? -1 : e.key === "ArrowRight" || e.keyCode === 39 ? 1 : 0;
+    if (this._siteMode && (v || lr)) {  // site: ↑ / ↓ (not over a room) zoom in / out, ← / → change the level
+      if (this._typing(e) || !this._visible() || !this._keyMine()) return;
+      e.preventDefault();
+      if (e.repeat) return;
+      if (v === "hoch") this._zoomIn(this._view === "site" ? this._hoverBld : null);
+      else if (v === "runter") this._zoomOut();
+      else this._stepFloor(lr);
       return;
     }
     // ↑ / ↓ do not scroll the page – the wheel does (option scroll_keys: true for remotes without a wheel)
@@ -1052,15 +1347,431 @@ class FloorplanLiteCard extends HTMLElement {
     if (this._config.mode !== "swipe" || !this._track) return;
     const d = e.key === "ArrowLeft" || e.keyCode === 37 ? -1 : e.key === "ArrowRight" || e.keyCode === 39 ? 1 : 0;
     if (!d) return;
-    if (location.hash && location.hash.length > 1) return;  // room pop-up open
+    if (popupOpen()) return;  // room pop-up open
     if (this._typing(e)) return;
     if (!this._visible() || !this._keyMine()) return;
     e.preventDefault();
     this._go(this._idx + d);
   }
 
+  /* ---------- Site: views and zoom ---------- */
+  _buildSite() {
+    const root = this.shadowRoot, cfg = this._config, t = this._t, d = this._site;
+    const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const intro = !reduce && cfg.intro !== false;
+    this._reduce = reduce;
+    this._chips = chips(t);
+    const CHIP = this._chips;
+    const views = this._fl.map((k) => `<div class="view" data-v="${esc(k)}" hidden>${this._floorHtml(k, false, intro, true)}</div>`).join("");
+    const seg = this._single ? "" : `<div class="segs" role="tablist"><button class="sg" data-go="site" role="tab">${esc(t.site)}</button>` +
+      d.blds.map((b) => `<button class="sg" data-go="${esc(b.id)}" role="tab">${esc(b.name)}</button>`).join("") + `</div>`;
+    const legend = `<div class="legend">` +
+      `<span><i class="lg p"></i>${t.presence}</span><span><i class="lg m"></i>${t.motion}</span><span><i class="lg l"></i>${t.light}</span>` +
+      `<span>${CHIP.w}${t.win}</span><span>${CHIP.s}${t.shade}</span><span>${CHIP.m}${t.musicL}</span></div>`;
+    root.innerHTML = `<style>${FloorplanLiteCard.styles}${this._styleVars()}</style>` +
+      `<ha-card class="night site${intro ? " intro" : ""}"><div class="bar"><div class="lb"></div><div class="mid">${seg}</div><div class="rb"></div></div>` +
+      `<div class="ftabs" role="tablist"></div><div class="views">${views}</div>${legend}<div class="toast" role="status"></div></ha-card>`;
+    this._wire(root);
+    this._track = null;
+    root.querySelectorAll(".bhit, .bsum").forEach((el) => {
+      const id = el.getAttribute("data-bld");
+      el.addEventListener("click", () => this._zoomIn(id));
+      el.addEventListener("pointerenter", () => { this._hoverBld = id; });
+      el.addEventListener("pointerleave", () => { if (this._hoverBld === id) this._hoverBld = null; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.keyCode === 13) { e.preventDefault(); this._zoomIn(id); } });
+    });
+    root.querySelectorAll(".sg").forEach((b) => b.addEventListener("click", () => {
+      const g = b.getAttribute("data-go");
+      if (g === "site") this._zoomOut(); else this._zoomIn(g);
+    }));
+    const box = root.querySelector(".views");
+    box.addEventListener("wheel", (e) => {  // Ctrl+wheel: out to the site / into the building under the pointer
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (this._zoomT && now - this._zoomT < 450) return;
+      this._zoomT = now;
+      if (e.deltaY > 0) this._zoomOut(); else if (this._view === "site") this._zoomIn(this._hoverBld);
+    }, { passive: false });
+    this._pinch(box);
+    clearTimeout(this._introT);
+    if (intro) {
+      this._introT = setTimeout(() => {
+        root.querySelectorAll(".outline").forEach((o) => { o.style.strokeDasharray = ""; o.style.strokeDashoffset = ""; });
+        const card = root.querySelector("ha-card");
+        if (card) card.classList.remove("intro");
+      }, 2900);
+    }
+    this._lastW = 0;
+    this._view = null;
+    this._applyStart("entry");
+    requestAnimationFrame(() => this._resized());
+  }
+
+  _show(v, o) {
+    o = o || {};
+    const root = this.shadowRoot;
+    if (!root || !this._floors || !this._floors[v]) return;
+    const prev = this._view;
+    if (o.manual) this._holdUntil = Date.now() + this._hold();
+    const bld = v === "site" ? null : v.split(":")[0];
+    if (bld) { this._lastFloor[bld] = v; this._lastBld = bld; }
+    if (!o.fromHash) this._setHash(v, !!o.push);
+    if (prev === v) { this._chrome(); return; }
+    this._view = v;
+    const el = (k) => root.querySelector(`.view[data-v="${k}"]`);
+    const to = el(v), from = prev ? el(prev) : null;
+    const swap = () => {
+      root.querySelectorAll(".view").forEach((x) => { x.hidden = x !== to; x.classList.remove("fadein"); });
+      this._fit();
+    };
+    if (!o.anim || this._reduce || !from) swap();
+    else if (prev === "site" && bld) {  // into a building: the site zooms towards it, then the building fades in
+      this._zoomEl(from.querySelector(".plan"), this._bldRect(bld), true, () => { swap(); to.classList.add("fadein"); });
+    } else if (v === "site") {           // out: the site starts zoomed on the building and opens up
+      swap();
+      this._zoomEl(to.querySelector(".plan"), this._bldRect(prev.split(":")[0]), false);
+    } else { swap(); to.classList.add("fadein"); }
+    this._chrome();
+  }
+
+  _bldRect(id) {  // the building's frame in the site view, as fractions of the view
+    const b = this._site.blds.filter((x) => x.id === id)[0], f = this._floors.site;
+    if (!b || !f) return [0, 0, 1, 1];
+    const v = f.view, x = b.box;
+    return [(x[0] - v[0]) / v[2], (x[1] - v[1]) / v[3], (x[2] - x[0]) / v[2], (x[3] - x[1]) / v[3]];
+  }
+
+  _zoomEl(pl, r, inward, done) {  // zoom the view towards (inward) or out of the rectangle r – transform only, no redraw
+    if (!pl) { if (done) done(); return; }
+    const W = pl.clientWidth, H = pl.clientHeight;
+    const k = Math.min(1 / Math.max(r[2], 0.05), 1 / Math.max(r[3], 0.05)) * 0.9;
+    const tx = W / 2 - (r[0] + r[2] / 2) * W * k, ty = H / 2 - (r[1] + r[3] / 2) * H * k;
+    const zoomed = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px) scale(${k.toFixed(3)})`;
+    pl.style.transformOrigin = "0 0";
+    pl.style.transition = "none";
+    pl.style.transform = inward ? "none" : zoomed;
+    pl.style.opacity = inward ? "1" : ".3";
+    void pl.offsetWidth;
+    pl.style.transition = "transform .34s ease, opacity .34s ease";
+    pl.style.transform = inward ? zoomed : "none";
+    pl.style.opacity = inward ? ".15" : "1";
+    setTimeout(() => { pl.style.transition = ""; pl.style.transform = ""; pl.style.opacity = ""; if (done) done(); }, 350);
+  }
+
+  _zoomIn(id) {
+    const d = this._site;
+    if (!d || !d.blds.length) return;
+    const b = d.blds.filter((x) => x.id === id)[0] || d.blds.filter((x) => x.id === this._lastBld)[0] || d.blds[0];
+    if (this._view && this._view !== "site" && this._view.split(":")[0] === b.id) return;
+    this._show(this._lastFloor[b.id] || b.siteLevel, { anim: true, manual: true, push: this._view === "site" });
+  }
+
+  _zoomOut() {
+    if (this._single || !this._view || this._view === "site") return;
+    if (this._pushed && /[#&]plan=/.test(location.hash)) { this._pushed = false; history.back(); return; }  // Back shows the site
+    this._show("site", { anim: true, manual: true });
+  }
+
+  _stepFloor(dir) {
+    if (!this._view || this._view === "site") return;
+    const b = this._site.blds.filter((x) => x.id === this._view.split(":")[0])[0];
+    if (!b || b.levels.length < 2) return;
+    const i = b.levels.indexOf(this._view);
+    this._show(b.levels[(i + dir + b.levels.length) % b.levels.length], { anim: true, manual: true });
+  }
+
+  _setHash(v, push) {  // the view in the address: #plan=<plan>&floor=<level> (none on the site)
+    if (this._single || popupOpen()) return;
+    const h = v === "site" ? "" : "#plan=" + encodeURIComponent(v.split(":")[0]) + "&floor=" + encodeURIComponent(v.split(":")[1]);
+    if (location.hash === h || (!h && location.hash.length < 2)) return;
+    const url = location.pathname + location.search + h;
+    try {
+      if (push) { history.pushState(history.state, "", url); this._pushed = true; } else history.replaceState(history.state, "", url);
+    } catch (e) { /* not allowed here */ }
+  }
+
+  _hashState() {
+    const out = {};
+    location.hash.replace(/^#/, "").split("&").forEach((x) => {
+      const i = x.indexOf("=");
+      if (i > 0) { try { out[x.slice(0, i)] = decodeURIComponent(x.slice(i + 1)); } catch (e) { out[x.slice(0, i)] = x.slice(i + 1); } }
+    });
+    return out;
+  }
+
+  _hashChanged() {  // Back / Forward, or a link with #plan=… / #raum=… / #ansicht=…
+    if (!this._siteMode || !this._refs || popupOpen()) return;
+    const q = this._hashState();
+    if (q.raum || q.ansicht) { this._applyStart("entry"); return; }
+    let v = null;
+    if (q.plan) v = this._floors[q.plan + ":" + q.floor] ? q.plan + ":" + q.floor : this._lastFloor[q.plan];
+    else if (!this._single) v = "site";
+    if (v && v !== this._view) { this._pushed = false; this._show(v, { anim: true, manual: true, fromHash: true }); }
+  }
+
+  _pinch(el) {  // two fingers together: out to the site; apart over a building: into it
+    const P = {};
+    let d0 = 0, done = false;
+    const ids = () => Object.keys(P);
+    const dist = () => { const k = ids(); if (k.length < 2) return 0; const a = P[k[0]], b = P[k[1]]; return Math.sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])); };
+    el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") return;
+      P[e.pointerId] = [e.clientX, e.clientY];
+      if (ids().length === 2) { d0 = dist(); done = false; }
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!P[e.pointerId]) return;
+      P[e.pointerId] = [e.clientX, e.clientY];
+      if (ids().length !== 2 || done || !d0) return;
+      const r = dist() / d0;
+      if (r < 0.7) { done = true; this._zoomOut(); }
+      else if (r > 1.4 && this._view === "site") {
+        done = true;
+        const k = ids(), mx = (P[k[0]][0] + P[k[1]][0]) / 2, my = (P[k[0]][1] + P[k[1]][1]) / 2;
+        const hit = this.shadowRoot.elementFromPoint ? this.shadowRoot.elementFromPoint(mx, my) : null;
+        this._zoomIn(hit && hit.getAttribute ? hit.getAttribute("data-bld") : null);
+      }
+    });
+    const up = (e) => { delete P[e.pointerId]; if (ids().length < 2) d0 = 0; };
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  }
+
+  /* Bar: site / buildings, the building's levels, own buttons (left), zoom out and off (right). */
+  _chrome() {
+    const root = this.shadowRoot, t = this._t, cfg = this._config, d = this._site, v = this._view;
+    if (!root || !d || !v) return;
+    const bld = v !== "site" ? v.split(":")[0] : null, b = bld ? d.blds.filter((x) => x.id === bld)[0] : null;
+    root.querySelectorAll(".sg").forEach((x) => {
+      const on = x.getAttribute("data-go") === (bld || "site");
+      x.classList.toggle("on", on); x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    const ft = root.querySelector(".ftabs");
+    ft.innerHTML = b && b.titles.length > 1 ? b.titles.map((x) => `<button class="tab${x.key === v ? " on" : ""}" role="tab" data-f="${esc(x.key)}">` +
+      `<span class="l">${esc(x.name)}</span><span class="s">${esc(x.short)}</span></button>`).join("") : "";
+    ft.querySelectorAll(".tab").forEach((x) => x.addEventListener("click", () => this._show(x.getAttribute("data-f"), { anim: true, manual: true })));
+    const level = bld || "site";
+    const btns = listOf(cfg.buttons && cfg.buttons[level]);
+    const lb = root.querySelector(".lb");
+    lb.innerHTML = btns.map((x, i) => `<button class="fb" data-i="${i}" title="${esc(x.name || "")}">` +
+      (x.icon ? `<ha-icon icon="${esc(x.icon)}"></ha-icon>` : "") + `<span>${esc(x.name || "")}</span></button>`).join("");
+    lb.querySelectorAll(".fb").forEach((x) => x.addEventListener("click", () => this._action(btns[+x.getAttribute("data-i")])));
+    const rb = root.querySelector(".rb");
+    const offOn = !(cfg.aus_schalter && cfg.aus_schalter[level] === false);
+    rb.innerHTML = (bld && !this._single ? `<button class="zo" title="${esc(t.site)}">⤢ <span>${esc(t.site)}</span></button>` : "") +
+      (offOn ? `<button class="off"><ha-icon icon="mdi:power"></ha-icon><span>${esc(bld ? t.bOff.replace("%s", b ? b.name : bld) : t.allOff)}</span></button>` : "");
+    const zo = rb.querySelector(".zo");
+    if (zo) zo.addEventListener("click", () => this._zoomOut());
+    const off = rb.querySelector(".off");
+    if (off) off.addEventListener("click", () => this._off(level, off));
+    this._offArm = 0;
+  }
+
+  _action(b) {  // own button: the standard HA actions (navigate, url, more-info, perform-action …)
+    if (!b) return;
+    const conf = Object.assign({}, b);
+    if (!conf.tap_action) conf.tap_action = { action: "none" };
+    this.dispatchEvent(new CustomEvent("hass-action", { bubbles: true, composed: true, detail: { config: conf, action: "tap" } }));
+  }
+
+  /* Off: lights and music of every room (site) or of the building – only what is on or playing. Twice within 3 s. */
+  _off(level, btn) {
+    const t = this._t, now = Date.now(), label = btn.querySelector("span");
+    if (!this._offArm || now > this._offArm) {
+      this._offArm = now + 3000;
+      const old = label.textContent;
+      btn.classList.add("arm");
+      label.textContent = t.really;
+      clearTimeout(this._offT);
+      this._offT = setTimeout(() => { this._offArm = 0; btn.classList.remove("arm"); label.textContent = old; }, 3000);
+      return;
+    }
+    this._offArm = 0;
+    clearTimeout(this._offT);
+    const st = this._hass.states, cfg = this._config;
+    const keys = Object.keys(Object.assign({}, this._live || {}, this._rooms || {})).filter((k) =>
+      level === "site" || k.indexOf(level + "/") === 0 || (cfg.aus_mit_aussen === true && k.indexOf("site/") === 0));
+    const lights = [], players = [];
+    keys.forEach((k) => {
+      const r = this._roomEnts(k);
+      listOf(r.licht).concat(r.hauptlicht ? [r.hauptlicht] : []).forEach((id) => {
+        const s = st[id];
+        if (s && s.state === "on" && !this._hidden(id) && lights.indexOf(id) < 0) lights.push(id);
+      });
+      listOf(r.musik).forEach((id) => {
+        const s = st[id];
+        if (s && s.state === "playing" && !this._hidden(id) && players.indexOf(id) < 0) players.push(id);
+      });
+    });
+    const ls = lights.filter((id) => id.indexOf("light.") === 0), other = lights.filter((id) => id.indexOf("light.") !== 0);
+    if (ls.length) this._hass.callService("light", "turn_off", { entity_id: ls });
+    if (other.length) this._hass.callService("homeassistant", "turn_off", { entity_id: other });
+    const m = cfg.musik_aus === "stop" ? "media_stop" : cfg.musik_aus === "off" ? "turn_off" : "media_pause";
+    if (players.length) this._hass.callService("media_player", m, { entity_id: players });
+    this._toast(t.offDone.replace("%n", lights.length + players.length));
+    this._chrome();
+  }
+
+  _toast(text) {
+    const el = this.shadowRoot && this.shadowRoot.querySelector(".toast");
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add("on");
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => el.classList.remove("on"), 2600);
+  }
+
+  _summaries() {  // site: per building lights on, windows open, music
+    const d = this._site, root = this.shadowRoot;
+    if (!d || !root || !this._hass) return;
+    const st = this._hass.states, keys = Object.keys(Object.assign({}, this._live || {}, this._rooms || {}));
+    d.blds.forEach((b) => {
+      const el = root.querySelector(`.bsum[data-bld="${b.id}"] .bs`);
+      if (!el) return;
+      const L = {}, W = {};
+      let M = false;
+      keys.forEach((k) => {
+        if (k.indexOf(b.id + "/") !== 0) return;
+        const r = this._roomEnts(k);
+        listOf(r.licht).concat(r.hauptlicht ? [r.hauptlicht] : []).forEach((id) => { const s = st[id]; if (s && s.state === "on" && !this._hidden(id)) L[id] = 1; });
+        listOf(r.fenster).forEach((id) => { const s = st[id]; if (s && !this._hidden(id) && winState(s)) W[id] = 1; });
+        listOf(r.musik).forEach((id) => { const s = st[id]; if (s && s.state === "playing" && !this._hidden(id)) M = true; });
+      });
+      const nl = Object.keys(L).length, nw = Object.keys(W).length;
+      const html = (nl ? `<span class="sm"><ha-icon icon="mdi:lightbulb-on"></ha-icon>${nl}</span>` : "") +
+        (nw ? `<span class="sm w"><ha-icon icon="mdi:window-open"></ha-icon>${nw}</span>` : "") +
+        (M ? `<span class="sm m"><ha-icon icon="mdi:music"></ha-icon></span>` : "");
+      if (el.getAttribute("data-h") !== html) { el.setAttribute("data-h", html); el.innerHTML = html; }
+    });
+  }
+
+  /* ---------- Site: start view and following the location ---------- */
+  _hold() { return (typeof this._config.follow_hold === "number" ? this._config.follow_hold : 120) * 1000; }
+
+  _streamerName() { return window.__tvStreamer && window.__tvStreamer.name ? String(window.__tvStreamer.name) : ""; }
+
+  _geraet() {  // device name: TV Streamer (TV_NAME), else once set with ?geraet=… on this device
+    let v = this._streamerName();
+    if (!v) { try { v = localStorage.getItem("floorplan_geraet") || ""; } catch (e) { v = ""; } }
+    return v;
+  }
+
+  _params() {  // ?raum= / ?ansicht= / ?geraet= in the address (also #raum=… / #ansicht=…)
+    const out = {}, h = this._hashState();
+    let q = null;
+    try { q = new URLSearchParams(location.search); } catch (e) { q = null; }
+    ["raum", "ansicht", "geraet"].forEach((k) => { const v = (q && q.get(k)) || h[k]; if (v) out[k] = v; });
+    if (out.geraet) { try { localStorage.setItem("floorplan_geraet", out.geraet); } catch (e) { /* private mode */ } }
+    return out;
+  }
+
+  _followEntry() {  // this user's entry in follow: by user name or id
+    const f = this._config.follow, u = this._hass && this._hass.user;
+    if (!f || !u) return null;
+    const same = (x) => x && (x === u.id || String(x).toLowerCase() === String(u.name || "").toLowerCase());
+    if (Array.isArray(f)) return f.filter((e) => e && same(e.user))[0] || null;
+    const k = Object.keys(f).filter(same)[0];
+    return k ? f[k] : null;
+  }
+
+  _followIds() {
+    if (!this._siteMode || !this._hass) return [];
+    const f = this._followEntry();
+    if (!f || f.art === "fest" || f.art === "fixed") return [];
+    return listOf(f.geofence).concat(listOf(f.ble), listOf(f.ble_letzter));
+  }
+
+  _standort(f) {  // geofence → current Bluetooth area → last area (if recent) → site
+    const st = this._hass.states;
+    if (f.geofence) { const g = st[f.geofence]; if (!g || (g.state !== "home" && g.state !== "on")) return { view: "site" }; }
+    const ok = (x) => x && ["unknown", "unavailable", "", "none", "not_home", "away"].indexOf(String(x.state).toLowerCase()) < 0;
+    const newest = (ids) => listOf(ids).map((id) => st[id]).filter(ok).sort((a, b) => (a.last_changed < b.last_changed ? 1 : -1))[0];
+    const cur = newest(f.ble);
+    let r = cur ? this._resolve(cur.state) : null;
+    if (r) return r;
+    const last = newest(f.ble_letzter);
+    const age = last ? (Date.now() - Date.parse(last.last_changed)) / 60000 : Infinity;
+    if (last && age <= (f.max_alter > 0 ? f.max_alter : 30)) { r = this._resolve(last.state); if (r) return r; }
+    return { view: "site" };
+  }
+
+  /* A room id, an HA area (id or name, e.g. a Bermuda area), "<plan>[:<level>]" or "grundstueck" → {view, room} */
+  _resolve(s) {
+    if (s === undefined || s === null || s === "") return null;
+    const str = String(s).trim(), low = str.toLowerCase(), d = this._site;
+    if (low === "grundstueck" || low === "grundstück" || low === "site") return this._single ? null : { view: "site" };
+    const parts = str.split(":"), b = d.blds.filter((x) => x.id === parts[0])[0];
+    if (b) return { view: parts[1] && this._floors[b.id + ":" + parts[1]] ? b.id + ":" + parts[1] : this._lastFloor[b.id] || b.siteLevel };
+    const areas = (this._hass && this._hass.areas) || {};
+    let aid = null;
+    Object.keys(areas).forEach((k) => { const a = areas[k]; if (k === str || (a && String(a.name || "").toLowerCase() === low)) aid = k; });
+    const info = this._info || {};
+    const hit = Object.keys(info).map((k) => info[k]).filter((i) => i && i.id &&
+      (i.id === str || (i.area && (i.area === str || i.area === aid)) || String(i.name || "").toLowerCase() === low))[0];
+    if (!hit) return null;
+    if (hit.site) return { view: this._single || !this._floors.site ? hit.view : "site", room: hit.id };
+    return { view: this._config.follow_floor === false ? this._lastFloor[hit.bld] || hit.view : hit.view, room: hit.id };
+  }
+
+  /* Start view: the address (?raum= / ?ansicht=) → the user's follow entry → start. reason: entry (view opened),
+     update (location changed), tpl (template result) */
+  _applyStart(reason) {
+    if (!this._siteMode || !this._refs || !this._hass || !this._site) return;
+    if (popupOpen() && this._view) return;
+    const now = Date.now(), t = this._t, p = this._params(), f = this._followEntry();
+    const dev = this._streamerName() ? t.thisTv : t.thisDevice;
+    let goal = null, text = null;
+    if (reason === "entry" && (p.raum || p.ansicht)) {
+      goal = this._resolve(p.raum || p.ansicht);
+      if (goal) { this._holdUntil = now + this._hold(); text = dev; }
+    }
+    if (!goal && f && (reason === "entry" || now >= (this._holdUntil || 0))) {
+      if (f.art === "fest" || f.art === "fixed") {
+        if (reason !== "update") {
+          if (f.vorlage) this._tplStart(f);
+          goal = this._resolve(f.vorlage ? this._tplResult : f.raum || f.ansicht);
+          text = dev;
+        }
+      } else {
+        goal = this._standort(f);
+        text = t.here;
+      }
+    }
+    if (!goal && reason === "entry") {
+      goal = this._resolve(this._config.start);
+      if (!goal) goal = { view: this._single ? this._lastFloor[this._single] : "site" };
+    }
+    if (!goal) return;
+    this._here = goal.room ? { room: goal.room, text: text || t.here } : null;
+    let v = goal.view;
+    if (!this._floors[v]) v = this._view || this._fl[0];
+    this._show(v, { anim: reason !== "entry" && !!this._view });
+    if (this._hass) this._update();
+  }
+
+  _tplStart(f) {  // template of a fixed entry: render_template with benutzer and geraet
+    const key = f.vorlage + "|" + this._geraet();
+    if (this._tplKey === key || !this._hass || !this._hass.connection) return;
+    this._tplStop();
+    this._tplKey = key;
+    const u = this._hass.user || {};
+    this._hass.connection.subscribeMessage((m) => {
+      const r = m && m.result !== undefined && m.result !== null ? String(m.result).trim() : "";
+      if (r !== this._tplResult) { this._tplResult = r; this._applyStart("tpl"); }
+    }, { type: "render_template", template: f.vorlage, variables: { benutzer: u.name || "", geraet: this._geraet() } })
+      .then((un) => { if (this._tplKey === key) this._tplUnsub = un; else un(); })
+      .catch(() => { /* template error: no start view from it */ });
+  }
+
+  _tplStop() {
+    if (this._tplUnsub) { try { this._tplUnsub(); } catch (e) { /* gone */ } }
+    this._tplUnsub = null;
+    this._tplKey = null;
+  }
+
   _typing(e) {  // keys meant for something else: a pop-up, a dialog, a text field, a slider or a list with focus
-    if (location.hash && location.hash.length > 1) return true;
+    if (popupOpen()) return true;
     const path = e && e.composedPath ? e.composedPath() : [];
     if (path.some((n) => n && n.localName && /dialog|popup|menu/.test(n.localName))) return true;
     let a = document.activeElement;
@@ -1294,7 +2005,54 @@ FloorplanLiteCard.styles = `
   @keyframes draw { to { stroke-dashoffset: 0; } }
   @keyframes fadein { from { opacity: 0; } }
 
+  /* Site: bar (own buttons | site / buildings | zoom out, off), levels, views */
+  .site .bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+  .site .lb, .site .rb { display: flex; align-items: center; flex: 0 0 auto; }
+  .site .mid { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; margin: 0 6px; }
+  .segs { display: flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .05);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .sg, .fb, .zo, .off { font: inherit; font-size: .92em; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent; transition: background .2s, color .2s; }
+  .sg { padding: 6px 14px; margin: 0 1px; background: transparent; color: var(--n-muted); }
+  .sg.on { color: var(--n-text); background: rgba(255, 255, 255, .14); }
+  .fb, .zo, .off { display: inline-flex; align-items: center; padding: 6px 11px; margin: 0 3px; background: rgba(255, 255, 255, .06);
+    color: var(--n-text); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+  .fb ha-icon, .off ha-icon { --mdc-icon-size: 18px; display: flex; margin-right: 5px; }
+  .fb span:empty { display: none; }
+  .off.arm { background: #b3362a; color: #fff; }
+  .sg:focus, .fb:focus, .zo:focus, .off:focus, .bsum:focus { outline: none; box-shadow: 0 0 0 2px rgba(255, 255, 255, .6); }
+  .ftabs { display: flex; justify-content: center; margin: 0 0 6px; }
+  .ftabs:empty { display: none; }
+  .ftabs .tab { width: auto; padding: 5px 16px; margin: 0 3px; }
+  .ftabs .tab.on { background: rgba(255, 255, 255, .1); }
+  .view[hidden] { display: none; }
+  .view.fadein .plan { animation: fadein .35s both; }
+  .site .views, .site .hit, .site .bhit { touch-action: pan-y; }  /* two fingers: the card zooms, not the page */
+  .bhit { fill: rgba(255, 255, 255, 0); pointer-events: all; cursor: zoom-in; }
+  @media (hover: hover) { .bhit:hover { fill: rgba(255, 255, 255, .05); } }
+  .bsum { position: absolute; -webkit-transform: translate(-50%, -120%); transform: translate(-50%, -120%); pointer-events: auto;
+    cursor: zoom-in; white-space: nowrap; display: flex; align-items: center; padding: .25em .7em; border-radius: .8em; z-index: 2;
+    background: rgba(8, 13, 27, .74); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); color: var(--n-text); font-size: .95em; }
+  .bsum .bn { font-weight: 500; }
+  .bsum .sm { display: inline-flex; align-items: center; margin-left: .55em; color: #ffd98a; }
+  .bsum .sm.w { color: var(--c-window); }
+  .bsum .sm.m { color: var(--c-music); }
+  .bsum ha-icon { --mdc-icon-size: 1.05em; display: flex; margin-right: .15em; }
+  .lbl.area .name { font-style: italic; }
+  .here { display: inline-block; margin-bottom: .2em; padding: .05em .55em; border-radius: .6em; font-size: .62em; font-weight: 600;
+    letter-spacing: .03em; color: #0d1427; background: #9fd3ff; }
+  .here:empty { display: none; }
+  .lbl.mark { box-shadow: 0 0 0 2px rgba(159, 211, 255, .85); }
+  .raster line { stroke: rgba(160, 182, 230, .2); stroke-width: .04; }
+  .raster text { fill: rgba(205, 216, 240, .6); font-size: .9px; }
+  .toast { position: absolute; left: 50%; bottom: 14px; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+    padding: 8px 14px; border-radius: 10px; background: rgba(20, 28, 50, .95); color: var(--n-text); opacity: 0;
+    transition: opacity .3s; pointer-events: none; z-index: 6; }
+  .toast.on { opacity: 1; }
+
   @media (max-width: 600px) {
+    .site .fb span, .site .zo span { display: none; }
+    .sg { padding: 6px 10px; }
     ha-card.night { padding: 10px 8px 8px; }
     .tab { width: 4.4em; } .tab .l { display: none; } .tab .s { display: inline; }
   }
@@ -1312,29 +2070,87 @@ const ED = {
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
     scroll_keys: "Pfeiltasten ↑/↓ scrollen die Seite (für Fernbedienungen ohne Rad)",
+    building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
-    hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest." },
+    hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
+    site_on: "Grundstück: mehrere Grundrisse (Gebäude) in einer Karte",
+    sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sOpts: "Weitere Einstellungen",
+    addBld: "+ Gebäude", addArea: "+ Außenbereich zeichnen", addUser: "+ Benutzer", del: "Entfernen", redraw: "Neu zeichnen", done: "Fertig", cancel: "Abbrechen",
+    name: "Name", site_floor: "Geschoss in der Grundstücksansicht (Standard: unterstes)", x: "Lage x (m, leer = automatisch)", y: "Lage y (m)",
+    rotation: "Drehung (°)", scale: "Maßstab", area: "Home-Assistant-Bereich", licht: "Licht", hauptlicht: "Hauptlicht", musik: "Musik",
+    praesenz: "Präsenz", bewegung: "Bewegung", fenster: "Fenster", beschattung: "Beschattung", temp: "Temperatur",
+    user: "Benutzer", art: "Art", standort: "Standort (folgen)", fest: "Fest", geofence: "Geofence (person / device_tracker / binary_sensor)",
+    ble: "Bluetooth-Bereich (z. B. Bermuda), mehrere möglich", ble_letzter: "Letzter Bluetooth-Bereich", max_alter: "Letzter Bereich höchstens (Minuten)",
+    ansicht: "Ansicht", raum: "Raum (mit Markierung)", vorlage: "Vorlage (liefert Raum oder Ansicht; Variablen benutzer, geraet)",
+    preview: "Vorschau für Gerät", result: "Ergebnis",
+    sstart: "Startansicht", show: "Nur diese Gebäude zeigen (eines = ohne Grundstücksebene)", follow_floor: "Beim Folgen auch das Stockwerk wechseln",
+    follow_hold: "Nach eigener Navigation nicht springen (s)", nachbar_rand: "Rand um ein Gebäude für Außenbereiche (%)",
+    musik_aus: "Musik bei „aus“", pause: "Pause", stop: "Stopp", off: "Ausschalten", aus_mit_aussen: "„Gebäude aus“ schließt Außenbereiche ein",
+    aus_schalter: "Aus-Schalter je Ebene (z. B. site: false)", buttons: "Eigene Schaltflächen je Ebene (site / <grundriss>: Liste)",
+    raster: "5-m-Raster in der Grundstücksansicht", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
+    gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Klicken setzt Punkte (0,25-m-Raster), Doppelklick oder Klick auf den ersten Punkt schließt. Esc bricht ab.",
+    dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab.",
+    params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
+    notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
     start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
     scroll_keys: "Arrow keys ↑/↓ scroll the page (for remotes without a wheel)",
+    building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
-    hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar." },
+    hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
+    site_on: "Site: several floor plans (buildings) in one card",
+    sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sOpts: "More settings",
+    addBld: "+ Building", addArea: "+ Draw an area outside", addUser: "+ User", del: "Remove", redraw: "Draw again", done: "Done", cancel: "Cancel",
+    name: "Name", site_floor: "Level shown on the site (default: the lowest)", x: "Position x (m, empty = automatic)", y: "Position y (m)",
+    rotation: "Rotation (°)", scale: "Scale", area: "Home Assistant area", licht: "Lights", hauptlicht: "Main light", musik: "Music",
+    praesenz: "Presence", bewegung: "Motion", fenster: "Windows", beschattung: "Shades", temp: "Temperature",
+    user: "User", art: "Kind", standort: "Location (follow)", fest: "Fixed", geofence: "Geofence (person / device_tracker / binary_sensor)",
+    ble: "Bluetooth area (e.g. Bermuda), several allowed", ble_letzter: "Last Bluetooth area", max_alter: "Last area at most (minutes)",
+    ansicht: "View", raum: "Room (marked)", vorlage: "Template (returns a room or a view; variables benutzer, geraet)",
+    preview: "Preview for device", result: "Result",
+    sstart: "Start view", show: "Show only these buildings (one = without the site level)", follow_floor: "Following also changes the level",
+    follow_hold: "Do not jump after own navigation (s)", nachbar_rand: "Margin around a building for areas outside (%)",
+    musik_aus: "Music on „off“", pause: "Pause", stop: "Stop", off: "Switch off", aus_mit_aussen: "„Building off“ includes the areas outside",
+    aus_schalter: "Off button per level (e.g. site: false)", buttons: "Own buttons per level (site / <plan>: list)",
+    raster: "5 m grid in the site view", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
+    gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points (0.25 m grid), a double click or a click on the first point closes. Esc cancels.",
+    dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales.",
+    params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own).",
+    notDrawn: "not drawn yet", loading: "loading …" },
+};
+
+const polysOverlap = (a, b) => {  // two polygons share area (a corner inside the other or crossing edges)
+  if (a.some((p) => inside(p, b)) || b.some((p) => inside(p, a))) return true;
+  const cross = (p, q, r, s) => {
+    const d = (q[0] - p[0]) * (s[1] - r[1]) - (q[1] - p[1]) * (s[0] - r[0]);
+    if (!d) return false;
+    const u = ((r[0] - p[0]) * (s[1] - r[1]) - (r[1] - p[1]) * (s[0] - r[0])) / d, v = ((r[0] - p[0]) * (q[1] - p[1]) - (r[1] - p[1]) * (q[0] - p[0])) / d;
+    return u > 0 && u < 1 && v > 0 && v < 1;
+  };
+  for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) {
+    if (cross(a[i], a[(i + 1) % a.length], b[j], b[(j + 1) % b.length])) return true;
+  }
+  return false;
 };
 
 class FloorplanLiteCardEditor extends HTMLElement {
   setConfig(config) {
     const reload = !this._config || this._config.plan !== config.plan;
-    this._config = Object.assign({}, config);
-    if (reload && this._hass) this._loadPlan(); else this._render();
+    this._config = JSON.parse(JSON.stringify(config || {}));
+    if (reload && this._hass && !this._config.site) this._loadPlan(); else this._render();
   }
 
   set hass(hass) {
     const first = !this._hass;
     this._hass = hass;
-    if (first) this._load(); else if (this._form) this._form.hass = hass;
+    if (first) this._load();
+    else {
+      if (this._form) this._form.hass = hass;
+      (this._subforms || []).forEach((f) => { f.hass = hass; });
+    }
   }
 
   get _t() {
@@ -1344,6 +2160,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
 
   async _load() {
     try { this._plans = await this._hass.callWS({ type: "floorplan_lite/list" }); } catch (e) { this._plans = []; }
+    try { this._users = (await this._hass.callWS({ type: "config/auth/list" })).filter((u) => !u.system_generated); } catch (e) { this._users = null; }
     this._loadPlan();
   }
 
@@ -1352,20 +2169,36 @@ class FloorplanLiteCardEditor extends HTMLElement {
     let plan = null;
     if (id) { try { plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { plan = null; } }
     this._levels = plan ? plan.levels || [] : [];
+    this._planBlds = plan ? plan.buildings || [] : [];
     this._planAlign = !!(plan && plan.align_levels);
     this._planLabels = planLabels(plan);
     this._render();
   }
 
+  async _sitePlan(id) {  // the full plans of the site's buildings (levels, outlines for the layout)
+    const c = this._sp || (this._sp = {});
+    if (c[id] !== undefined || !id) return;
+    c[id] = null;
+    try { c[id] = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id }); } catch (e) { c[id] = false; }
+    this._renderSite();
+  }
+
+  _emit(c) {
+    this._config = c;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: JSON.parse(JSON.stringify(c)) }, bubbles: true, composed: true }));
+  }
+
   _schema() {
     const t = this._t, lv = (this._levels || []).map((l) => ({ value: l.id, label: l.name }));
     const sel = (options, extra) => ({ select: Object.assign({ mode: "dropdown", options: options }, extra || {}) });
-    const sc = [
-      { name: "plan", required: true, selector: sel((this._plans || []).map((p) => ({ value: p.id, label: p.name }))) },
-      { name: "mode", selector: sel([{ value: "swipe", label: t.swipe }, { value: "all", label: t.all }], { mode: "list" }) },
-    ];
-    if (this._config.mode === "swipe" && lv.length) sc.push({ name: "start", selector: sel(lv) });
-    if (lv.length > 1) sc.push({ name: "floors", selector: sel(lv, { multiple: true, mode: "list" }) });
+    const sc = [{ name: "site_on", selector: { boolean: {} } }];
+    if (!this._config.site) {
+      sc.push({ name: "plan", required: true, selector: sel((this._plans || []).map((p) => ({ value: p.id, label: p.name }))) },
+        { name: "mode", selector: sel([{ value: "swipe", label: t.swipe }, { value: "all", label: t.all }], { mode: "list" }) });
+      if (this._config.mode === "swipe" && lv.length) sc.push({ name: "start", selector: sel(lv) });
+      if (lv.length > 1) sc.push({ name: "floors", selector: sel(lv, { multiple: true, mode: "list" }) });
+      if ((this._planBlds || []).length > 1) sc.push({ name: "building", selector: sel([{ value: "", label: "–" }].concat(this._planBlds.map((b) => ({ value: b.id, label: b.name })))) });
+    }
     sc.push(
       { name: "align", selector: { boolean: {} } },
       { name: "background", selector: { boolean: {} } },
@@ -1380,19 +2213,35 @@ class FloorplanLiteCardEditor extends HTMLElement {
   _data() {
     const c = this._config;
     return {
+      site_on: !!c.site, building: c.building || "",
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
       align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
-      tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
+      tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? (this._config.site ? [] : this._planLabels || []) : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
 
   _changed(v) {
     const c = Object.assign({}, this._config), set = (k, val, keep) => { if (keep) c[k] = val; else delete c[k]; };
-    const planChanged = v.plan !== c.plan;
-    c.plan = v.plan;
-    set("mode", "swipe", v.mode === "swipe");
-    set("start", v.start, v.mode === "swipe" && v.start && !planChanged);
-    set("floors", v.floors, v.floors && v.floors.length && !planChanged && v.floors.length < (this._levels || []).length);
+    if (v.site_on && !c.site) {  // into a site: the current plan becomes its first building
+      const first = c.plan || ((this._plans || [])[0] || {}).id;
+      c.site = { buildings: first ? [{ plan: first }] : [] };
+      ["plan", "mode", "start", "floors", "building"].forEach((k) => { delete c[k]; });
+      this._emit(c); this._render(); return;
+    }
+    if (!v.site_on && c.site) {  // back to one plan: the first building
+      c.plan = ((c.site.buildings || [])[0] || {}).plan || ((this._plans || [])[0] || {}).id;
+      c.mode = "swipe";
+      ["site", "follow", "buttons", "aus_schalter", "musik_aus", "aus_mit_aussen", "follow_hold", "follow_floor", "nachbar_rand", "start"].forEach((k) => { delete c[k]; });
+      this._emit(c); this._loadPlan(); return;
+    }
+    const planChanged = !c.site && v.plan !== c.plan;
+    if (!c.site) {
+      c.plan = v.plan;
+      set("mode", "swipe", v.mode === "swipe");
+      set("start", v.start, v.mode === "swipe" && v.start && !planChanged);
+      set("floors", v.floors, v.floors && v.floors.length && !planChanged && v.floors.length < (this._levels || []).length);
+      set("building", v.building, v.building && !planChanged);
+    }
     set("align", v.align, !planChanged && v.align !== this._planAlign);
     set("background", false, v.background === false);
     set("intro", false, v.intro === false);
@@ -1400,9 +2249,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");
     const hl = (v.hide_label || []).slice().sort();
-    set("hide_label", hl, !planChanged && hl.join() !== this._planLabels.slice().sort().join());
-    this._config = c;
-    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: c }, bubbles: true, composed: true }));
+    set("hide_label", hl, !planChanged && hl.join() !== (c.site ? "" : (this._planLabels || []).slice().sort().join()));
+    this._emit(c);
     if (planChanged) this._loadPlan(); else this._render();
   }
 
@@ -1411,8 +2259,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     const t = this._t;
     if (!this._box) {
       this._box = document.createElement("div");
-      this._box.innerHTML = `<style>.fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; } .fl-hint a { color: var(--primary-color); }</style>` +
-        `<div class="fl-msg"></div><div class="fl-form"></div><p class="fl-hint fl-foot"></p>`;
+      this._box.innerHTML = `<style>${FloorplanLiteCardEditor.styles}</style>` +
+        `<div class="fl-msg"></div><div class="fl-form"></div><div class="fl-site"></div><p class="fl-hint fl-foot"></p>`;
       this.appendChild(this._box);
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (s) => this._t[s.name] || s.name;
@@ -1425,8 +2273,404 @@ class FloorplanLiteCardEditor extends HTMLElement {
     this._form.hass = this._hass;
     this._form.schema = this._schema();
     this._form.data = this._data();
+    this._renderSite();
+  }
+
+  /* ---------- Site ---------- */
+  _site() { return this._config.site || {}; }
+
+  _setSite(fn, rebuild) {  // change a copy of the config's site, send it, redraw
+    const c = JSON.parse(JSON.stringify(this._config));
+    c.site = c.site || { buildings: [] };
+    fn(c, c.site);
+    this._emit(c);
+    this._renderSite(rebuild);
+  }
+
+  _geo() {  // site geometry from the loaded plans (all buildings, no „show“ filter, with grid)
+    const site = this._site(), plans = {};
+    let missing = false;
+    (site.buildings || []).forEach((b) => {
+      if (!b || !b.plan) return;
+      const p = this._sp && this._sp[b.plan];
+      if (p === undefined) { this._sitePlan(b.plan); missing = true; } else if (p === null) missing = true; else if (p) plans[b.plan] = p;
+    });
+    if (missing) return null;
+    const s = Object.assign({}, site, { show: undefined, raster: true });
+    return { d: buildSite(s, plans, this._config), plans: plans };
+  }
+
+  _sel(options, extra) { return { select: Object.assign({ mode: "dropdown", options: options }, extra || {}) }; }
+
+  _viewOptions(geo, withEmpty) {
+    const t = this._t, out = withEmpty ? [{ value: "", label: "–" }] : [];
+    out.push({ value: "grundstueck", label: t.gsite });
+    if (geo) geo.d.blds.forEach((b) => { out.push({ value: b.id, label: b.name }); b.titles.forEach((x) => out.push({ value: x.key, label: b.name + " · " + x.name })); });
+    return out;
+  }
+
+  _roomOptions(geo) {
+    const out = [{ value: "", label: "–" }];
+    if (!geo) return out;
+    Object.keys(geo.d.info).forEach((k) => {
+      const i = geo.d.info[k];
+      if (!i || !i.id) return;
+      const b = i.bld ? geo.d.blds.filter((x) => x.id === i.bld)[0] : null;
+      out.push({ value: i.id, label: (i.name || i.id) + (b ? " (" + b.name + ")" : "") });
+    });
+    return out;
+  }
+
+  /* Keeps one ha-form per list item, so typing in a field does not lose the focus. */
+  _list(host, list, head, schema, data, change) {
+    const items = host.__items || (host.__items = []);
+    while (items.length > list.length) items.pop().el.remove();
+    list.forEach((x, i) => {
+      let it = items[i];
+      if (!it) {
+        const el = document.createElement("div"), hd = document.createElement("div"), form = document.createElement("ha-form");
+        el.className = "fl-item"; hd.className = "fl-head";
+        form.computeLabel = (sc) => this._t[sc.name] || sc.name;
+        el.appendChild(hd); el.appendChild(form); host.appendChild(el);
+        it = items[i] = { el: el, hd: hd, form: form };
+        form.addEventListener("value-changed", (e) => change(it.i, e.detail.value));
+        (this._subforms || (this._subforms = [])).push(form);
+      }
+      it.i = i;
+      head(it.hd, x, i);
+      it.form.hass = this._hass;
+      it.form.schema = schema(x, i);
+      it.form.data = data(x, i);
+    });
+  }
+
+  _renderSite(rebuild) {
+    const host = this._box && this._box.querySelector(".fl-site");
+    if (!host) return;
+    if (!this._config.site) { host.innerHTML = ""; this._subforms = []; this._siteBuilt = false; return; }
+    const t = this._t, site = this._site(), geo = this._geo();
+    if (!this._siteBuilt || rebuild) {
+      this._siteBuilt = true;
+      this._subforms = [];
+      host.innerHTML = `<h3>${esc(t.sSite)}</h3><div class="fl-canvas"></div><div class="fl-coord"></div><p class="fl-hint fl-warn"></p>` +
+        `<p class="fl-hint">${esc(t.dragHint)}</p>` +
+        `<h4>${esc(t.sBlds)}</h4><div class="fl-blds"></div><button class="fl-btn" data-a="addb">${esc(t.addBld)}</button>` +
+        `<h4>${esc(t.sAreas)}</h4><div class="fl-areas"></div><button class="fl-btn" data-a="adda">${esc(t.addArea)}</button>` +
+        `<h4>${esc(t.sUsers)}</h4><div class="fl-users"></div><button class="fl-btn" data-a="addu">${esc(t.addUser)}</button>` +
+        `<p class="fl-hint">${esc(t.params)}</p><h4>${esc(t.sOpts)}</h4><div class="fl-opts"></div>`;
+      host.querySelector('[data-a="addb"]').addEventListener("click", () => this._setSite((c, s) => {
+        const used = (s.buildings || []).map((b) => b.plan);
+        const free = (this._plans || []).filter((p) => used.indexOf(p.id) < 0)[0];
+        s.buildings = (s.buildings || []).concat([{ plan: free ? free.id : "" }]);
+      }));
+      host.querySelector('[data-a="adda"]').addEventListener("click", () => {
+        this._setSite((c, s) => { s.areas = (s.areas || []).concat([{ id: "bereich_" + ((s.areas || []).length + 1), name: "", poly: [] }]); });
+        this._draw = { i: (this._site().areas || []).length - 1, pts: [] };
+        this._canvas();
+      });
+      host.querySelector('[data-a="addu"]').addEventListener("click", () => {
+        const c = JSON.parse(JSON.stringify(this._config));
+        const f = c.follow && !Array.isArray(c.follow) ? c.follow : {};
+        let n = "", k = 1;
+        const taken = (x) => Object.prototype.hasOwnProperty.call(f, x);
+        const free = (this._users || []).map((u) => u.name).filter((x) => !taken(x))[0];
+        n = free || "benutzer";
+        while (taken(n)) n = "benutzer_" + k++;
+        f[n] = { art: "standort" };
+        c.follow = f;
+        this._emit(c);
+        this._renderSite();
+      });
+      const opt = document.createElement("ha-form");
+      opt.computeLabel = (sc) => this._t[sc.name] || sc.name;
+      opt.addEventListener("value-changed", (e) => this._optChanged(e.detail.value));
+      host.querySelector(".fl-opts").appendChild(opt);
+      this._opt = opt;
+      this._subforms.push(opt);
+    }
+    // buildings
+    const plans = (this._plans || []).map((p) => ({ value: p.id, label: p.name }));
+    this._list(host.querySelector(".fl-blds"), site.buildings || [],
+      (hd, b, i) => {
+        hd.innerHTML = `<b>${esc(b.name || b.plan || "?")}</b><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-del]").addEventListener("click", () => this._setSite((c, s) => { s.buildings.splice(i, 1); }));
+      },
+      (b) => {
+        const p = this._sp && this._sp[b.plan];
+        const lv = p ? (p.levels || []).map((l) => ({ value: l.id, label: l.name })) : [];
+        const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }];
+        if (lv.length > 1) sc.push({ name: "site_floor", selector: this._sel([{ value: "", label: "–" }].concat(lv)) });
+        if (p && (p.buildings || []).length > 1) sc.push({ name: "building", selector: this._sel([{ value: "", label: "–" }].concat(p.buildings.map((x) => ({ value: x.id, label: x.name })))) });
+        sc.push({ name: "x", selector: { number: { mode: "box", step: 0.1 } } }, { name: "y", selector: { number: { mode: "box", step: 0.1 } } },
+          { name: "rotation", selector: { number: { mode: "box", step: 1, min: -360, max: 360 } } },
+          { name: "scale", selector: { number: { mode: "box", step: 0.01, min: 0.05, max: 10 } } });
+        return sc;
+      },
+      (b) => ({ plan: b.plan || "", name: b.name || "", site_floor: b.site_floor || "", building: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
+      (i, v) => this._setSite((c, s) => {
+        const b = s.buildings[i];
+        ["plan", "name", "site_floor", "building"].forEach((k) => { if (v[k]) b[k] = v[k]; else delete b[k]; });
+        ["x", "y"].forEach((k) => { if (typeof v[k] === "number") b[k] = v[k]; else delete b[k]; });
+        if (v.rotation) b.rotation = v.rotation; else delete b.rotation;
+        if (v.scale && v.scale !== 1) b.scale = v.scale; else delete b.scale;
+      }));
+    // areas outside
+    const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
+    this._list(host.querySelector(".fl-areas"), site.areas || [],
+      (hd, a, i) => {
+        hd.innerHTML = `<b>${esc(a.name || a.id)}</b>${a.poly && a.poly.length > 2 ? "" : ` <i>${esc(t.notDrawn)}</i>`}` +
+          `<button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
+        hd.querySelector("[data-draw]").addEventListener("click", () => { this._draw = { i: i, pts: [] }; this._canvas(); });
+        hd.querySelector("[data-del]").addEventListener("click", () => this._setSite((c, s) => { s.areas.splice(i, 1); }));
+      },
+      () => [{ name: "area", selector: { area: {} } }, { name: "name", selector: { text: {} } },
+        { name: "licht", selector: ents(["light", "switch"], true) }, { name: "hauptlicht", selector: ents(["light", "switch"]) },
+        { name: "musik", selector: ents("media_player", true) }, { name: "praesenz", selector: ents("binary_sensor", true) },
+        { name: "bewegung", selector: ents("binary_sensor", true) }, { name: "fenster", selector: ents(["binary_sensor", "cover"], true) },
+        { name: "beschattung", selector: ents("cover", true) }, { name: "temp", selector: ents(["climate", "sensor"]) }],
+      (a) => ({ area: a.area || a.id || "", name: a.name || "", licht: a.licht || [], hauptlicht: a.hauptlicht || "", musik: a.musik || [],
+        praesenz: a.praesenz || [], bewegung: a.bewegung || [], fenster: a.fenster || [], beschattung: a.beschattung || [], temp: a.temp || "" }),
+      (i, v) => this._setSite((c, s) => {
+        const a = s.areas[i], ha = (this._hass.areas || {})[v.area];
+        if (v.area) { a.id = v.area; a.area = v.area; if (!v.name && ha) v.name = ha.name; }
+        if (v.name) a.name = v.name; else delete a.name;
+        ["licht", "musik", "praesenz", "bewegung", "fenster", "beschattung"].forEach((k) => { if (v[k] && v[k].length) a[k] = v[k]; else delete a[k]; });
+        ["hauptlicht", "temp"].forEach((k) => { if (v[k]) a[k] = v[k]; else delete a[k]; });
+      }));
+    // users
+    const fol = this._config.follow && !Array.isArray(this._config.follow) ? this._config.follow : {};
+    const users = Object.keys(fol).map((k) => Object.assign({ user: k }, fol[k]));
+    const uopts = (this._users || []).map((u) => ({ value: u.name, label: u.name + (u.username ? " (" + u.username + ")" : "") }));
+    this._list(host.querySelector(".fl-users"), users,
+      (hd, u, i) => {
+        const fixed = u.art === "fest" && u.vorlage;
+        hd.innerHTML = `<b>${esc(u.user)}</b><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>` +
+          (fixed ? `<span class="fl-prev">${esc(t.preview)} <input type="text" value="${esc(this._prevDev || "")}"> → <code></code></span>` : "");
+        hd.querySelector("[data-del]").addEventListener("click", () => {
+          const c = JSON.parse(JSON.stringify(this._config));
+          delete c.follow[u.user];
+          if (!Object.keys(c.follow).length) delete c.follow;
+          this._emit(c); this._renderSite();
+        });
+        if (fixed) {
+          const inp = hd.querySelector("input"), out = hd.querySelector("code");
+          const run = () => { this._prevDev = inp.value; this._preview(u, inp.value, out); };
+          inp.addEventListener("change", run);
+          run();
+        }
+      },
+      (u) => {
+        const sc = [{ name: "user", required: true, selector: uopts.length ? this._sel(uopts, { custom_value: true }) : { text: {} } },
+          { name: "art", selector: this._sel([{ value: "standort", label: t.standort }, { value: "fest", label: t.fest }], { mode: "list" }) }];
+        if (u.art === "fest") {
+          sc.push({ name: "ansicht", selector: this._sel(this._viewOptions(geo, true)) }, { name: "raum", selector: this._sel(this._roomOptions(geo)) },
+            { name: "vorlage", selector: { template: {} } });
+        } else {
+          sc.push({ name: "geofence", selector: ents(["person", "device_tracker", "binary_sensor"]) }, { name: "ble", selector: ents("sensor", true) },
+            { name: "ble_letzter", selector: ents("sensor", true) }, { name: "max_alter", selector: { number: { mode: "box", min: 1, max: 1440, step: 1 } } });
+        }
+        return sc;
+      },
+      (u) => ({ user: u.user, art: u.art === "fest" ? "fest" : "standort", ansicht: u.ansicht || "", raum: u.raum || "", vorlage: u.vorlage || "",
+        geofence: u.geofence || "", ble: listOf(u.ble), ble_letzter: listOf(u.ble_letzter), max_alter: u.max_alter || 30 }),
+      (i, v) => {
+        const c = JSON.parse(JSON.stringify(this._config)), old = users[i].user, f = c.follow || {};
+        const e = { art: v.art };
+        if (v.art === "fest") { ["ansicht", "raum", "vorlage"].forEach((k) => { if (v[k]) e[k] = v[k]; }); }
+        else {
+          if (v.geofence) e.geofence = v.geofence;
+          if (v.ble && v.ble.length) e.ble = v.ble;
+          if (v.ble_letzter && v.ble_letzter.length) e.ble_letzter = v.ble_letzter;
+          if (v.max_alter && v.max_alter !== 30) e.max_alter = v.max_alter;
+        }
+        const nf = {};
+        Object.keys(f).forEach((k) => { if (k === old) nf[v.user || old] = e; else nf[k] = f[k]; });
+        c.follow = nf;
+        this._emit(c);
+        this._renderSite();
+      });
+    // more settings
+    const cfg = this._config;
+    this._opt.hass = this._hass;
+    this._opt.schema = [
+      { name: "sstart", selector: this._sel(this._viewOptions(geo, false).concat(this._roomOptions(geo).slice(1))) },
+      { name: "show", selector: this._sel((site.buildings || []).map((b) => ({ value: b.plan, label: b.name || b.plan })), { multiple: true, mode: "list" }) },
+      { name: "follow_floor", selector: { boolean: {} } },
+      { name: "follow_hold", selector: { number: { mode: "box", min: 0, max: 3600, step: 10, unit_of_measurement: "s" } } },
+      { name: "nachbar_rand", selector: { number: { mode: "slider", min: 0, max: 60, step: 5, unit_of_measurement: "%" } } },
+      { name: "musik_aus", selector: this._sel([{ value: "pause", label: t.pause }, { value: "stop", label: t.stop }, { value: "off", label: t.off }]) },
+      { name: "aus_mit_aussen", selector: { boolean: {} } },
+      { name: "raster", selector: { boolean: {} } },
+      { name: "aus_schalter", selector: { object: {} } },
+      { name: "buttons", selector: { object: {} } },
+      { name: "site_background", selector: { object: {} } },
+    ];
+    this._opt.data = { sstart: cfg.start || "grundstueck", show: listOf(site.show), follow_floor: cfg.follow_floor !== false,
+      follow_hold: typeof cfg.follow_hold === "number" ? cfg.follow_hold : 120,
+      nachbar_rand: Math.round((typeof cfg.nachbar_rand === "number" ? cfg.nachbar_rand : 0.15) * 100), musik_aus: cfg.musik_aus || "pause",
+      aus_mit_aussen: cfg.aus_mit_aussen === true, raster: !!site.raster, aus_schalter: cfg.aus_schalter || {}, buttons: cfg.buttons || {},
+      site_background: site.site_background || {} };
+    this._canvas(geo);
+  }
+
+  _optChanged(v) {
+    const c = JSON.parse(JSON.stringify(this._config)), s = c.site, set = (o, k, val, keep) => { if (keep) o[k] = val; else delete o[k]; };
+    set(c, "start", v.sstart, v.sstart && v.sstart !== "grundstueck");
+    set(s, "show", v.show, v.show && v.show.length);
+    set(c, "follow_floor", false, v.follow_floor === false);
+    set(c, "follow_hold", v.follow_hold, typeof v.follow_hold === "number" && v.follow_hold !== 120);
+    set(c, "nachbar_rand", v.nachbar_rand / 100, typeof v.nachbar_rand === "number" && v.nachbar_rand !== 15);
+    set(c, "musik_aus", v.musik_aus, v.musik_aus && v.musik_aus !== "pause");
+    set(c, "aus_mit_aussen", true, v.aus_mit_aussen === true);
+    set(s, "raster", true, v.raster === true);
+    ["aus_schalter", "buttons"].forEach((k) => set(c, k, v[k], v[k] && typeof v[k] === "object" && Object.keys(v[k]).length));
+    set(s, "site_background", v.site_background, v.site_background && v.site_background.image);
+    this._emit(c);
+    this._renderSite();
+  }
+
+  _preview(u, dev, out) {  // the template's result for a device name
+    if (!this._hass || !this._hass.connection) return;
+    out.textContent = "…";
+    let un = null, done = false;
+    this._hass.connection.subscribeMessage((m) => {
+      if (done) return;
+      done = true;
+      out.textContent = m && m.result !== undefined ? String(m.result) : "?";
+      if (un) un();
+    }, { type: "render_template", template: u.vorlage, variables: { benutzer: u.user, geraet: dev || "" } })
+      .then((x) => { un = x; if (done) x(); })
+      .catch((e) => { out.textContent = (e && e.message) || "Fehler"; });
+  }
+
+  /* The site to arrange: buildings dragged into place, areas outside drawn as polygons. */
+  _canvas(geo) {
+    const host = this._box && this._box.querySelector(".fl-canvas");
+    if (!host) return;
+    const t = this._t;
+    geo = geo || this._geo();
+    if (!geo) { host.innerHTML = `<p class="fl-hint">${esc(t.loading)}</p>`; return; }
+    const d = geo.d, sf = d.floors.site, site = this._site();
+    if (!sf) { host.innerHTML = ""; return; }
+    const v = [sf.view[0], sf.view[1] - 2.5, sf.view[2], sf.view[3] + 2.5];  // room for the names above the buildings
+    let g = "";
+    if (sf.background) {
+      const b = sf.background;
+      g += `<image href="${esc(b.image)}" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height || b.width * 4}" opacity="${b.opacity}"` +
+        ` preserveAspectRatio="${b.height ? "none" : "xMinYMin meet"}"${b.rotation ? ` transform="rotate(${b.rotation} ${b.x} ${b.y})"` : ""}/>`;
+    }
+    for (let x = Math.ceil(v[0] / 5) * 5; x <= v[0] + v[2]; x += 5) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}"/><text class="gt" x="${x + 0.2}" y="${v[1] + 1}">${x}</text>`;
+    for (let y = Math.ceil(v[1] / 5) * 5; y <= v[1] + v[3]; y += 5) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}"/><text class="gt" x="${v[0] + 0.2}" y="${y - 0.2}">${y}</text>`;
+    (site.areas || []).forEach((a, i) => {
+      if (!a.poly || a.poly.length < 3) return;
+      const c = centroid(a.poly);
+      g += `<polygon class="ea" points="${pts(a.poly)}"/><text class="et" x="${c[0]}" y="${c[1]}">${esc(a.name || a.id)}</text>`;
+      void i;
+    });
+    const shapes = {};
+    sf.bldShapes.forEach((s) => { (shapes[s.bld] || (shapes[s.bld] = [])).push(s.poly); });
+    const warn = [];
+    d.blds.forEach((b, i) => {
+      const own = shapes[b.id] || [];
+      const idx = (site.buildings || []).map((x) => x.plan).indexOf(b.id);
+      g += `<g class="eb" data-b="${idx}">` + own.map((p) => `<polygon points="${pts(p)}"/>`).join("") +
+        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 0.6}">${esc(b.name)}</text></g>`;
+      d.blds.slice(i + 1).forEach((o) => {
+        const hit = own.some((p) => (shapes[o.id] || []).some((q) => polysOverlap(p, q)));
+        if (hit) warn.push(b.name + " / " + o.name);
+      });
+    });
+    const dr = this._draw;
+    if (dr) {
+      g += `<polyline class="ed" points="${pts(dr.pts)}"/>` + dr.pts.map((p) => `<circle class="ep" cx="${p[0]}" cy="${p[1]}" r=".35"/>`).join("");
+    }
+    host.innerHTML = `<svg viewBox="${v[0]} ${v[1]} ${v[2]} ${v[3]}" class="${dr ? "drawing" : ""}">${g}</svg>` +
+      (dr ? `<div class="fl-drawbar">${esc(t.drawHint)} <button class="fl-mini" data-a="done">${esc(t.done)}</button><button class="fl-mini" data-a="cancel">${esc(t.cancel)}</button></div>` : "");
+    this._box.querySelector(".fl-warn").textContent = warn.length ? t.overlap + warn.join(", ") : "";
+    const svg = host.querySelector("svg");
+    const at = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const m = svg.getScreenCTM(); const q = m ? pt.matrixTransform(m.inverse()) : pt; return [q.x, q.y]; };
+    const coord = this._box.querySelector(".fl-coord");
+    svg.addEventListener("pointermove", (e) => {
+      const p = at(e);
+      coord.textContent = "x " + p[0].toFixed(1) + " · y " + p[1].toFixed(1) + " m";
+      if (this._drag && this._drag.id === e.pointerId) {  // move only the dragged building; the site is redrawn on release
+        const dg = this._drag, dx = +(p[0] - dg.p[0]).toFixed(1), dy = +(p[1] - dg.p[1]).toFixed(1);
+        dg.pos = { x: +(dg.ox + dx).toFixed(1), y: +(dg.oy + dy).toFixed(1) };
+        dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
+      }
+    });
+    if (dr) {
+      const snap = (p) => [Math.round(p[0] * 4) / 4, Math.round(p[1] * 4) / 4];
+      const finish = () => {
+        const poly = dr.pts.slice();
+        this._draw = null;
+        if (poly.length > 2) this._setSite((c, s) => { s.areas[dr.i].poly = poly; }); else this._canvas();
+      };
+      svg.addEventListener("click", (e) => {
+        const p = snap(at(e));
+        if (dr.pts.length > 2 && Math.abs(p[0] - dr.pts[0][0]) + Math.abs(p[1] - dr.pts[0][1]) < 0.8) { finish(); return; }
+        dr.pts.push(p);
+        this._canvas();
+      });
+      svg.addEventListener("dblclick", (e) => { e.preventDefault(); dr.pts.pop(); finish(); });
+      host.querySelector('[data-a="done"]').addEventListener("click", finish);
+      host.querySelector('[data-a="cancel"]').addEventListener("click", () => { this._draw = null; this._canvas(); });
+      if (!this._escBound) {
+        this._escBound = true;
+        window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._draw) { this._draw = null; this._canvas(); } });
+      }
+      return;
+    }
+    svg.querySelectorAll(".eb").forEach((el) => {
+      const i = +el.getAttribute("data-b");
+      el.addEventListener("pointerdown", (e) => {
+        const b = d.blds.filter((x) => x.id === (site.buildings[i] || {}).plan)[0];
+        if (!b) return;
+        e.preventDefault();
+        svg.setPointerCapture(e.pointerId);
+        this._drag = { i: i, el: el, id: e.pointerId, p: at(e), ox: b.pos.x, oy: b.pos.y, pos: { x: b.pos.x, y: b.pos.y } };
+      });
+      el.addEventListener("wheel", (e) => {
+        if (!e.shiftKey && !e.altKey) return;
+        e.preventDefault();
+        this._setSite((c, s) => {
+          const b = s.buildings[i];
+          if (e.shiftKey) b.rotation = (((b.rotation || 0) + (e.deltaY < 0 ? 5 : -5)) % 360);
+          else b.scale = Math.max(0.05, +((b.scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2));
+        });
+      }, { passive: false });
+    });
+    svg.addEventListener("pointerup", () => {
+      const dg = this._drag;
+      if (!dg) return;
+      this._drag = null;
+      if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._setSite((c, s) => { Object.assign(s.buildings[dg.i], dg.pos); });
+    });
   }
 }
+
+FloorplanLiteCardEditor.styles = `
+  .fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; } .fl-hint a { color: var(--primary-color); }
+  .fl-warn { color: var(--error-color, #db4437); opacity: 1; }
+  .fl-site h3 { margin: 18px 0 6px; } .fl-site h4 { margin: 16px 0 6px; }
+  .fl-canvas svg { width: 100%; height: auto; max-height: 420px; background: #141c32; border-radius: 8px; touch-action: none; display: block; }
+  .fl-canvas svg.drawing { cursor: crosshair; }
+  .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); stroke-width: .05; } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); font-size: .9px; }
+  .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; stroke-width: .12; }
+  .fl-canvas .et { fill: #ffd6a0; font-size: 1.2px; text-anchor: middle; }
+  .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; stroke-width: .15; }
+  .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
+  .fl-canvas .en { fill: #eef2fb; font-size: 1.6px; text-anchor: middle; }
+  .fl-canvas .ed { fill: none; stroke: #ffd166; stroke-width: .12; } .fl-canvas .ep { fill: #ffd166; }
+  .fl-coord { font-size: 12px; opacity: .7; min-height: 16px; }
+  .fl-drawbar { font-size: 13px; margin: 6px 0; }
+  .fl-item { border: 1px solid var(--divider-color, rgba(127, 127, 127, .3)); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+  .fl-head { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 6px; } .fl-head b { margin-right: 8px; }
+  .fl-btn, .fl-mini { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4));
+    background: transparent; color: var(--primary-text-color); }
+  .fl-btn { padding: 6px 12px; } .fl-mini { padding: 2px 8px; margin-left: 6px; font-size: 12px; }
+  .fl-prev { font-size: 12px; margin-left: 10px; } .fl-prev input { width: 110px; font: inherit; }
+`;
 
 /* Register the elements. Another dashboard plugin may swap window.customElements for a polyfilled registry right after
    start-up (seen in the wild: this file loads first, its elements were then unknown and every card showed a

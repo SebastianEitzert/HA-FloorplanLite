@@ -95,6 +95,72 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
     musik: [media_player.kuche]
 ```
 
+## Grundstück: mehrere Gebäude in einer Karte
+
+Mit `site` zeigt eine Karte mehrere Grundrisse (Gebäude) auf einem Grundstück – ohne `site` bleibt alles wie bisher.
+
+```yaml
+type: custom:floorplan-lite-card
+site:
+  buildings:
+    - plan: zuhause         # Grundriss-ID
+      name: Haus
+      site_floor: eg        # Geschoss in der Grundstücksansicht (Standard: unterstes)
+      x: 0                  # Lage auf dem Grundstück in Metern (ohne x/y: automatisch nebeneinander)
+      y: 0
+      rotation: 0
+      scale: 1
+      building: haus        # optional: nur dieses Gebäude des Grundrisses (dessen `buildings`)
+    - plan: ranch
+      name: Ranch
+  areas:                    # gemeinsame Außenbereiche, Polygon in Grundstücks-Koordinaten
+    - id: hof_vornen        # Bereichs-ID in Home Assistant = Pop-up #hof_vornen
+      name: Hof vorne
+      poly: [[14, -2], [37, -2], [37, 12], [14, 12]]
+      licht: [light.hof]    # dieselben Felder wie Räume: licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp
+  show: [ranch]             # optional: nur diese Gebäude – eines = nur dieses Gebäude, ohne Grundstücksebene
+  raster: true              # optional: 5-m-Raster in der Grundstücksansicht (zum Ausrichten)
+  site_background: {image: /local/grundstueck.jpg, x: -10, y: -10, width: 120, opacity: 0.6}
+start: grundstueck          # Startansicht: grundstueck, <grundriss>, <grundriss>:<stockwerk> oder ein Raum
+follow:                     # je Home-Assistant-Benutzer (Name oder ID)
+  Sebastian: {art: standort, geofence: person.sebastian, ble: [sensor.handy_area], ble_letzter: [sensor.handy_area_last_seen], max_alter: 30}
+  TV: {art: fest, vorlage: "{{ 'wohnzimmer' if geraet == 'wohnzimmer' else 'schlafzimmer' }}"}
+follow_floor: true          # beim Folgen auch das Stockwerk wechseln (false: nur das Gebäude)
+follow_hold: 120            # nach eigener Navigation 120 s nicht springen
+nachbar_rand: 0.15          # Rand um ein Gebäude, in dem Außenbereiche gezeigt werden (15 %)
+aus_schalter: {site: true, ranch: false}   # Aus-Schalter je Ebene
+musik_aus: pause            # pause | stop | off
+aus_mit_aussen: false       # „Gebäude aus“ schließt die Außenbereiche ein
+buttons:                    # eigene Schaltflächen links oben, je Ebene, mit den üblichen HA-Aktionen
+  site:
+    - {icon: mdi:flash, name: Energie, tap_action: {action: navigate, navigation_path: /energy}}
+  zuhause:
+    - {icon: mdi:cctv, name: Kameras, tap_action: {action: navigate, navigation_path: "#kameras"}}
+```
+
+- **Drei Ebenen:** Grundstück → Gebäude → Stockwerk. Die Leiste oben wechselt zwischen Grundstück und Gebäuden, die
+  Reiter darunter zwischen den Stockwerken des Gebäudes. Tippen auf ein Gebäude im Grundstück zoomt in dessen zuletzt
+  gewähltes Stockwerk; hinaus mit „⤢ Grundstück“, zwei Fingern zusammen, Strg+Mausrad oder Zurück (die Ansicht steht in
+  der Adresse, `#plan=zuhause&floor=og`). Fernbedienung: ↑/↓ zoomen hinein / hinaus, solange der Zeiger über keinem Raum
+  steht (über einem Raum bleiben es die Lichtszenen), ←/→ wechseln das Stockwerk.
+- **Grundstücksansicht:** alle Gebäude im `site_floor` mit Licht, Präsenz und Bewegung, über jedem Gebäude eine
+  Zusammenfassung (Lichter an, Fenster offen, Musik). Außenbereiche erscheinen vollständig, in einer Gebäudeansicht der
+  angrenzende Teil (innerhalb von `nachbar_rand`) – bedient werden sie genau wie Räume (Pop-up, Skript, Rad, Tasten).
+- **Startansicht:** Die Adresse gewinnt (`?raum=<raum>` oder `?ansicht=<grundriss>[:<stockwerk>]` /
+  `?ansicht=grundstueck`, auch als `#raum=…`), dann der `follow`-Eintrag des Benutzers, dann `start`. *Standort*:
+  Geofence nicht zu Hause → Grundstück; sonst der neueste Bluetooth-Bereich (z. B. Bermuda), sonst der letzte, wenn er
+  höchstens `max_alter` Minuten alt ist; „Du bist hier“ markiert den Raum. *Fest*: feste Ansicht oder fester Raum, oder
+  eine Vorlage, die eins davon liefert (Variablen `benutzer`, `geraet`); `geraet` ist der Name des TV Streamers (ab 0.4.7)
+  oder einmalig mit `?geraet=<name>` gesetzt. Räume und Bereiche werden über Raum-ID, HA-Bereichs-ID oder Bereichsnamen
+  gefunden.
+- **Aus** (rechts oben): „Alles aus“ im Grundstück, „<Gebäude> aus“ im Gebäude – Lichter und Musik der in der Karte
+  eingetragenen Räume, die an sind bzw. spielen; zweimal innerhalb von 3 s drücken, ein kurzer Hinweis nennt die Anzahl.
+- **Nur ein Gebäude:** `site.show: [ranch]` zeigt nur dieses Gebäude (mit den angrenzenden Außenbereichen). Innerhalb
+  eines einzelnen Grundrisses mit mehreren `buildings` zeigt die Kartenoption `building: <id>` nur dieses Gebäude.
+- Der visuelle Karten-Editor hat einen Schritt *Grundstück*: Gebäude an ihre Stelle ziehen (Umschalt+Rad dreht,
+  Alt+Rad skaliert, Warnung bei Überlappung), Außenbereiche zeichnen und mit einem HA-Bereich verknüpfen, Benutzer und
+  ihre Startansicht wählen mit Live-Vorschau der Vorlage, dazu alle Einstellungen oben.
+
 ## Format eines Grundrisses
 
 Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:

@@ -94,6 +94,70 @@ rooms:                # optional: entities per room – override the ones stored
     musik: [media_player.kitchen]
 ```
 
+## Site: several buildings in one card
+
+With `site` one card shows several plans (buildings) on one property – without `site` the card behaves as before.
+
+```yaml
+type: custom:floorplan-lite-card
+site:
+  buildings:
+    - plan: home            # plan id
+      name: House
+      site_floor: eg        # level shown on the site (default: the lowest)
+      x: 0                  # position on the site in metres (without x/y: automatically side by side)
+      y: 0
+      rotation: 0
+      scale: 1
+      building: house       # optional: only this building of the plan (its `buildings`)
+    - plan: ranch
+      name: Ranch
+  areas:                    # shared areas outside, polygon in site coordinates
+    - id: front_yard        # Home Assistant area id = pop-up #front_yard
+      name: Front yard
+      poly: [[14, -2], [37, -2], [37, 12], [14, 12]]
+      licht: [light.yard]   # same fields as rooms: licht, hauptlicht, musik, praesenz, bewegung, fenster, beschattung, temp
+  show: [ranch]             # optional: only these buildings – one = that building alone, without the site level
+  raster: true              # optional: 5 m grid in the site view (for placing)
+  site_background: {image: /local/site.jpg, x: -10, y: -10, width: 120, opacity: 0.6}
+start: grundstueck          # start view: grundstueck, <plan>, <plan>:<level> or a room
+follow:                     # per Home Assistant user (name or id)
+  Sebastian: {art: standort, geofence: person.sebastian, ble: [sensor.phone_area], ble_letzter: [sensor.phone_area_last_seen], max_alter: 30}
+  TV: {art: fest, vorlage: "{{ 'living_room' if geraet == 'living_room' else 'bedroom' }}"}
+follow_floor: true          # following also changes the level (false: only the building)
+follow_hold: 120            # no jumps for 120 s after own navigation
+nachbar_rand: 0.15          # margin around a building in which areas outside are shown (15 %)
+aus_schalter: {site: true, ranch: false}   # off button per level
+musik_aus: pause            # pause | stop | off
+aus_mit_aussen: false       # „building off“ includes the areas outside
+buttons:                    # own buttons top left, per level, with the standard HA actions
+  site:
+    - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
+  home:
+    - {icon: mdi:cctv, name: Cameras, tap_action: {action: navigate, navigation_path: "#cameras"}}
+```
+
+- **Three levels:** site → building → level. The bar at the top switches between the site and the buildings, the tabs
+  below between the building's levels. Tapping a building on the site zooms into its last level; out with
+  „⤢ Site“, two fingers together, Ctrl+wheel or Back (the view is in the address, `#plan=home&floor=og`). TV remote:
+  ↑/↓ zoom in / out while the pointer is not over a room (over a room they stay the light scenes), ←/→ change the level.
+- **Site view:** every building on its `site_floor` with light, presence and motion, above each building a summary
+  (lights on, windows open, music). Areas outside are shown completely; in a building's view the part next to it
+  (within `nachbar_rand`) – they work exactly like rooms (pop-up, script, wheel, keys).
+- **Start view:** the address wins (`?raum=<room>` or `?ansicht=<plan>[:<level>]` / `?ansicht=grundstueck`, also as
+  `#raum=…`), then the user's `follow` entry, then `start`. *Standort*: geofence not at home → site; otherwise the
+  newest Bluetooth area (e.g. Bermuda), else the last one if it is at most `max_alter` minutes old; „You are here“ marks
+  the room. *Fest*: a fixed view or room, or a template returning one (variables `benutzer`, `geraet`); `geraet` is the
+  TV Streamer's name (from 0.4.7) or set once with `?geraet=<name>`. Rooms and areas are found by room id, HA area id
+  or area name.
+- **Off** (top right): „All off“ on the site, „<building> off“ in a building – lights and music of the rooms entered in
+  the card that are on or playing; press twice within 3 s, a short note tells how many devices were switched.
+- **Only one building:** `site.show: [ranch]` shows that building alone (with the shared areas next to it). Within a
+  single plan with several `buildings`, the card option `building: <id>` shows only that building.
+- The visual card editor has a *site* step: drag buildings into place (Shift+wheel turns, Alt+wheel scales, overlap
+  warning), draw areas outside and link them to an HA area, choose users and their start view with a live preview of
+  the template, and all options above.
+
 ## Plan format
 
 Coordinates are in metres; `y` points down. A plan has:
@@ -105,7 +169,7 @@ Coordinates are in metres; `y` points down. A plan has:
 | `align_levels` | `true`: all levels share one frame, so upper levels are drawn above the lower ones (card option `align`) |
 | `hide_labels` | entities with one of these labels are ignored (e.g. a label you already use to keep entities off dashboards) |
 | `style` | colours: `background`, `floor` (two colours of the gradient), `wall`, `edge`, `text`; wall thickness in metres: `wall_width` (inner, 0.2), `outer_width` (0.5) |
-| `buildings` | `[{id, name}]` – e.g. house, barn, garage |
+| `buildings` | `[{id, name}]` – e.g. house, barn, garage; outer walls and rooms carry their `building` – the card option `building: <id>` shows only that one |
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
 | `walls` | inner walls (centre line): `{level, poly, width?, closed?}` – `width` in metres, otherwise `style.wall_width` |

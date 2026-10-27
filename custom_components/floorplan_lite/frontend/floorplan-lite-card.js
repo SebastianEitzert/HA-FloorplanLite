@@ -905,7 +905,7 @@ class FloorplanLiteCard extends HTMLElement {
     }).join(";") + "#" + this._flashText();
     if (this._siteMode) {  // follow the location: geofence and Bluetooth area sensors of this user
       const fs = this._followIds().map((id) => { const x = hass.states[id]; return x ? x.state + "@" + x.last_changed : "x"; }).join("|");
-      if (fs !== this._followSig) { const had = this._followSig !== undefined; this._followSig = fs; if (had) this._applyStart("update"); }
+      if (fs !== this._followSig) { const had = this._followSig !== undefined; this._followSig = fs; if (had && !popupOpen()) this._applyStart("update"); }
     }
     if (sig === this._sig) return;
     this._sig = sig;
@@ -1433,6 +1433,7 @@ class FloorplanLiteCard extends HTMLElement {
 
   _open(id) {
     if (!id || this._config.tap === "none") return;
+    this._holdUntil = Date.now() + this._hold();  // a room opened: following does not jump away under the pop-up or after it
     history.pushState(null, "", `#${id}`);
     window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
   }
@@ -1745,8 +1746,12 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   _hashChanged() {  // Back / Forward, or a link with #plan=… / #raum=… / #ansicht=…
-    if (!this._siteMode || !this._refs || popupOpen()) return;
+    const wasPopup = this._popupWas;
+    this._popupWas = popupOpen();
+    if (!this._siteMode || !this._refs || this._popupWas) return;
     const q = this._hashState();
+    // a pop-up was closed: its hash goes away (or back to our own view) – the card stays where it is
+    if (wasPopup && !q.raum && !q.ansicht && !q.room && !q.view) { this._holdUntil = Date.now() + this._hold(); return; }
     if (q.raum || q.ansicht) { this._applyStart("entry"); return; }
     let v = null;
     if (q.plan) v = this._floors[q.plan + ":" + q.floor] ? q.plan + ":" + q.floor : this._lastFloor[q.plan];

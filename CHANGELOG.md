@@ -2,6 +2,9 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## Unreleased
+- Floor plan editor: every entity field (room entities, opening entities, shade, tilted entity) uses Home Assistant's entity picker – search by name, icons, several entities as chips – instead of comma-separated ids.
+
 ## 0.10.0 – 2026-10-27
 - Card (site): swiping left / right with one finger changes the level of a building again.
 - Card (site): from the site into a building is a step in the browser history – Back (also the TV remote's) leads back to the site.

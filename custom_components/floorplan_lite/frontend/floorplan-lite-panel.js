@@ -850,10 +850,50 @@ class FloorplanLitePanel extends HTMLElement {
     const side = this.shadowRoot.querySelector(".side");
     if (!this._plan) { side.innerHTML = ""; return; }
     let html = "";
+    this._picks = [];
     if (this._sel) html += this._selHtml();
     html += this._levelHtml() + this._planHtml();
     side.innerHTML = html;
+    this._mountPicks(side);
     this._bindSide(side);
+  }
+
+  /* Entity fields: Home Assistant's own entity picker (search, names, icons; several entities as chips), as in the site
+     editor – placeholders in the HTML, the pickers are put in after rendering. */
+  _entPick(label, domains, multiple, value, set) {
+    const i = this._picks.length;
+    this._picks.push({ label: label, domains: domains, multiple: multiple, value: value, set: set });
+    return `<div class="entpick" data-pick="${i}"></div>`;
+  }
+
+  _mountPicks(side) {
+    side.querySelectorAll("[data-pick]").forEach((box) => {
+      const p = this._picks[+box.getAttribute("data-pick")];
+      if (!p) return;
+      const multi = !!p.multiple, val = multi ? [].concat(p.value || []) : (Array.isArray(p.value) ? p.value[0] || "" : p.value || "");
+      if (!customElements.get("ha-form")) {  // outside Home Assistant: plain text field
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.value = multi ? val.join(", ") : val; inp.placeholder = p.label;
+        inp.addEventListener("change", () => {
+          const l = inp.value.split(",").map((x) => x.trim()).filter(Boolean);
+          p.set(multi ? l : l[0] || "");
+        });
+        box.appendChild(inp);
+        return;
+      }
+      const f = document.createElement("ha-form");
+      const sel = { entity: { multiple: multi } };
+      if (p.domains) sel.entity.filter = { domain: [].concat(p.domains) };
+      f.hass = this._hass;
+      f.schema = [{ name: "v", selector: sel }];
+      f.data = { v: val };
+      f.computeLabel = () => p.label;
+      f.addEventListener("value-changed", (e) => {
+        const v = e.detail.value.v;
+        p.set(multi ? [].concat(v || []).filter(Boolean) : v || "");
+      });
+      box.appendChild(f);
+    });
   }
 
   _field(label, input) { return `<label class="f"><span>${esc(label)}</span>${input}</label>`; }
@@ -916,14 +956,20 @@ class FloorplanLitePanel extends HTMLElement {
         (sky ? this._field(t.angleDeg, this._num("angle", el.angle || 0, 1)) + this._field(t.roundF, this._chk("round", el.round)) : "") +
         (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "") +
         (el.type === "passage" || el.type === "open" ? "" :
-          this._field(t.opEntities, `<input type="text" list="fl-ents-op" data-oent="1" value="${esc(ents.join(", "))}" placeholder="${esc(t.entHint)}">`) +
+          this._entPick(t.opEntities, ["binary_sensor", "cover", "lock", "button", "switch", "input_boolean"], true, ents, (v) => this._change(() => {
+            const o = this._plan.openings[s.i];
+            delete o.entity;
+            if (v.length) o.entities = v; else delete o.entities;
+          })) +
           (el.type === "window" || sky ? this._tiltHtml(el, s.i, ents) : "") +
-          (el.type === "garage" ? "" : this._field(t.shadeF, `<input type="text" list="fl-ents-shade" data-k="shade" value="${esc(el.shade || "")}" placeholder="cover.…">`) +
-            `<datalist id="fl-ents-shade">${this._entityOptions(["cover"])}</datalist>`) +
+          (el.type === "garage" ? "" : this._entPick(t.shadeF, ["cover"], false, el.shade, (v) => this._change(() => {
+            const o = this._plan.openings[s.i];
+            if (v) o.shade = v; else delete o.shade;
+          }))) +
           this._field(t.tapF, `<select data-otap="1"><option value="auto">${esc(t.tapAuto)}</option><option value="info"${el.tap === "info" ? " selected" : ""}>${esc(t.tapInfo)}</option></select>`) +
           this._field(t.confirmF, `<input type="checkbox" data-oconf="1"${(el.confirm !== undefined ? el.confirm : el.type === "door" || el.type === "garage") ? " checked" : ""}>`) +
           this._field(t.confirmText, `<input type="text" data-k="confirm_text" value="${esc(el.confirm_text || "")}" placeholder="${esc(t.confirmPh)}">`) +
-          `<p class="small">${esc(t.opEntHint)}</p><datalist id="fl-ents-op">${this._entityOptions(["binary_sensor", "cover", "lock", "button", "switch"])}</datalist>`);
+          `<p class="small">${esc(t.opEntHint)}</p>`);
     }
     return h + `</section>`;
   }
@@ -936,8 +982,10 @@ class FloorplanLitePanel extends HTMLElement {
     if (el.tilt_entity && st[el.tilt_entity]) Object.keys(st[el.tilt_entity].attributes || {}).forEach((k) => { attrs[k] = 1; });
     let h = this._field(t.tiltF, `<select data-tilt="${i}">` + [["auto", t.tiltAuto], ["attribute", t.tiltAttr], ["entity", t.tiltEnt]]
       .map(([v, l]) => `<option value="${v}"${mode === v ? " selected" : ""}>${esc(l)}</option>`).join("") + `</select>`);
-    if (mode === "entity") h += this._field(t.tiltEntF, `<input type="text" list="fl-ents-tilt" data-k="tilt_entity" value="${esc(el.tilt_entity || "")}">`) +
-      `<datalist id="fl-ents-tilt">${this._entityOptions(["binary_sensor", "sensor", "select", "input_select"])}</datalist>`;
+    if (mode === "entity") h += this._entPick(t.tiltEntF, ["binary_sensor", "sensor", "select", "input_select"], false, el.tilt_entity, (v) => this._change(() => {
+      const o = this._plan.openings[i];
+      if (v) o.tilt_entity = v; else delete o.tilt_entity;
+    }));
     if (mode === "attribute") h += this._field(t.tiltAttrF, `<input type="text" list="fl-attrs" data-k="tilt_attribute" value="${esc(el.tilt_attribute || "")}">`) +
       `<datalist id="fl-attrs">${Object.keys(attrs).sort().map((k) => `<option value="${esc(k)}">`).join("")}</datalist>`;
     if (mode !== "auto") h += this._field(t.tiltValF, `<input type="text" data-k="tilt_value" value="${esc(el.tilt_value || "")}" placeholder="${esc(t.tiltValPh)}">`);
@@ -946,11 +994,11 @@ class FloorplanLitePanel extends HTMLElement {
 
   _entitiesHtml(key) {
     const t = this.t, e = this._plan.entities[key] || {};
-    return `<h4>${esc(t.entities)} <code>${esc(key)}</code></h4>` + ENT_FIELDS.map(([f]) => {
-      const v = e[f];
-      const val = Array.isArray(v) ? v.join(", ") : (v || "");
-      return this._field(t.ent[f], `<input type="text" list="fl-ents-${f}" data-ent="${f}" data-key="${esc(key)}" value="${esc(val)}" placeholder="${esc(t.entHint)}">`);
-    }).join("") + ENT_FIELDS.map(([f, dom]) => `<datalist id="fl-ents-${f}">${this._entityOptions(f === "temp" ? ["climate", "sensor"] : [].concat(dom))}</datalist>`).join("") +
+    return `<h4>${esc(t.entities)} <code>${esc(key)}</code></h4>` + ENT_FIELDS.map(([f, dom]) =>
+      this._entPick(t.ent[f], f === "temp" ? ["climate", "sensor"] : [].concat(dom), SINGLE.indexOf(f) < 0, e[f], (v) => this._change(() => {
+        const en = this._plan.entities[key] || (this._plan.entities[key] = {});
+        if (SINGLE.indexOf(f) >= 0) { if (v) en[f] = v; else delete en[f]; } else if (v.length) en[f] = v; else delete en[f];
+      }))).join("") +
       this._lightColourHtml(key, e.lichtfarbe);
   }
 
@@ -2389,6 +2437,8 @@ const STYLES = `
   .zoom button { background: rgba(20,28,50,.85); color: #dfe6f7; border-color: rgba(255,255,255,.15); min-width: 32px; }
   .previewbox { position: absolute; top: 48px; right: 8px; width: min(440px, 45%); z-index: 3; max-height: calc(100% - 100px); overflow: auto;
     box-shadow: 0 8px 30px rgba(0,0,0,.5); border-radius: 12px; }
+  .entpick { margin: 4px 0 8px; }
+  .entpick input { width: 100%; }
   .side { width: 320px; overflow-y: auto; border-left: 1px solid var(--divider-color); background: var(--card-background-color); padding: 4px 12px 16px; }
   section { border-bottom: 1px solid var(--divider-color); padding: 8px 0 10px; }
   h3 { font-size: 15px; margin: 6px 0 8px; display: flex; align-items: center; gap: 6px; }

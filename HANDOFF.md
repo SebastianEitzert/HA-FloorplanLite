@@ -33,6 +33,8 @@ Grundstücks-Ebene mit Gebäuden, Außenbereichen, Startansicht/Standort, Aus-Sc
 - Wischen wechselt Stockwerke (`_pinch`), Zurück führt vom Gebäude aufs Grundstück (`_setHash` pusht).
 - Aus-Schalter rufen das Skript je Raum mit `event: off` auf (`_off`), Vorlage: `off` → immer `room_off` (Aus-Szene).
 
+**Auf `next`, noch nicht released:** Entitätsauswahl im Grundriss-Editor mit HA-Entitätspicker (`_entPick`, `_mountPicks` in `floorplan-lite-panel.js`; außerhalb von HA Textfeld als Ersatz).
+
 **Halb fertig:** nichts offen im Code.
 
 **Doku:** README hat Abschnitte zu Grundstück, Standort mit Bermuda, Kiosk Mode (seit 27.10. abends).

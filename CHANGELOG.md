@@ -2,7 +2,7 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
-## Unreleased
+## 0.10.1 – 2026-10-28
 - Floor plan editor: every entity field (room entities, opening entities, shade, tilted entity) uses Home Assistant's entity picker – search by name, icons, several entities as chips – instead of comma-separated ids.
 
 ## 0.10.0 – 2026-10-27

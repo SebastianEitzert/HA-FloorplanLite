@@ -6,8 +6,8 @@ Stand: 2026-10-27 (abends). Diese Datei wird bei jeder Änderung mitgepflegt. Ke
 
 | | |
 |---|---|
-| Letztes Release | **0.10.0**, Tag `v0.10.0` (GitHub-Release mit `floorplan_lite.zip`) |
-| In Home Assistant eingespielt | 0.9.0 – 0.10.0 ist veröffentlicht, aber noch nicht über HACS installiert (über HACS, HA danach neu gestartet). Die neue englische Skript-Vorlage liegt unter `blueprints/script/floorplan_lite/room_click.yaml`, `script.raum_klick` ist darauf umgestellt. |
+| Letztes Release | **0.10.1**, Tag `v0.10.1` (GitHub-Release mit `floorplan_lite.zip`) |
+| In Home Assistant eingespielt | 0.10.0 – 0.10.1 ist veröffentlicht, aber noch nicht über HACS installiert (über HACS, HA danach neu gestartet). Die neue englische Skript-Vorlage liegt unter `blueprints/script/floorplan_lite/room_click.yaml`, `script.raum_klick` ist darauf umgestellt. |
 | Dateien unter `www/` | **keine** – die Karte und der Editor werden von der Integration selbst ausgeliefert |
 | Ressourcen-URL | keine Lovelace-Ressource. Die Integration registriert `/floorplan_lite_static/floorplan-lite-card.js?v=<manifest-version>` per `add_extra_js_url`, der Editor (Seitenleiste) `/floorplan_lite_static/floorplan-lite-panel.js?v=<version>` |
 | Alte Karte (Vorgänger) | `/local/kressbach-grundriss-card.js?v=6.10` als Lovelace-Ressource, wird auf `tv-dashboard/grundriss-test` noch zum Vergleich gezeigt |
@@ -33,7 +33,7 @@ Grundstücks-Ebene mit Gebäuden, Außenbereichen, Startansicht/Standort, Aus-Sc
 - Wischen wechselt Stockwerke (`_pinch`), Zurück führt vom Gebäude aufs Grundstück (`_setHash` pusht).
 - Aus-Schalter rufen das Skript je Raum mit `event: off` auf (`_off`), Vorlage: `off` → immer `room_off` (Aus-Szene).
 
-**Auf `next`, noch nicht released:** Entitätsauswahl im Grundriss-Editor mit HA-Entitätspicker (`_entPick`, `_mountPicks` in `floorplan-lite-panel.js`; außerhalb von HA Textfeld als Ersatz).
+**Released in 0.10.1:** Entitätsauswahl im Grundriss-Editor mit HA-Entitätspicker (`_entPick`, `_mountPicks` in `floorplan-lite-panel.js`; außerhalb von HA Textfeld als Ersatz).
 
 **Halb fertig:** nichts offen im Code.
 

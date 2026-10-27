@@ -130,6 +130,7 @@ SITE_BUILDING = vol.Schema(  # another plan placed on the property
         vol.Optional("y"): NUM,
         vol.Optional("rotation"): NUM,
         vol.Optional("scale"): vol.All(NUM, vol.Range(min=0.01, max=100)),
+        vol.Optional("label_at"): POINT,  # where its badge sits on the site (default: its middle)
     }
 )
 
@@ -161,6 +162,8 @@ SITE = vol.Schema(
         vol.Optional("areas", default=list): vol.All([SITE_AREA], vol.Length(max=100)),
         vol.Optional("site_background"): BACKGROUND,
         vol.Optional("raster", default=False): bool,
+        vol.Optional("north", default=0): NUM,  # direction of north on the site (degrees, 0 = up)
+        vol.Optional("ausrichtung"): vol.In(["achse", "norden"]),  # building views: along their own axis or north up
         vol.Optional("links", default=list): vol.All([SITE_LINK], vol.Length(max=60)),
     }
 )

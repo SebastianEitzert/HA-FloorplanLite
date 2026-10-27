@@ -249,7 +249,7 @@ function prepare(plan, align, building) {
       view = [x1 - 0.6, y1 - 0.6, x2 - x1 + 1.2, y2 - y1 + 1.2];
     }
     floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, walls, rooms, openings, roomWalls: plan.room_walls !== false,
-      background: lv.background || null };
+      background: lv.background || null, bgRot: plan.rotation || 0, north: (plan.north || 0) + (plan.rotation || 0) };
   });
   if (align) {  // all levels in one frame: each level at its real position, an attic stays above the house when swiping
     const ks = Object.keys(floors);
@@ -351,29 +351,35 @@ function buildSite(site, plans, cfg) {
     (plan.rooms || []).forEach((r) => { if (r.area && r.area_live) out.live[pid + "/" + (r.key || r.id)] = r.area; });
     p.levels.forEach((lv) => p.fl[lv].rooms.forEach((r) => { r.key = pid + "/" + (r.key || r.id); r.bld = pid; }));
     const keys = p.levels.map((lv) => pid + ":" + lv);
+    // north in this building's coordinates; ausrichtung: norden turns its views so north is up
+    const nb = (site.north || 0) - (p.pos.rotation || 0);
+    const up = (cfg.ausrichtung || site.ausrichtung) === "norden" && Math.abs(nb) > 0.01;
+    const bf = up ? prepare(Object.assign({}, plan, { rotation: (plan.rotation || 0) - nb }), cfg.align === undefined ? !!plan.align_levels : !!cfg.align, p.b.building) : p.fl;
+    const toB = up ? rotator(-nb) : (q) => q;
+    if (up) p.levels.forEach((lv) => bf[lv] && bf[lv].rooms.forEach((r) => { r.key = pid + "/" + (r.key || r.id); r.bld = pid; }));
     const siteLv = p.fl[p.b.site_floor] ? p.b.site_floor : p.levels[0];
     const name = p.b.name || plan.name || pid;
     // building views, with the parts of the shared areas around it
     let big = null;
     const near = [];
     if (areas.length && p.levels.length) {
-      const v = p.fl[p.levels[0]].view;
+      const v = bf[p.levels[0]].view;
       let vx1 = Infinity, vy1 = Infinity, vx2 = -Infinity, vy2 = -Infinity;
-      p.levels.forEach((lv) => { const q = p.fl[lv].view; vx1 = Math.min(vx1, q[0]); vy1 = Math.min(vy1, q[1]); vx2 = Math.max(vx2, q[0] + q[2]); vy2 = Math.max(vy2, q[1] + q[3]); });
+      p.levels.forEach((lv) => { const q = bf[lv].view; vx1 = Math.min(vx1, q[0]); vy1 = Math.min(vy1, q[1]); vx2 = Math.max(vx2, q[0] + q[2]); vy2 = Math.max(vy2, q[1] + q[3]); });
       void v;
       const w = vx2 - vx1, h = vy2 - vy1;
       const box = [vx1 - w * rand, vy1 - h * rand, vx2 + w * rand, vy2 + h * rand];
       areas.forEach((a) => {
-        const poly = clipRect(a.poly.map(T.inv), box);
+        const poly = clipRect(a.poly.map((q) => toB(T.inv(q))), box);
         if (poly.length > 2 && Math.abs(area2(poly)) > 0.1) near.push(areaRoom(a, poly));
       });
       if (near.length) big = [box[0], box[1], box[2] - box[0], box[3] - box[1]];
     }
     p.levels.forEach((lv, i) => {
-      const f = p.fl[lv];
+      const f = bf[lv];
       f.rooms = f.rooms.concat(near.map((r) => Object.assign({}, r)));
       if (big) f.view = big.slice();
-      f.style = plan.style || {}; f.bgRot = plan.rotation || 0; f.bld = pid;
+      f.style = plan.style || {}; f.bgRot = (plan.rotation || 0) - (up ? nb : 0); f.bld = pid; f.north = up ? 0 : nb;
       out.floors[keys[i]] = f;
       f.rooms.forEach((r) => {
         if (!r.name) return;
@@ -402,7 +408,12 @@ function buildSite(site, plans, cfg) {
     }
     const corners = [];
     [[0, 0], [p.w, 0], [0, p.h], [p.w, p.h]].forEach((d) => corners.push(T([p.origin[0] + d[0], p.origin[1] + d[1]])));
-    out.blds.push({ id: pid, name: name, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos, origin: p.origin, T: T,
+    let lab = Array.isArray(p.b.label_at) ? p.b.label_at : null;
+    if (!lab && g && g.outlines.length) {  // default: the middle of its biggest outline
+      const big2 = g.outlines.map((o) => o.map(T)).sort((a, b) => Math.abs(area2(b)) - Math.abs(area2(a)))[0];
+      lab = centroid(big2);
+    }
+    out.blds.push({ id: pid, name: name, label: lab, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos, origin: p.origin, T: T,
       titles: p.levels.map((lv) => ({ key: pid + ":" + lv, name: p.fl[lv].title, short: p.fl[lv].short })) });
   });
   areas.forEach((a) => { sf.rooms.push(areaRoom(a, a.poly)); if (!out.info[a.id]) out.info[a.id] = { id: a.id, area: a.area || a.id, name: a.name || a.id, view: "site", site: true }; });
@@ -419,7 +430,7 @@ function buildSite(site, plans, cfg) {
     if (site.raster) sf.raster = true;
     const bb = all.length ? bbox(all) : [0, 0, 20, 20];
     sf.view = [bb[0] - 1.5, bb[1] - 1.5, bb[2] - bb[0] + 3, bb[3] - bb[1] + 3];
-    sf.style = sf.style || {}; sf.bgRot = 0;
+    sf.style = sf.style || {}; sf.bgRot = 0; sf.north = site.north || 0;
     out.floors.site = sf;
     out.order.push("site");
     out.info.__site = { view: "site" };
@@ -601,7 +612,9 @@ class FloorplanLiteCard extends HTMLElement {
     this._plan = plan;
     const cfg = this._config || {};
     const align = cfg.align === undefined ? !!(plan && plan.align_levels) : !!cfg.align;
-    this._floors = plan ? prepare(plan, align, cfg.building) : null;
+    // ausrichtung: norden turns the plan so north is up (else it keeps its own axis; the compass shows north)
+    const np = plan && cfg.ausrichtung === "norden" && plan.north ? Object.assign({}, plan, { rotation: -plan.north }) : plan;
+    this._floors = np ? prepare(np, align, cfg.building) : null;
     const keys = this._floors ? Object.keys(this._floors) : [];
     this._fl = (cfg.floors || keys).filter((k) => this._floors && this._floors[k]);
     if (this._idx === undefined || this._idx >= this._fl.length) this._idx = Math.max(0, this._fl.indexOf(cfg.start || this._fl[0]));
@@ -848,8 +861,8 @@ class FloorplanLiteCard extends HTMLElement {
     if (f.site && this._site) {  // site: a building (its outer walls) can be tapped to zoom in; its summary above it
       hits = (f.bldShapes || []).map((b) => `<polygon class="bhit" data-bld="${esc(b.bld)}" points="${pts(b.poly)}"/>`).join("") + hits;
       this._site.blds.forEach((b) => {
-        const bx = b.box;
-        lbls += `<div class="bsum" data-bld="${esc(b.id)}" role="button" tabindex="0" style="left:${X((bx[0] + bx[2]) / 2)};top:${Y(bx[1])}">` +
+        const bx = b.box, at = b.label;
+        lbls += `<div class="bsum${at ? " mid" : ""}" data-bld="${esc(b.id)}" role="button" tabindex="0" style="left:${X(at ? at[0] : (bx[0] + bx[2]) / 2)};top:${Y(at ? at[1] : bx[1])}">` +
           `<span class="bn">${esc(b.name)}</span><span class="bs"></span></div>`;
       });
     }
@@ -863,10 +876,19 @@ class FloorplanLiteCard extends HTMLElement {
       (bg && bg.mode === "over" ? bg.html : "") + `</svg>`;
     const plan = `<div class="plan" data-f="${esc(key)}"${swipe ? ` style="width:calc(70vh * ${(vw / vh).toFixed(4)})"` : ""}>` +
       `<div class="ratio" style="padding-top:${((vh / vw) * 100).toFixed(3)}%"></div>${svg}` +
-      `<div class="fxs">${fx}</div><div class="lbls">${lbls}</div>` +
+      `<div class="fxs">${fx}</div><div class="lbls">${lbls}</div>${this._rose(f)}` +
       `<svg class="hits" ${vb}>${hits}</svg></div>`;
     if (bare) return plan;
     return swipe ? `<div class="slide">${plan}</div>` : `<div class="floor"><div class="ftitle">${esc(f.title)}</div>${plan}</div>`;
+  }
+
+  /* Compass rose: where north is in this view (kompass: false hides it). */
+  _rose(f, bar) {  // site: in the top bar (always in sight); a single plan: in the plan's corner
+    if (!f || this._config.kompass === false || typeof f.north !== "number" || (!bar && this._siteMode)) return "";
+    const d = +f.north.toFixed(1), tr = `rotate(${d}deg)`;
+    return `<div class="rose${bar ? " bar" : ""}" aria-hidden="true"><svg viewBox="-20 -20 40 40" style="-webkit-transform:${tr};transform:${tr}">` +
+      `<circle r="17"/><path class="rs" d="M0 -15 L4 0 L0 15 L-4 0 Z"/><path class="rn" d="M0 -15 L4 0 L-4 0 Z"/>` +
+      `<text y="-7.5" transform="rotate(${-d} 0 -9)">N</text></svg></div>`;
   }
 
   /* Background image (satellite view, scanned blueprint): under the plan, or over it with transparency. */
@@ -1576,7 +1598,8 @@ class FloorplanLiteCard extends HTMLElement {
     const rb = root.querySelector(".rb");
     const offOn = !(cfg.aus_schalter && cfg.aus_schalter[level] === false);
     rb.innerHTML = (bld && !this._single ? `<button class="zo" title="${esc(t.site)}">⤢ <span>${esc(t.site)}</span></button>` : "") +
-      (offOn ? `<button class="off"><ha-icon icon="mdi:power"></ha-icon><span>${esc(bld ? t.bOff.replace("%s", b ? b.name : bld) : t.allOff)}</span></button>` : "");
+      (offOn ? `<button class="off"><ha-icon icon="mdi:power"></ha-icon><span>${esc(bld ? t.bOff.replace("%s", b ? b.name : bld) : t.allOff)}</span></button>` : "") +
+      this._rose(this._floors && this._floors[v], true);
     const zo = rb.querySelector(".zo");
     if (zo) zo.addEventListener("click", () => this._zoomOut());
     const off = rb.querySelector(".off");
@@ -2050,6 +2073,13 @@ FloorplanLiteCard.styles = `
     cursor: zoom-in; white-space: nowrap; display: flex; align-items: center; padding: .25em .7em; border-radius: .8em; z-index: 2;
     background: rgba(8, 13, 27, .74); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); color: var(--n-text); font-size: .95em; }
   .bsum .bn { font-weight: 500; }
+  .bsum.mid { -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%); }
+  .rose { position: absolute; right: 1.5%; bottom: 1.5%; width: 44px; height: 44px; pointer-events: none; opacity: .85; z-index: 1; }
+  .rose.bar { position: relative; right: auto; bottom: auto; display: inline-block; vertical-align: middle; width: 40px; height: 40px; margin-left: 6px; }
+  .rose svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .rose circle { fill: rgba(10, 16, 32, .55); stroke: rgba(255, 255, 255, .35); stroke-width: 1; }
+  .rose .rs { fill: rgba(255, 255, 255, .45); } .rose .rn { fill: #ff6b5e; }
+  .rose text { fill: #fff; font-size: 7px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
   .bsum .sm { display: inline-flex; align-items: center; margin-left: .55em; color: #ffd98a; }
   .bsum .sm.w { color: var(--c-window); }
   .bsum .sm.m { color: var(--c-music); }
@@ -2105,11 +2135,14 @@ const ED = {
     ble: "Bluetooth-Bereich (z. B. Bermuda), mehrere möglich", ble_letzter: "Letzter Bluetooth-Bereich", max_alter: "Letzter Bereich höchstens (Minuten)",
     ansicht: "Ansicht", raum: "Raum (mit Markierung)", vorlage: "Vorlage (liefert Raum oder Ansicht; Variablen benutzer, geraet)",
     preview: "Vorschau für Gerät", result: "Ergebnis",
-    sstart: "Startansicht", show: "Nur diese Gebäude zeigen (eines = ohne Grundstücksebene)", follow_floor: "Beim Folgen auch das Stockwerk wechseln",
+    sstart: "Startansicht", show: "Nur diese Gebäude zeigen (eines = ohne Grundstücksebene)", follow_floor: "Beim Folgen auch das Stockwerk wechseln", ausrichtung: "Gebäudeansichten ausrichten", kompass: "Windrose zeigen",
+    oSite: "wie im Grundstück", oAxis: "an der Hauptachse des Gebäudes", oNorth: "Norden oben",
     follow_hold: "Nach eigener Navigation nicht springen (s)", nachbar_rand: "Rand um ein Gebäude für Außenbereiche (%)",
     musik_aus: "Musik bei „aus“", pause: "Pause", stop: "Stopp", off: "Ausschalten", aus_mit_aussen: "„Gebäude aus“ schließt Außenbereiche ein",
     aus_schalter: "Aus-Schalter je Ebene (z. B. site: false)", buttons: "Eigene Schaltflächen je Ebene (site / <grundriss>: Liste)",
-    raster: "5-m-Raster in der Grundstücksansicht", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
+    raster: "5-m-Raster in der Grundstücksansicht", north: "Norden in der Grundstücksansicht (Grad, 0 = oben, im Uhrzeigersinn)",
+    ausrichtung: "Gebäudeansichten ausrichten", oAxis: "an der Hauptachse des Gebäudes", oNorth: "Norden oben",
+    labelHint: "Gebäudenamen ziehen, um das Badge zu verschieben; Doppelklick setzt es zurück.", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
     gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Außenbereich: Klicken setzt Punkte (0,25-m-Raster), Doppelklick oder Klick auf den ersten Punkt schließt. Esc bricht ab.",
     dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab, Rad = zoomen, freie Fläche ziehen = Ansicht verschieben.",
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
@@ -2139,11 +2172,14 @@ const ED = {
     ble: "Bluetooth area (e.g. Bermuda), several allowed", ble_letzter: "Last Bluetooth area", max_alter: "Last area at most (minutes)",
     ansicht: "View", raum: "Room (marked)", vorlage: "Template (returns a room or a view; variables benutzer, geraet)",
     preview: "Preview for device", result: "Result",
-    sstart: "Start view", show: "Show only these buildings (one = without the site level)", follow_floor: "Following also changes the level",
+    sstart: "Start view", show: "Show only these buildings (one = without the site level)", follow_floor: "Following also changes the level", ausrichtung: "Align building views", kompass: "Show compass rose",
+    oSite: "as set in the site", oAxis: "along the building's main axis", oNorth: "north up",
     follow_hold: "Do not jump after own navigation (s)", nachbar_rand: "Margin around a building for areas outside (%)",
     musik_aus: "Music on „off“", pause: "Pause", stop: "Stop", off: "Switch off", aus_mit_aussen: "„Building off“ includes the areas outside",
     aus_schalter: "Off button per level (e.g. site: false)", buttons: "Own buttons per level (site / <plan>: list)",
-    raster: "5 m grid in the site view", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
+    raster: "5 m grid in the site view", north: "North in the site view (degrees, 0 = up, clockwise)",
+    ausrichtung: "Align building views", oAxis: "along the building's main axis", oNorth: "north up",
+    labelHint: "Drag a building name to move its badge; double-click resets it.", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
     gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points (0.25 m grid), a double click or a click on the first point closes. Esc cancels.",
     dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales, wheel zooms, dragging empty space pans.",
     params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own).",
@@ -2260,6 +2296,8 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       opt.addEventListener("value-changed", (e) => this._emit((s) => {
         const v = e.detail.value;
         if (v.raster) s.raster = true; else delete s.raster;
+        if (v.north) s.north = v.north; else delete s.north;
+        if (v.ausrichtung === "norden") s.ausrichtung = "norden"; else delete s.ausrichtung;
         if (v.site_background && v.site_background.image) s.site_background = v.site_background; else delete s.site_background;
       }));
       this._sd.querySelector(".fl-opts").appendChild(opt);
@@ -2317,8 +2355,10 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         ["hauptlicht", "temp"].forEach((k) => { if (v[k]) a[k] = v[k]; else delete a[k]; });
       }));
     this._opt.hass = this._hass;
-    this._opt.schema = [{ name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
-    this._opt.data = { raster: !!site.raster, site_background: site.site_background || {} };
+    this._opt.schema = [{ name: "north", selector: { number: { mode: "box", min: -360, max: 360, step: 0.5, unit_of_measurement: "°" } } },
+      { name: "ausrichtung", selector: this._sel([{ value: "achse", label: t.oAxis }, { value: "norden", label: t.oNorth }]) },
+      { name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
+    this._opt.data = { north: site.north || 0, ausrichtung: site.ausrichtung || "achse", raster: !!site.raster, site_background: site.site_background || {} };
     this._toolbar();
     this._canvas();
   }
@@ -2339,7 +2379,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     let html = btn("move", "mdi:cursor-move", t.tMove) + btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
       `<button class="fl-tb" data-t="upload" title="${esc(t.tUpload)}"><ha-icon icon="mdi:image-plus"></ha-icon><span>${esc(t.tUpload)}</span></button>` +
       btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
-    let hint = k === "move" ? t.dragHint : k === "draw" ? t.drawHint : "";
+    let hint = k === "move" ? t.dragHint + " " + t.labelHint : k === "draw" ? t.drawHint : "";
     if (k === "corner") hint = st.pts.length === 0 ? t.cornerA : st.pts.length === 1 ? t.cornerB : "";
     if (k === "align") hint = [t.alignP1, t.alignQ1, t.alignP2, t.alignQ2][st.pts.length] || "";
     if (k === "bgscale") hint = st.pts.length < 2 ? t.bgScaleHint : "";
@@ -2502,11 +2542,14 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     const warn = [];
     this._corners = [];
     const k = this._tool, st = this._step || { pts: [] };
+    let labels = "";
     const cornerMode = k === "corner" || (k === "align" && st.pts.length % 2 === 0);
     d.blds.forEach((b, i) => {
       const own = shapes[b.id] || [], idx = site.buildings.map((x) => x.plan).indexOf(b.id);
       g += `<g class="eb" data-b="${idx}">` + own.map((q) => `<polygon points="${pts(q)}" stroke-width="${2 * u}"/>`).join("") +
-        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 6 * u}" font-size="${14 * u}">${esc(b.name)}</text></g>`;
+        "</g>";
+      const la = b.label || [(b.box[0] + b.box[2]) / 2, b.box[1] - 6 * u];
+      labels += `<text class="en" data-lb="${idx}" x="${la[0]}" y="${la[1]}" font-size="${14 * u}">${esc(b.name)}</text>`;
       own.forEach((q) => q.forEach((c) => this._corners.push({ i: idx, p: c })));
       d.blds.slice(i + 1).forEach((o) => { if (own.some((q) => (shapes[o.id] || []).some((r) => polysOverlap(q, r)))) warn.push(b.name + " / " + o.name); });
     });
@@ -2522,6 +2565,12 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         `<text x="${(p[0] + q[0]) / 2 + 6 * u}" y="${(p[1] + q[1]) / 2 - 6 * u}" font-size="${12 * u}">📏 ${lab}</text>` +
         `<line class="elh" x1="${q[0]}" y1="${q[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="${12 * u}"/></g>`;
     });
+    g += labels;
+    {  // compass rose, bottom right
+      const nr = site.north || 0, cx = v[0] + v[2] - 34 * u, cy = v[1] + v[3] - 34 * u;
+      g += `<g class="erose" transform="translate(${cx} ${cy}) rotate(${nr}) scale(${u})"><circle r="20"/><path class="rs" d="M0 -17 L5 0 L0 17 L-5 0 Z"/>` +
+        `<path class="rn" d="M0 -17 L5 0 L-5 0 Z"/><text y="-26" transform="rotate(${-nr} 0 -26)">N</text></g>`;
+    }
     if (cornerMode) g += this._corners.map((c) => `<circle class="ec" cx="${c.p[0]}" cy="${c.p[1]}" r="${4 * u}"/>`).join("");
     const marks = (st.pts || []).map((q) => (q.p || q));
     if (k === "draw") g += `<polyline class="ed" points="${pts(marks)}" stroke-width="${2 * u}"/>`;
@@ -2570,6 +2619,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         return;
       }
       const dx = +(p[0] - dg.p[0]).toFixed(2), dy = +(p[1] - dg.p[1]).toFixed(2);
+      if (dg.lab !== undefined) {
+        dg.at = [+(dg.o[0] + dx).toFixed(2), +(dg.o[1] + dy).toFixed(2)];
+        dg.el.setAttribute("x", dg.at[0]); dg.el.setAttribute("y", dg.at[1]);
+        return;
+      }
       dg.pos = { x: +(dg.ox + dx).toFixed(3), y: +(dg.oy + dy).toFixed(3) };
       dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
     });
@@ -2581,6 +2635,12 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (el) {
         const j = +el.getAttribute("data-l");
         if (window.confirm(this._t.delLink)) this._emit((s) => { s.links.splice(j, 1); });
+        return;
+      }
+      const lb = e.target.closest ? e.target.closest(".en") : null;
+      if (lb) {
+        svg.setPointerCapture(e.pointerId);
+        this._drag = { lab: +lb.getAttribute("data-lb"), el: lb, id: e.pointerId, p: p, o: [+lb.getAttribute("x"), +lb.getAttribute("y")] };
         return;
       }
       let eb = e.target.closest ? e.target.closest(".eb") : null;
@@ -2600,6 +2660,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (!dg) return;
       this._drag = null;
       if (dg.pan) { if (dg.nv) { this._vb = dg.nv; this._canvas(); } return; }
+      if (dg.lab !== undefined) { if (dg.at) this._emit((s) => { s.buildings[dg.lab].label_at = dg.at; }); return; }
       if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { s.buildings[dg.i].x = dg.pos.x; s.buildings[dg.i].y = dg.pos.y; });
     });
     svg.addEventListener("click", (e) => {
@@ -2624,6 +2685,10 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       this._toolbar();
       this._canvas();
     });
+    svg.addEventListener("dblclick", (e) => {
+      const lb = e.target.closest ? e.target.closest(".en") : null;
+      if (lb && this._tool === "move") { const i = +lb.getAttribute("data-lb"); this._emit((s) => { delete s.buildings[i].label_at; }); }
+    });
     svg.addEventListener("dblclick", (e) => { if (this._tool === "draw") { e.preventDefault(); this._step.pts.pop(); this._finishDraw(); } });
   }
 }
@@ -2646,9 +2711,12 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas .et { fill: #ffd6a0; text-anchor: middle; }
   .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; }
   .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
-  .fl-canvas .en { fill: #eef2fb; text-anchor: middle; }
+  .fl-canvas .en { fill: #eef2fb; text-anchor: middle; dominant-baseline: central; }
   .fl-canvas .el line { stroke: #ffd166; } .fl-canvas .el circle { fill: #ffd166; } .fl-canvas .el text { fill: #ffd166; cursor: pointer; }
   .fl-canvas .el .elh { stroke: transparent; cursor: pointer; }
+  .fl-canvas .en { cursor: move; }
+  .fl-canvas .erose circle { fill: rgba(10, 16, 32, .6); stroke: rgba(255, 255, 255, .35); } .fl-canvas .erose .rs { fill: rgba(255, 255, 255, .45); }
+  .fl-canvas .erose .rn { fill: #ff6b5e; } .fl-canvas .erose text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
   .fl-canvas .ec { fill: #9fd3ff; } .fl-canvas .ed { fill: none; stroke: #ffd166; } .fl-canvas .ep { fill: #ffd166; } .fl-canvas .eq { fill: #ffd166; }
   .fl-coord { position: absolute; left: 10px; bottom: 6px; font-size: 12px; color: #cdd8f0; pointer-events: none; }
   .fl-warn { position: absolute; right: 10px; bottom: 6px; font-size: 12px; color: #ff8a80; pointer-events: none; }
@@ -2913,6 +2981,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     this._opt.schema = [
       { name: "sstart", selector: this._sel(this._viewOptions(geo, false).concat(this._roomOptions(geo).slice(1))) },
       { name: "show", selector: this._sel((site.buildings || []).map((b) => ({ value: b.plan, label: b.name || b.plan })), { multiple: true, mode: "list" }) },
+      { name: "ausrichtung", selector: this._sel([{ value: "", label: t.oSite }, { value: "achse", label: t.oAxis }, { value: "norden", label: t.oNorth }]) },
+      { name: "kompass", selector: { boolean: {} } },
       { name: "follow_floor", selector: { boolean: {} } },
       { name: "follow_hold", selector: { number: { mode: "box", min: 0, max: 3600, step: 10, unit_of_measurement: "s" } } },
       { name: "nachbar_rand", selector: { number: { mode: "slider", min: 0, max: 60, step: 5, unit_of_measurement: "%" } } },
@@ -2922,6 +2992,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "buttons", selector: { object: {} } },
     ];
     this._opt.data = { sstart: cfg.start || "grundstueck", show: listOf(cfg.site && cfg.site.show), follow_floor: cfg.follow_floor !== false,
+      ausrichtung: cfg.ausrichtung || "", kompass: cfg.kompass !== false,
       follow_hold: typeof cfg.follow_hold === "number" ? cfg.follow_hold : 120,
       nachbar_rand: Math.round((typeof cfg.nachbar_rand === "number" ? cfg.nachbar_rand : 0.15) * 100), musik_aus: cfg.musik_aus || "pause",
       aus_mit_aussen: cfg.aus_mit_aussen === true, aus_schalter: cfg.aus_schalter || {}, buttons: cfg.buttons || {} };
@@ -2933,6 +3004,8 @@ class FloorplanLiteCardEditor extends HTMLElement {
     if (v.show && v.show.length) c.site = Object.assign({}, c.site || {}, { show: v.show });
     else if (c.site) { delete c.site.show; if (!Object.keys(c.site).length) delete c.site; }
     set(c, "follow_floor", false, v.follow_floor === false);
+    set(c, "ausrichtung", v.ausrichtung, !!v.ausrichtung);
+    set(c, "kompass", false, v.kompass === false);
     set(c, "follow_hold", v.follow_hold, typeof v.follow_hold === "number" && v.follow_hold !== 120);
     set(c, "nachbar_rand", v.nachbar_rand / 100, typeof v.nachbar_rand === "number" && v.nachbar_rand !== 15);
     set(c, "musik_aus", v.musik_aus, v.musik_aus && v.musik_aus !== "pause");

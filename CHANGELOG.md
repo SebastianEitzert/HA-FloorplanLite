@@ -2,6 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.8.0 – 2026-10-27
+- Compass rose in every view (top bar on a site, plan corner otherwise) showing where north is; `kompass: false` hides it.
+- North and view alignment: the site editor sets north for the site view (`site.north`, degrees, 0 = up) and whether
+  building views keep their own axis or turn north up (`site.ausrichtung: achse | norden`); a card can override it with
+  `ausrichtung` (also in the card editor). A single plan uses its `north` the same way.
+- Building badges on the site sit in the middle of the building by default and can be dragged in the site editor
+  (`label_at`, double-click resets).
+
 ## 0.7.2 – 2026-10-27
 - Measure lines in the site editor: „Corner to corner“ can keep the line (default). One line fixes a building's
   position to another building's corner (with offset in metres), two lines fix its turn as well; moving or turning the

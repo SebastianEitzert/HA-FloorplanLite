@@ -135,6 +135,25 @@ rooms:                # optional: entities per room – override the ones stored
 Without entities a room with an `area` (and `area_live`) takes them from its Home Assistant area. Entities with a
 label from `hide_label` never count.
 
+### Recommended: Kiosk Mode for TVs and wall panels
+
+For a TV (e.g. through the [TV Streamer](https://github.com/SebastianEitzert/TV-Streamer)) or a wall tablet, hide Home
+Assistant's header and sidebar with [Kiosk Mode](https://github.com/NemesisRE/kiosk-mode) (HACS → Frontend → *Kiosk
+Mode*). Set it per user in the dashboard's raw configuration (⋮ → *Edit dashboard* → ⋮ → *Raw configuration editor*),
+at the top level next to `views:` – here only for the user the TV logs in with, everyone else keeps the normal view:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users: [tv]          # Home Assistant user name(s), lower case
+      kiosk: true          # hides header and sidebar
+views:
+  - ...
+```
+
+To edit the dashboard as that user anyway, add `?disable_km` to the address. Without a separate user,
+`?kiosk` in the address of the dashboard switches it on for that device only.
+
 ## Floor plan editor
 
 The page **Floorplan Lite** in the sidebar (administrators only). At the top: the plan list, **+** new floor plan,

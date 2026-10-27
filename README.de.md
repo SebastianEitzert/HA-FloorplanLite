@@ -136,6 +136,26 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
 Ohne Entitäten nimmt ein Raum mit `area` (und `area_live`) sie aus seinem Home-Assistant-Bereich. Entitäten mit einem
 Label aus `hide_label` zählen nie.
 
+### Empfehlung: Kiosk Mode für Fernseher und Wandpanels
+
+Für einen Fernseher (z. B. über den [TV Streamer](https://github.com/SebastianEitzert/TV-Streamer)) oder ein
+Wandtablet blendest du Kopfzeile und Seitenleiste von Home Assistant mit [Kiosk Mode](https://github.com/NemesisRE/kiosk-mode)
+aus (HACS → Frontend → *Kiosk Mode*). Eingestellt wird es je Benutzer in der Roh-Konfiguration des Dashboards (⋮ →
+*Dashboard bearbeiten* → ⋮ → *Raw-Konfigurationseditor*), ganz oben neben `views:` – hier nur für den Benutzer, mit dem
+sich der Fernseher anmeldet, alle anderen behalten die normale Ansicht:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users: [tv]          # Name(n) der Home-Assistant-Benutzer, klein geschrieben
+      kiosk: true          # blendet Kopfzeile und Seitenleiste aus
+views:
+  - ...
+```
+
+Um das Dashboard als dieser Benutzer trotzdem zu bearbeiten, `?disable_km` an die Adresse hängen. Ohne eigenen
+Benutzer schaltet `?kiosk` in der Adresse des Dashboards es nur für dieses Gerät ein.
+
 ## Grundriss-Editor
 
 Die Seite **Floorplan Lite** in der Seitenleiste (nur Administratoren). Oben: Grundriss-Liste, **+** neuer Grundriss,

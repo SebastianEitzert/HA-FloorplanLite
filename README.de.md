@@ -354,7 +354,11 @@ buttons:
     - {icon: mdi:flash, name: Energie, tap_action: {action: navigate, navigation_path: /energy}}
   ranch:
     - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stall_temperatur}}
-aus_schalter: {site: true, ranch: false}   # Aus-Schalter je Ebene: site = Grundstück, <grundriss-id> = dieses Gebäude
+aus_schalter:              # Aus-Schalter: site = Grundstück, <grundriss-id> = dieses Gebäude, <grundriss-id>:<stockwerk> = ein Stockwerk (hat Vorrang)
+  site: true
+  ranch: false              # kein Aus-Schalter in der Ranch
+  zuhause: stockwerk        # im Haus: „Haus OG aus“ – nur die Räume des gezeigten Stockwerks
+  zuhause:dg: false         # aber keiner im Dachgeschoss
 ```
 - Der visuelle Karten-Editor bietet die Benutzer (mit Live-Vorschau der Vorlage) und alle Karten-Einstellungen oben.
 

@@ -1596,14 +1596,20 @@ class FloorplanLiteCard extends HTMLElement {
       (x.icon ? `<ha-icon icon="${esc(x.icon)}"></ha-icon>` : "") + `<span>${esc(x.name || "")}</span></button>`).join("");
     lb.querySelectorAll(".fb").forEach((x) => x.addEventListener("click", () => this._action(btns[+x.getAttribute("data-i")])));
     const rb = root.querySelector(".rb");
-    const offOn = !(cfg.aus_schalter && cfg.aus_schalter[level] === false);
+    // off button: aus_schalter per level (site / <plan>) or per floor (<plan>:<level>, wins): false = none,
+    // "stockwerk" = only the rooms of the floor shown, otherwise the whole building
+    const as = cfg.aus_schalter && typeof cfg.aus_schalter === "object" ? cfg.aus_schalter : {};
+    const offMode = as[v] !== undefined ? as[v] : as[level];
+    const offOn = offMode !== false;
+    const offFloor = !!bld && offMode === "stockwerk";
+    const fl = offFloor && b ? b.titles.filter((x) => x.key === v)[0] : null;
     rb.innerHTML = (bld && !this._single ? `<button class="zo" title="${esc(t.site)}">⤢ <span>${esc(t.site)}</span></button>` : "") +
-      (offOn ? `<button class="off"><ha-icon icon="mdi:power"></ha-icon><span>${esc(bld ? t.bOff.replace("%s", b ? b.name : bld) : t.allOff)}</span></button>` : "") +
+      (offOn ? `<button class="off"><ha-icon icon="mdi:power"></ha-icon><span>${esc(bld ? t.bOff.replace("%s", fl ? (b ? b.name + " " : "") + (fl.short || fl.name) : b ? b.name : bld) : t.allOff)}</span></button>` : "") +
       this._rose(this._floors && this._floors[v], true);
     const zo = rb.querySelector(".zo");
     if (zo) zo.addEventListener("click", () => this._zoomOut());
     const off = rb.querySelector(".off");
-    if (off) off.addEventListener("click", () => this._off(level, off));
+    if (off) off.addEventListener("click", () => this._off(level, off, offFloor ? v : null));
     this._offArm = 0;
   }
 
@@ -1615,7 +1621,7 @@ class FloorplanLiteCard extends HTMLElement {
   }
 
   /* Off: lights and music of every room (site) or of the building – only what is on or playing. Twice within 3 s. */
-  _off(level, btn) {
+  _off(level, btn, floor) {
     const t = this._t, now = Date.now(), label = btn.querySelector("span");
     if (!this._offArm || now > this._offArm) {
       this._offArm = now + 3000;
@@ -1629,8 +1635,11 @@ class FloorplanLiteCard extends HTMLElement {
     this._offArm = 0;
     clearTimeout(this._offT);
     const st = this._hass.states, cfg = this._config;
+    const onFloor = {};  // only this floor: the rooms drawn on it
+    if (floor && this._floors[floor]) this._floors[floor].rooms.forEach((r) => { if (r.key) onFloor[r.key] = 1; });
     const keys = Object.keys(Object.assign({}, this._live || {}, this._rooms || {})).filter((k) =>
-      level === "site" || k.indexOf(level + "/") === 0 || (cfg.aus_mit_aussen === true && k.indexOf("site/") === 0));
+      (floor ? onFloor[k] && (k.indexOf("site/") !== 0 || cfg.aus_mit_aussen === true) : level === "site" || k.indexOf(level + "/") === 0) ||
+      (!floor && cfg.aus_mit_aussen === true && k.indexOf("site/") === 0));
     const lights = [], players = [];
     keys.forEach((k) => {
       const r = this._roomEnts(k);
@@ -2126,7 +2135,7 @@ const ED = {
     alignQ2: "4. Denselben Punkt im Hintergrund anklicken.", bgScaleHint: "Zwei Punkte mit bekanntem Abstand im Hintergrund anklicken.", realLen: "Echte Länge",
     siteHint: "Lage der Gebäude und Außenbereiche legst du im Grundstück im Grundriss-Editor fest; hier nur, was diese Karte betrifft.",
     sView: "Darstellung", noBlds: "Noch keine Gebäude – „+ Gebäude“ wählt einen Grundriss.", part: "Nur dieser Gebäudeteil des Grundrisses",
-    sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sButtons: "Eigene Schaltflächen", addButton: "+ Schaltfläche", sOff: "Aus-Schalter je Ebene", bl: "Ebene", icon: "Symbol", tap_action: "Aktion beim Antippen", buttonsHint: "Oben links in der gewählten Ebene. Ein Pop-up (Bubble Card) öffnest du mit „Navigieren“ und dem Pfad #name (z. B. #kameras), ein Dashboard mit dem Pfad /dashboard-name/ansicht; auch URL, Mehr-Infos oder eine Aktion sind möglich.", sOpts: "Weitere Einstellungen",
+    sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sButtons: "Eigene Schaltflächen", addButton: "+ Schaltfläche", sOff: "Aus-Schalter je Ebene", offBld: "ganzes Gebäude", offFloor: "nur das gezeigte Stockwerk", offNone: "keiner", bl: "Ebene", icon: "Symbol", tap_action: "Aktion beim Antippen", buttonsHint: "Oben links in der gewählten Ebene. Ein Pop-up (Bubble Card) öffnest du mit „Navigieren“ und dem Pfad #name (z. B. #kameras), ein Dashboard mit dem Pfad /dashboard-name/ansicht; auch URL, Mehr-Infos oder eine Aktion sind möglich.", sOpts: "Weitere Einstellungen",
     addBld: "+ Gebäude", addArea: "+ Außenbereich zeichnen", addUser: "+ Benutzer", del: "Entfernen", redraw: "Neu zeichnen", done: "Fertig", cancel: "Abbrechen",
     name: "Name", site_floor: "Geschoss in der Grundstücksansicht (Standard: unterstes)", x: "Lage x (m, leer = automatisch)", y: "Lage y (m)",
     rotation: "Drehung (°)", scale: "Maßstab", area: "Home-Assistant-Bereich", licht: "Licht", hauptlicht: "Hauptlicht", musik: "Musik",
@@ -2163,7 +2172,7 @@ const ED = {
     alignQ2: "4. Click the same point in the background.", bgScaleHint: "Click two points of known distance in the background.", realLen: "Real length",
     siteHint: "Where the buildings stand and the areas outside are set in the site in the floor plan editor; here only what this card needs.",
     sView: "Display", noBlds: "No buildings yet – „+ Building“ picks a floor plan.", part: "Only this building part of the plan",
-    sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sButtons: "Own buttons", addButton: "+ Button", sOff: "Off button per level", bl: "Level", icon: "Icon", tap_action: "Tap action", buttonsHint: "Top left on the chosen level. Open a pop-up (Bubble Card) with „Navigate“ and the path #name (e.g. #cameras), a dashboard with /dashboard-name/view; URL, more info or an action work too.", sOpts: "More settings",
+    sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sButtons: "Own buttons", addButton: "+ Button", sOff: "Off button per level", offBld: "whole building", offFloor: "only the floor shown", offNone: "none", bl: "Level", icon: "Icon", tap_action: "Tap action", buttonsHint: "Top left on the chosen level. Open a pop-up (Bubble Card) with „Navigate“ and the path #name (e.g. #cameras), a dashboard with /dashboard-name/view; URL, more info or an action work too.", sOpts: "More settings",
     addBld: "+ Building", addArea: "+ Draw an area outside", addUser: "+ User", del: "Remove", redraw: "Draw again", done: "Done", cancel: "Cancel",
     name: "Name", site_floor: "Level shown on the site (default: the lowest)", x: "Position x (m, empty = automatic)", y: "Position y (m)",
     rotation: "Rotation (°)", scale: "Scale", area: "Home Assistant area", licht: "Lights", hauptlicht: "Main light", musik: "Music",
@@ -3073,7 +3082,9 @@ class FloorplanLiteCardEditor extends HTMLElement {
       off.computeLabel = (sc) => sc.label || sc.name;
       off.addEventListener("value-changed", (e) => {
         const c = JSON.parse(JSON.stringify(this._config)), v = e.detail.value, a = {};
-        Object.keys(v).forEach((k) => { if (v[k] === false) a[k] = false; });
+        const old = c.aus_schalter || {};
+        Object.keys(old).forEach((k) => { if (k.indexOf(":") > 0) a[k] = old[k]; });  // per-floor entries from YAML stay
+        Object.keys(v).forEach((k) => { if (v[k] === false || v[k] === "aus") a[k] = false; else if (v[k] === "stockwerk") a[k] = "stockwerk"; });
         if (Object.keys(a).length) c.aus_schalter = a; else delete c.aus_schalter;
         this._emit(c);
       });
@@ -3132,9 +3143,13 @@ class FloorplanLiteCardEditor extends HTMLElement {
       });
     // off button per level
     this._offForm.hass = this._hass;
-    this._offForm.schema = lvls.map((l) => ({ name: l.value, label: l.label, selector: { boolean: {} } }));
-    const offData = {};
-    lvls.forEach((l) => { offData[l.value] = !(cfg.aus_schalter && cfg.aus_schalter[l.value] === false); });
+    this._offForm.schema = lvls.map((l) => (l.value === "site" ? { name: l.value, label: l.label, selector: { boolean: {} } }
+      : { name: l.value, label: l.label, selector: this._sel([{ value: "an", label: t.offBld }, { value: "stockwerk", label: t.offFloor }, { value: "aus", label: t.offNone }]) }));
+    const offData = {}, asc = cfg.aus_schalter || {};
+    lvls.forEach((l) => {
+      const x = asc[l.value];
+      offData[l.value] = l.value === "site" ? x !== false : x === false ? "aus" : x === "stockwerk" ? "stockwerk" : "an";
+    });
     this._offForm.data = offData;
     const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
     const fol = cfg.follow && !Array.isArray(cfg.follow) ? cfg.follow : {};

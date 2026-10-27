@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Off button per floor: `aus_schalter: {<plan>: stockwerk}` makes a building's off button switch only the floor shown („House OG off“); `<plan>:<level>` keys set single floors (`false` hides it there). In the card editor a choice per building: whole building / only the floor shown / none.
 - Card editor (site): own buttons get their own list – level, icon picker, name and the standard HA tap action (navigate to a pop-up `#name` or a dashboard, URL, more info, action) – and the off button has a switch per level, instead of raw YAML fields.
 - Site editor: „Show dimensions“ (ruler in the tool bar) labels the edges of buildings and areas outside with their length; the choice is remembered.
 - Card: a site background image no longer enlarges the site view – the view follows the buildings and areas, the image is cut off.

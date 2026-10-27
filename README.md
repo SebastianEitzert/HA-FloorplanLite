@@ -346,7 +346,11 @@ buttons:
     - {icon: mdi:flash, name: Energy, tap_action: {action: navigate, navigation_path: /energy}}
   ranch:
     - {icon: mdi:horse, tap_action: {action: more-info, entity: sensor.stable_temperature}}
-aus_schalter: {site: true, ranch: false}   # off button per level: site = site view, <plan id> = that building
+aus_schalter:              # off button: site = site view, <plan id> = that building, <plan id>:<level> = one floor (wins)
+  site: true
+  ranch: false              # no off button in the ranch
+  home: stockwerk           # in the house: „House OG off“ – only the rooms of the floor shown
+  home:dg: false            # but none in the attic
 ```
 
 ## Plan format

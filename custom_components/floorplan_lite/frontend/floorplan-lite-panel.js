@@ -43,7 +43,7 @@ const T = {
     modes: { under: "unter dem Plan", over: "über dem Plan", hidden: "ausgeblendet" }, rotation: "Drehung (Grad)", width: "Breite (m)",
     posX: "Links (m)", posY: "Oben (m)", uploading: "Wird hochgeladen …", rendering: "PDF wird umgewandelt …", pdfPage: "Die PDF hat %s Seiten – welche soll der Hintergrund werden?", page: "Seite",
     planSettings: "Grundriss", name: "Name", alignLevels: "Stockwerke aneinander ausrichten", hideLabel: "Entitäten mit diesen Labels ignorieren (Strg/⌘ für mehrere)", north: "Norden (Grad, 0 = oben)",
-    northAlign: "Nach Norden ausrichten", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
+    northAlign: "Nach Norden ausrichten", northSite: "kommt vom Grundstück „%s“ – dort unter Darstellung einstellen", colors: "Farben", cBackground: "Hintergrund", cFloor1: "Boden hell", cFloor2: "Boden dunkel",
     cWall: "Wände", cEdge: "Kanten", reset: "zurücksetzen",
     area: "Bereich (Home Assistant)", areaNone: "– keiner –", areaUsed: "schon im Plan", fill: "Entitäten aus dem Bereich übernehmen",
     filled: "%s Entitäten übernommen", fillNone: "Im Bereich keine passenden Entitäten gefunden",
@@ -106,7 +106,7 @@ const T = {
     modes: { under: "under the plan", over: "over the plan", hidden: "hidden" }, rotation: "Rotation (degrees)", width: "Width (m)",
     posX: "Left (m)", posY: "Top (m)", uploading: "Uploading …", rendering: "Converting PDF …", pdfPage: "The PDF has %s pages – which one should be the background?", page: "Page",
     planSettings: "Floor plan", name: "Name", alignLevels: "Align levels to each other", hideLabel: "Ignore entities with these labels (Ctrl/⌘ for several)", north: "North (degrees, 0 = up)",
-    northAlign: "Turn so north is up", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
+    northAlign: "Turn so north is up", northSite: "comes from the site „%s“ – set it there under appearance", colors: "Colours", cBackground: "Background", cFloor1: "Floor light", cFloor2: "Floor dark",
     cWall: "Walls", cEdge: "Edges", reset: "reset",
     area: "Area (Home Assistant)", areaNone: "– none –", areaUsed: "already in the plan", fill: "Take entities from the area",
     filled: "%s entities taken over", fillNone: "No matching entities found in the area",
@@ -402,6 +402,26 @@ class FloorplanLitePanel extends HTMLElement {
     const plan = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: id });
     this._setPlan(plan);
     this._storedId = plan.id;
+    this._findSite(plan);
+  }
+
+  /* A plan that stands on a site gets its north from there (site north − its turn on the site − the plan's own turn). */
+  async _findSite(plan) {
+    this._siteOf = null;
+    if (plan.site) return;
+    for (const x of this._plans || []) {
+      if (x.id === plan.id) continue;
+      let full = null;
+      try { full = await this._hass.callWS({ type: "floorplan_lite/get", plan_id: x.id }); } catch (e) { full = null; }
+      const b = full && full.site && (full.site.buildings || []).filter((y) => y.plan === plan.id)[0];
+      if (b && this._plan === plan) {
+        const n = (full.site.north || 0) - (b.rotation || 0) - (plan.rotation || 0);
+        this._siteOf = { name: full.name || full.id, north: R3(((n % 360) + 360) % 360) };
+        if (Math.abs((plan.north || 0) - this._siteOf.north) > 0.01) { plan.north = this._siteOf.north; this._dirty = true; }
+        this._renderAll();
+        return;
+      }
+    }
   }
 
   _setPlan(plan) {
@@ -891,7 +911,8 @@ class FloorplanLitePanel extends HTMLElement {
       this._field("ID", `<input type="text" data-p="id" value="${esc(p.id)}">`) +
       this._field(t.alignLevels, `<input type="checkbox" data-p="align_levels"${p.align_levels ? " checked" : ""}>`) +
       this._field(t.hideLabel, `<select multiple size="5" data-hidel="1">${this._labelOptions(this._hideLabels())}</select>`) +
-      this._field(t.north, `<span class="crow"><input type="number" step="1" data-p="north" value="${R3(p.north || 0)}"><button class="mini" data-act="northup">${esc(t.northAlign)}</button></span>`) +
+      (this._siteOf ? this._field(t.north, `<span class="crow"><input type="number" value="${R3(this._siteOf.north)}" disabled></span><span class="small">${esc(t.northSite.replace("%s", this._siteOf.name))}</span>`)
+        : this._field(t.north, `<span class="crow"><input type="number" step="1" data-p="north" value="${R3(p.north || 0)}"><button class="mini" data-act="northup">${esc(t.northAlign)}</button></span>`)) +
       `<h4>${esc(t.buildings)}</h4><p class="small">${esc(t.partsHint)}</p>` +
       p.buildings.map((b, i) => `<div class="row"><input type="text" data-b="${i}" value="${esc(b.name)}"><button class="mini danger" data-act="bdel" data-i="${i}">✕</button></div>`).join("") +
       `<div class="row"><button class="mini" data-act="badd">${esc(t.addBuilding)}</button>` +
@@ -1403,7 +1424,7 @@ class FloorplanLitePanel extends HTMLElement {
     if (this._snapMark) h += `<circle class="snap" cx="${this._snapMark[0]}" cy="${this._snapMark[1]}" r="${8 * px}" stroke-width="${2 * px}"/>`;
     if (this._openingPreview) h += `<polygon class="op preview" points="${pts(openingRect(this._openingPreview))}"/>` + this._openingSym(this._openingPreview, px);
     // north arrow
-    const n = p.north || 0, nc = [vx + vw - 40 * px, vy + 46 * px];
+    const n = this._siteOf ? this._siteOf.north : p.north || 0, nc = [vx + vw - 40 * px, vy + 46 * px];
     h += `<g class="north" transform="rotate(${n} ${nc[0]} ${nc[1]})"><path d="M${nc[0]} ${nc[1] - 22 * px} L${nc[0] + 8 * px} ${nc[1] + 8 * px} L${nc[0]} ${nc[1] + 2 * px} L${nc[0] - 8 * px} ${nc[1] + 8 * px} Z"/>` +
       `<text x="${nc[0]}" y="${nc[1] - 26 * px}" font-size="${12 * px}">N</text></g>`;
     svg.innerHTML = h;

@@ -2,6 +2,10 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## Unreleased
+- Editor: the north arrow of a plan that stands on a site follows the site (site north and the building's turn); the
+  field shows where it comes from. Plans without a site keep their own adjustable north.
+
 ## 0.8.0 – 2026-10-27
 - Compass rose in every view (top bar on a site, plan corner otherwise) showing where north is; `kompass: false` hides it.
 - North and view alignment: the site editor sets north for the site view (`site.north`, degrees, 0 = up) and whether

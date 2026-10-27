@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Card option `andere_geschosse: true` (card editor: „Outer walls of the other levels as helper lines“): every level shows the outer walls of the other levels of the building as faint dashed lines, so the space between a smaller floor and the areas outside keeps a border.
 - Several off buttons in a building: `aus_schalter: {<plan>: beide}` (building + floor shown) or `alle` (building + one per floor, e.g. „House off“, „House EG off“, „House OG off“); README with all values and an example.
 - Off button per floor: `aus_schalter: {<plan>: stockwerk}` makes a building's off button switch only the floor shown („House OG off“); `<plan>:<level>` keys set single floors (`false` hides it there). In the card editor a choice per building: whole building / only the floor shown / none.
 - Card editor (site): own buttons get their own list – level, icon picker, name and the standard HA tap action (navigate to a pop-up `#name` or a dashboard, URL, more info, action) – and the off button has a switch per level, instead of raw YAML fields.

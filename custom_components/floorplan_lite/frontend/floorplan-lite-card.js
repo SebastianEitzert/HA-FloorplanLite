@@ -251,6 +251,14 @@ function prepare(plan, align, building) {
     floors[lv.id] = { title: lv.name, short: lv.short || lv.id.toUpperCase(), view, outlines, extra, walls, rooms, openings, roomWalls: plan.room_walls !== false,
       background: lv.background || null, bgRot: plan.rotation || 0, north: (plan.north || 0) + (plan.rotation || 0) };
   });
+  // outer walls of the other levels, as optional helper lines (card option andere_geschosse)
+  const ks0 = Object.keys(floors), sig = (o) => o.map((q) => q[0].toFixed(2) + "," + q[1].toFixed(2)).join(" ");
+  ks0.forEach((k) => {
+    const own = {};
+    floors[k].outlines.forEach((o) => { own[sig(o)] = 1; });
+    floors[k].others = [];
+    ks0.forEach((k2) => { if (k2 !== k) floors[k2].outlines.forEach((o) => { if (!own[sig(o)]) { own[sig(o)] = 1; floors[k].others.push(o); } }); });
+  });
   if (align) {  // all levels in one frame: each level at its real position, an attic stays above the house when swiping
     const ks = Object.keys(floors);
     if (ks.length > 1) {
@@ -842,7 +850,8 @@ class FloorplanLiteCard extends HTMLElement {
     f.walls.forEach((w) => {  // inner walls drawn on their own (centre line, own thickness)
       walls += `<poly${w.closed ? "gon" : "line"} points="${pts(w.poly)}"${w.width ? ` stroke-width="${w.width}"` : ""} stroke-linecap="square"/>`;
     });
-    const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("");
+    const extras = f.extra.map((e) => `<poly${e.open ? "line" : "gon"} class="extra" points="${pts(e.poly)}"/>`).join("") +
+      (this._config.andere_geschosse === true ? (f.others || []).map((o) => `<polygon class="ghost" points="${pts(o)}"/>`).join("") : "");
     const shadows = f.outlines.map((o) => `<polygon class="shadow" points="${pts(o)}" transform="translate(.15 .45)" filter="url(#${n("sh")})"/>`).join("");
     const st = f.style || (this._plan && this._plan.style) || {};
     const wall = typeof st.wall_width === "number" && st.wall_width > 0 ? st.wall_width : WALL;  // thickness from the editor
@@ -1948,6 +1957,7 @@ FloorplanLiteCard.styles = `
   .wa { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; }      /* stroke-width per plan (wall_width) */
   .outline { fill: none; stroke: var(--n-wall); stroke-linejoin: miter; } /* stroke-width per plan (outer_width) */
   .rim { fill: none; stroke: var(--n-edge); stroke-width: .05; stroke-linejoin: miter; opacity: .55; }
+  .ghost { fill: none; stroke: var(--n-edge); stroke-width: .06; stroke-dasharray: .15 .15; opacity: .35; }
   .extra { fill: none; stroke: var(--n-edge); stroke-width: .07; stroke-dasharray: .3 .22; opacity: .45; }
   .op line, .op path { fill: none; stroke-linecap: round; }
   .op .win { stroke: #9fd3ff; stroke-width: .09; opacity: .8; }
@@ -2130,7 +2140,7 @@ FloorplanLiteCard.styles = `
 /* ---------- Visual editor of the card (dashboard → edit card) ---------- */
 const ED = {
   de: { plan: "Grundriss", mode: "Darstellung", swipe: "Ein Stockwerk groß – wischen, Reiter, Pfeile", all: "Alle Stockwerke nebeneinander",
-    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten",
+    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten", andere_geschosse: "Außenwände der anderen Stockwerke als Hilfslinien",
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
@@ -2167,7 +2177,7 @@ const ED = {
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
-    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other",
+    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
@@ -2984,6 +2994,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "align", selector: { boolean: {} } },
       { name: "background", selector: { boolean: {} } },
       { name: "intro", selector: { boolean: {} } },
+      { name: "andere_geschosse", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
       { name: "hide_label", selector: { label: { multiple: true } } },
       { name: "script", selector: { entity: { filter: { domain: "script" } } } },
@@ -2996,7 +3007,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       building: c.building || "",
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
-      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false,
+      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false, andere_geschosse: c.andere_geschosse === true,
       tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels || [] : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
@@ -3015,6 +3026,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("align", v.align, !planChanged && v.align !== this._planAlign);
     set("background", false, v.background === false);
     set("intro", false, v.intro === false);
+    set("andere_geschosse", true, v.andere_geschosse === true);
     set("tap", "none", v.tap === "none");
     set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");

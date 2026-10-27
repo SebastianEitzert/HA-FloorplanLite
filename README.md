@@ -107,6 +107,7 @@ rooms:                # optional: entities per room – override the ones stored
 | `align` | `true` / `false` (plan's `align_levels`) | all levels in one frame – upper levels stay above the lower ones when swiping |
 | `ausrichtung` | `achse` / `norden` (plan / site setting) | `norden` turns plan or building views so north is up; `achse` keeps the drawing's own axis |
 | `kompass` | `false` (shown) | hides the compass rose |
+| `andere_geschosse` | `true` (`false`) | outer walls of the other levels as faint dashed helper lines – e.g. the attic shows where the ground floor ends; with `align: true` all levels share one frame so the lines are fully in view |
 | `tap` | `none` (pop-up + script) | `none`: no pop-up on tap and no events to the script |
 | `script` | script entity (`script.raum_klick`) | receives keys, clicks, wheel and taps over a room (see *Script blueprint*) |
 | `scroll_keys` | `true` (`false`) | ↑/↓ also scroll the page – only for remotes without a wheel |

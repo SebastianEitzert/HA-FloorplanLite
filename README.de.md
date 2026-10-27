@@ -108,6 +108,7 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
 | `align` | `true` / `false` (`align_levels` des Plans) | alle Stockwerke in einem Rahmen – obere bleiben beim Wischen über den unteren |
 | `ausrichtung` | `achse` / `norden` (Einstellung von Plan / Grundstück) | `norden` dreht Grundriss- bzw. Gebäudeansichten so, dass Norden oben ist; `achse` behält die eigene Achse der Zeichnung |
 | `kompass` | `false` (gezeigt) | blendet die Windrose aus |
+| `andere_geschosse` | `true` (`false`) | Außenwände der anderen Stockwerke als feine gestrichelte Hilfslinien – z. B. zeigt das Dachgeschoss, wo das Erdgeschoss endet; mit `align: true` teilen alle Stockwerke einen Rahmen, dann sind die Linien ganz zu sehen |
 | `tap` | `none` (Pop-up + Skript) | `none`: kein Pop-up beim Antippen und keine Ereignisse an das Skript |
 | `script` | Skript-Entität (`script.raum_klick`) | bekommt Tasten, Klicks, Mausrad und Tippen über einem Raum (siehe *Skript-Vorlage*) |
 | `scroll_keys` | `true` (`false`) | ↑/↓ scrollen zusätzlich die Seite – nur für Fernbedienungen ohne Rad |

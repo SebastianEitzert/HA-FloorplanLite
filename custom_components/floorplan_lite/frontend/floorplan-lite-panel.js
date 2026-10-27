@@ -458,7 +458,10 @@ class FloorplanLitePanel extends HTMLElement {
     const R = this.shadowRoot, box = R.querySelector(".siteed"), site = !!(this._plan && this._plan.site);
     ["canvas", "zoom", "hint", "levels"].forEach((c) => { const el = R.querySelector("." + c); if (el) el.style.display = site ? "none" : ""; });
     box.hidden = !site;
-    if (!site) return false;
+    if (!site) {
+      if (this._siteEd && this._siteEd._sd && this._siteEd._sd.parentNode) this._siteEd._sd.parentNode.removeChild(this._siteEd._sd);
+      return false;
+    }
     if (!customElements.get("floorplan-lite-site-editor")) { box.textContent = "floorplan-lite-site-editor?"; return true; }
     if (!this._siteEd) {
       this._siteEd = document.createElement("floorplan-lite-site-editor");
@@ -470,6 +473,7 @@ class FloorplanLitePanel extends HTMLElement {
         this._renderHeader();
         this._renderPreview();
       });
+      this._siteEd.addEventListener("site-upload", () => { this._siteUp = true; R.querySelector(".file").click(); });
       box.appendChild(this._siteEd);
     }
     this._siteEd.hass = this._hass;
@@ -641,7 +645,9 @@ class FloorplanLitePanel extends HTMLElement {
     this._renderHeader();
     if (this._renderSiteEditor()) {
       this.shadowRoot.querySelector(".tools").innerHTML = "";
-      this.shadowRoot.querySelector(".side").innerHTML = `<p class="small">${esc(this.t.siteSide)}</p>`;
+      const side = this.shadowRoot.querySelector(".side");
+      side.innerHTML = `<p class="small">${esc(this.t.siteSide)}</p>`;
+      if (this._siteEd) this._siteEd.sideHost = side;
       this._renderPreview();
       return;
     }
@@ -1174,6 +1180,16 @@ class FloorplanLitePanel extends HTMLElement {
         img.onerror = () => res(null);
         img.src = URL.createObjectURL(file);
       });
+      if (this._siteUp && this._plan && this._plan.site) {  // background of the site: placed roughly, then scaled by a real length
+        this._siteUp = false;
+        const w = 60, bg = { image: url, x: 0, y: 0, width: w, rotation: 0, opacity: 0.6, mode: "under" };
+        if (size) bg.height = R3(w * size[1] / size[0]);
+        this._siteEd.dispatchEvent(new CustomEvent("site-changed", { detail: { site: Object.assign({}, this._plan.site, { site_background: bg }) } }));
+        this._siteEd.site = this._plan.site;
+        this._siteEd._setTool("bgscale");
+        this.shadowRoot.querySelector(".file").value = "";
+        return this._status(this.t.hintScale);
+      }
       const lv = this._lv(), vb = this._vb || [0, 0, 30, 20];
       const width = R3(Math.max(10, vb[2] * 0.8));
       this._change(() => {
@@ -2159,7 +2175,8 @@ class FloorplanLitePanel extends HTMLElement {
 const STYLES = `
   .dlg { position: fixed; inset: 0; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
     background: rgba(0, 0, 0, .45); }
-  .siteed { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: auto; padding: 12px 16px; }
+  .siteed { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+  .siteed floorplan-lite-site-editor { display: block; height: 100%; }
   .dlg form.wide { width: min(760px, calc(100vw - 32px)); }
   .dlg textarea.yaml { font-family: monospace; font-size: 12px; white-space: pre; }
   .dlg .btns select { max-width: 180px; }

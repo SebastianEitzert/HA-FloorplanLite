@@ -402,7 +402,7 @@ function buildSite(site, plans, cfg) {
     }
     const corners = [];
     [[0, 0], [p.w, 0], [0, p.h], [p.w, p.h]].forEach((d) => corners.push(T([p.origin[0] + d[0], p.origin[1] + d[1]])));
-    out.blds.push({ id: pid, name: name, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos,
+    out.blds.push({ id: pid, name: name, levels: keys, siteLevel: pid + ":" + siteLv, box: bbox(corners), pos: p.pos, origin: p.origin, T: T,
       titles: p.levels.map((lv) => ({ key: pid + ":" + lv, name: p.fl[lv].title, short: p.fl[lv].short })) });
   });
   areas.forEach((a) => { sf.rooms.push(areaRoom(a, a.poly)); if (!out.info[a.id]) out.info[a.id] = { id: a.id, area: a.area || a.id, name: a.name || a.id, view: "site", site: true }; });
@@ -2089,6 +2089,11 @@ const ED = {
     building: "Nur dieses Gebäude des Grundrisses (leer = alle)",
     noPlans: "Noch kein Grundriss gespeichert.", open: "Grundriss im Editor bearbeiten",
     hint: "Räume, Wände, Fenster, Türen und die Entitäten je Raum legst du im Editor in der Seitenleiste fest.",
+    tMove: "Verschieben", tCorner: "Ecke an Ecke", tAlign: "Am Hintergrund ausrichten", tUpload: "Hintergrund (Bild/PDF)", tBgScale: "Hintergrund-Maßstab", tFit: "Einpassen",
+    cornerA: "1. Ecke des Gebäudes anklicken, das bewegt wird.", cornerB: "2. Zielecke an einem anderen Gebäude anklicken.",
+    offset: "Abstand der Ecken", apply: "Übernehmen", alignScale: "Maßstab des Gebäudes anpassen (sonst nur verschieben und drehen)",
+    alignP1: "1. Erste Ecke am Gebäude anklicken.", alignQ1: "2. Denselben Punkt im Hintergrund anklicken.", alignP2: "3. Zweite Ecke am selben Gebäude anklicken.",
+    alignQ2: "4. Denselben Punkt im Hintergrund anklicken.", bgScaleHint: "Zwei Punkte mit bekanntem Abstand im Hintergrund anklicken.", realLen: "Echte Länge",
     siteHint: "Lage der Gebäude und Außenbereiche legst du im Grundstück im Grundriss-Editor fest; hier nur, was diese Karte betrifft.",
     sView: "Darstellung", noBlds: "Noch keine Gebäude – „+ Gebäude“ wählt einen Grundriss.", part: "Nur dieser Gebäudeteil des Grundrisses",
     sSite: "Grundstück", sBlds: "Gebäude", sAreas: "Gemeinsame Außenbereiche", sUsers: "Benutzer: Startansicht und Standort", sOpts: "Weitere Einstellungen",
@@ -2105,8 +2110,8 @@ const ED = {
     musik_aus: "Musik bei „aus“", pause: "Pause", stop: "Stopp", off: "Ausschalten", aus_mit_aussen: "„Gebäude aus“ schließt Außenbereiche ein",
     aus_schalter: "Aus-Schalter je Ebene (z. B. site: false)", buttons: "Eigene Schaltflächen je Ebene (site / <grundriss>: Liste)",
     raster: "5-m-Raster in der Grundstücksansicht", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
-    gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Klicken setzt Punkte (0,25-m-Raster), Doppelklick oder Klick auf den ersten Punkt schließt. Esc bricht ab.",
-    dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab.",
+    gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Außenbereich: Klicken setzt Punkte (0,25-m-Raster), Doppelklick oder Klick auf den ersten Punkt schließt. Esc bricht ab.",
+    dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab, Rad = zoomen, freie Fläche ziehen = Ansicht verschieben.",
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
@@ -2118,6 +2123,11 @@ const ED = {
     building: "Only this building of the plan (empty = all)",
     noPlans: "No floor plan saved yet.", open: "Edit the floor plan in the editor",
     hint: "Rooms, walls, windows, doors and the entities per room are set in the editor in the sidebar.",
+    tMove: "Move", tCorner: "Corner to corner", tAlign: "Align to background", tUpload: "Background (image/PDF)", tBgScale: "Background scale", tFit: "Fit",
+    cornerA: "1. Click a corner of the building to move.", cornerB: "2. Click the target corner on another building.",
+    offset: "Offset between the corners", apply: "Apply", alignScale: "Adjust the building's scale too (otherwise only move and turn)",
+    alignP1: "1. Click a first corner of the building.", alignQ1: "2. Click the same point in the background.", alignP2: "3. Click a second corner of the same building.",
+    alignQ2: "4. Click the same point in the background.", bgScaleHint: "Click two points of known distance in the background.", realLen: "Real length",
     siteHint: "Where the buildings stand and the areas outside are set in the site in the floor plan editor; here only what this card needs.",
     sView: "Display", noBlds: "No buildings yet – „+ Building“ picks a floor plan.", part: "Only this building part of the plan",
     sSite: "Site", sBlds: "Buildings", sAreas: "Shared areas outside", sUsers: "Users: start view and location", sOpts: "More settings",
@@ -2135,7 +2145,7 @@ const ED = {
     aus_schalter: "Off button per level (e.g. site: false)", buttons: "Own buttons per level (site / <plan>: list)",
     raster: "5 m grid in the site view", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
     gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points (0.25 m grid), a double click or a click on the first point closes. Esc cancels.",
-    dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales.",
+    dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales, wheel zooms, dragging empty space pans.",
     params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own).",
     notDrawn: "not drawn yet", loading: "loading …" },
 };
@@ -2154,18 +2164,23 @@ const polysOverlap = (a, b) => {  // two polygons share area (a corner inside th
   return false;
 };
 
-/* ---------- Property editor (floor plan editor, plan with `site`): place buildings, draw areas outside ---------- */
+/* ---------- Property editor (floor plan editor, plan with `site`) ----------
+   The drawing area fills the editor's stage (zoom with the wheel, pan by dragging empty space); the lists of buildings and
+   areas outside go to the side panel (sideHost). Placing with real measures: corner to corner with an offset in metres,
+   aligning two corners of a building with two points of a background image or PDF, and scaling the background by a
+   known distance. */
 class FloorplanLiteSiteEditor extends HTMLElement {
   set hass(h) { const first = !this._hass; this._hass = h; (this._forms || []).forEach((f) => { f.hass = h; }); if (first) this._render(); }
   set plans(l) { this._planList = l || []; this._render(); }
   set site(s) { this._s = JSON.parse(JSON.stringify(s || {})); this._s.buildings = this._s.buildings || []; this._s.areas = this._s.areas || []; this._render(); }
   set siteId(id) { this._siteId = id; }
+  set sideHost(el) { this._sideHost = el; if (this._sd && el && this._sd.parentNode !== el) el.appendChild(this._sd); }
   get _t() {
     const l = (this._hass && ((this._hass.locale && this._hass.locale.language) || this._hass.language)) || "en";
     return ED[String(l).slice(0, 2)] || ED.en;
   }
 
-  _emit(fn) {  // change a copy, tell the floor plan editor (undo, saving), redraw
+  _emit(fn) {
     fn(this._s);
     this.dispatchEvent(new CustomEvent("site-changed", { detail: { site: JSON.parse(JSON.stringify(this._s)) }, bubbles: true, composed: true }));
     this._render();
@@ -2220,20 +2235,24 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     const t = this._t, site = this._s;
     if (!this._built) {
       this._built = true;
-      this.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style><div class="fl-canvas"></div><div class="fl-coord"></div><p class="fl-hint fl-warn"></p>` +
-        `<p class="fl-hint">${esc(t.dragHint)}</p>` +
+      this._tool = "move";
+      this.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style><div class="fl-cv"><div class="fl-tools"></div><div class="fl-canvas"></div>` +
+        `<div class="fl-coord"></div><div class="fl-warn"></div></div>`;
+      this._sd = document.createElement("div");
+      this._sd.className = "fl-sd";
+      this._sd.innerHTML = `<style>${FloorplanLiteSiteEditor.styles}</style>` +
         `<h4>${esc(t.sBlds)}</h4><div class="fl-blds"></div><button class="fl-btn" data-a="addb">${esc(t.addBld)}</button>` +
         `<h4>${esc(t.sAreas)}</h4><div class="fl-areas"></div><button class="fl-btn" data-a="adda">${esc(t.addArea)}</button>` +
         `<h4>${esc(t.sView)}</h4><div class="fl-opts"></div>`;
-      this.querySelector('[data-a="addb"]').addEventListener("click", () => this._emit((s) => {
+      (this._sideHost || this).appendChild(this._sd);
+      this._sd.querySelector('[data-a="addb"]').addEventListener("click", () => this._emit((s) => {
         const used = s.buildings.map((b) => b.plan);
         const free = (this._planList || []).filter((p) => used.indexOf(p.id) < 0 && p.id !== this._siteId)[0];
         s.buildings.push({ plan: free ? free.id : "" });
       }));
-      this.querySelector('[data-a="adda"]').addEventListener("click", () => {
+      this._sd.querySelector('[data-a="adda"]').addEventListener("click", () => {
         this._emit((s) => { s.areas.push({ id: "bereich_" + (s.areas.length + 1), poly: [] }); });
-        this._draw = { i: this._s.areas.length - 1, pts: [] };
-        this._canvas();
+        this._setTool("draw", { i: this._s.areas.length - 1 });
       });
       const opt = document.createElement("ha-form");
       opt.computeLabel = (sc) => this._t[sc.name] || sc.name;
@@ -2242,13 +2261,14 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         if (v.raster) s.raster = true; else delete s.raster;
         if (v.site_background && v.site_background.image) s.site_background = v.site_background; else delete s.site_background;
       }));
-      this.querySelector(".fl-opts").appendChild(opt);
+      this._sd.querySelector(".fl-opts").appendChild(opt);
       this._opt = opt;
       (this._forms || (this._forms = [])).push(opt);
-      window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._draw) { this._draw = null; this._canvas(); } });
+      window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._tool !== "move" && this.isConnected) this._setTool("move"); });
+      if (window.ResizeObserver) new ResizeObserver(() => this._canvas()).observe(this.querySelector(".fl-canvas"));
     }
     const plans = (this._planList || []).filter((p) => p.id !== this._siteId).map((p) => ({ value: p.id, label: p.name }));
-    this._list(this.querySelector(".fl-blds"), site.buildings,
+    this._list(this._sd.querySelector(".fl-blds"), site.buildings,
       (hd, b, i) => {
         hd.innerHTML = `<b>${esc(b.name || b.plan || "?")}</b><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
         hd.querySelector("[data-del]").addEventListener("click", () => this._emit((s) => { s.buildings.splice(i, 1); }));
@@ -2259,9 +2279,9 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         const sc = [{ name: "plan", required: true, selector: this._sel(plans) }, { name: "name", selector: { text: {} } }];
         if (lv.length > 1) sc.push({ name: "site_floor", selector: this._sel([{ value: "", label: "–" }].concat(lv)) });
         if (p && (p.buildings || []).length > 1) sc.push({ name: "part", selector: this._sel([{ value: "", label: "–" }].concat(p.buildings.map((x) => ({ value: x.id, label: x.name })))) });
-        sc.push({ name: "x", selector: { number: { mode: "box", step: 0.1 } } }, { name: "y", selector: { number: { mode: "box", step: 0.1 } } },
-          { name: "rotation", selector: { number: { mode: "box", step: 1, min: -360, max: 360 } } },
-          { name: "scale", selector: { number: { mode: "box", step: 0.01, min: 0.05, max: 10 } } });
+        sc.push({ name: "x", selector: { number: { mode: "box", step: 0.01 } } }, { name: "y", selector: { number: { mode: "box", step: 0.01 } } },
+          { name: "rotation", selector: { number: { mode: "box", step: 0.1, min: -360, max: 360 } } },
+          { name: "scale", selector: { number: { mode: "box", step: 0.001, min: 0.01, max: 100 } } });
         return sc;
       },
       (b) => ({ plan: b.plan || "", name: b.name || "", site_floor: b.site_floor || "", part: b.building || "", x: b.x, y: b.y, rotation: b.rotation || 0, scale: b.scale || 1 }),
@@ -2274,11 +2294,11 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         if (v.scale && v.scale !== 1) b.scale = v.scale; else delete b.scale;
       }));
     const ents = (dom, multi) => ({ entity: { multiple: !!multi, filter: { domain: dom } } });
-    this._list(this.querySelector(".fl-areas"), site.areas,
+    this._list(this._sd.querySelector(".fl-areas"), site.areas,
       (hd, a, i) => {
         hd.innerHTML = `<b>${esc(a.name || a.id)}</b>${a.poly && a.poly.length > 2 ? "" : ` <i>${esc(t.notDrawn)}</i>`}` +
           `<button class="fl-mini" data-draw="${i}">${esc(t.redraw)}</button><button class="fl-mini" data-del="${i}">${esc(t.del)}</button>`;
-        hd.querySelector("[data-draw]").addEventListener("click", () => { this._draw = { i: i, pts: [] }; this._canvas(); });
+        hd.querySelector("[data-draw]").addEventListener("click", () => this._setTool("draw", { i: i }));
         hd.querySelector("[data-del]").addEventListener("click", () => this._emit((s) => { s.areas.splice(i, 1); }));
       },
       () => [{ name: "area", selector: { area: {} } }, { name: "name", selector: { text: {} } },
@@ -2298,124 +2318,276 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     this._opt.hass = this._hass;
     this._opt.schema = [{ name: "raster", selector: { boolean: {} } }, { name: "site_background", selector: { object: {} } }];
     this._opt.data = { raster: !!site.raster, site_background: site.site_background || {} };
+    this._toolbar();
     this._canvas();
   }
 
+  /* ---------- Tools ---------- */
+  _setTool(k, o) {
+    this._tool = k;
+    this._step = Object.assign({ pts: [] }, o || {});
+    this._toolbar();
+    this._canvas();
+  }
+
+  _toolbar() {
+    const box = this.querySelector(".fl-tools");
+    if (!box) return;
+    const t = this._t, st = this._step || { pts: [] }, k = this._tool;
+    const btn = (id, icon, label) => `<button class="fl-tb${k === id ? " on" : ""}" data-t="${id}" title="${esc(label)}"><ha-icon icon="${icon}"></ha-icon><span>${esc(label)}</span></button>`;
+    let html = btn("move", "mdi:cursor-move", t.tMove) + btn("corner", "mdi:vector-point", t.tCorner) + btn("align", "mdi:image-move", t.tAlign) +
+      `<button class="fl-tb" data-t="upload" title="${esc(t.tUpload)}"><ha-icon icon="mdi:image-plus"></ha-icon><span>${esc(t.tUpload)}</span></button>` +
+      btn("bgscale", "mdi:ruler", t.tBgScale) + `<button class="fl-tb" data-t="fit" title="${esc(t.tFit)}"><ha-icon icon="mdi:fit-to-screen"></ha-icon></button>`;
+    let hint = k === "move" ? t.dragHint : k === "draw" ? t.drawHint : "";
+    if (k === "corner") hint = st.pts.length === 0 ? t.cornerA : st.pts.length === 1 ? t.cornerB : "";
+    if (k === "align") hint = [t.alignP1, t.alignQ1, t.alignP2, t.alignQ2][st.pts.length] || "";
+    if (k === "bgscale") hint = st.pts.length < 2 ? t.bgScaleHint : "";
+    let form = "";
+    if (k === "corner" && st.pts.length === 2) {
+      form = `${esc(t.offset)} x <input type="number" step="0.01" data-f="dx" value="0"> y <input type="number" step="0.01" data-f="dy" value="0"> m ` +
+        `<button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
+    }
+    if (k === "align" && st.pts.length === 4) {
+      form = `<label><input type="checkbox" data-f="sc"> ${esc(t.alignScale)}</label> <button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
+    }
+    if (k === "bgscale" && st.pts.length === 2) {
+      const d = Math.sqrt(Math.pow(st.pts[1][0] - st.pts[0][0], 2) + Math.pow(st.pts[1][1] - st.pts[0][1], 2));
+      form = `${esc(t.realLen)} <input type="number" step="0.01" data-f="len" value="${d.toFixed(2)}"> m <button class="fl-mini" data-go="1">${esc(t.apply)}</button>`;
+    }
+    if (k === "draw") form = `<button class="fl-mini" data-a="done">${esc(t.done)}</button>`;
+    if (k !== "move") form += ` <button class="fl-mini" data-a="cancel">${esc(t.cancel)}</button>`;
+    box.innerHTML = `<div class="fl-tbr">${html}</div><div class="fl-step">${esc(hint)} ${form}</div>`;
+    box.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => {
+      const id = b.getAttribute("data-t");
+      if (id === "fit") { this._vb = null; this._canvas(); return; }
+      if (id === "upload") { this.dispatchEvent(new CustomEvent("site-upload", { bubbles: true, composed: true })); return; }
+      this._setTool(id);
+    }));
+    const cancel = box.querySelector('[data-a="cancel"]');
+    if (cancel) cancel.addEventListener("click", () => this._setTool("move"));
+    const done = box.querySelector('[data-a="done"]');
+    if (done) done.addEventListener("click", () => this._finishDraw());
+    const go = box.querySelector("[data-go]");
+    if (go) go.addEventListener("click", () => this._apply(box));
+  }
+
+  _bld(i) { const d = this._d, b = this._s.buildings[i]; return d && b ? d.blds.filter((x) => x.id === b.plan)[0] : null; }
+
+  _apply(box) {  // the measured tools
+    const st = this._step, f = (n) => box.querySelector(`[data-f="${n}"]`);
+    if (this._tool === "corner") {  // move building A so its corner sits at B's corner + offset
+      const a = st.pts[0], b = st.pts[1];
+      const dx = parseFloat(f("dx").value) || 0, dy = parseFloat(f("dy").value) || 0;
+      const bl = this._bld(a.i);
+      if (!bl) return;
+      const mx = b.p[0] + dx - a.p[0], my = b.p[1] + dy - a.p[1];
+      this._emit((s) => { const x = s.buildings[a.i]; x.x = +(bl.pos.x + mx).toFixed(3); x.y = +(bl.pos.y + my).toFixed(3); });
+    } else if (this._tool === "align") {  // two building corners onto two points of the background
+      const p1 = st.pts[0], q1 = st.pts[1].p, p2 = st.pts[2], q2 = st.pts[3].p, bl = this._bld(p1.i);
+      if (!bl || p2.i !== p1.i) return;
+      const ang = (v) => Math.atan2(v[1], v[0]);
+      const sv = [p2.p[0] - p1.p[0], p2.p[1] - p1.p[1]], qv = [q2[0] - q1[0], q2[1] - q1[1]];
+      const rot = (bl.pos.rotation || 0) + (ang(qv) - ang(sv)) * 180 / Math.PI;
+      const k0 = bl.pos.scale > 0 ? bl.pos.scale : 1;
+      const ls = Math.sqrt(sv[0] * sv[0] + sv[1] * sv[1]), lq = Math.sqrt(qv[0] * qv[0] + qv[1] * qv[1]);
+      const k = f("sc").checked && ls > 0 ? k0 * lq / ls : k0;
+      const pp = bl.T.inv(p1.p), o = bl.origin, r = rot * Math.PI / 180;
+      const lx = (pp[0] - o[0]) * k, ly = (pp[1] - o[1]) * k;
+      const x = q1[0] - (lx * Math.cos(r) - ly * Math.sin(r)), y = q1[1] - (lx * Math.sin(r) + ly * Math.cos(r));
+      this._emit((s) => {
+        const b = s.buildings[p1.i];
+        b.x = +x.toFixed(3); b.y = +y.toFixed(3); b.rotation = +(((rot % 360) + 540) % 360 - 180).toFixed(2);
+        if (Math.abs(k - 1) > 1e-4) b.scale = +k.toFixed(4); else delete b.scale;
+      });
+    } else if (this._tool === "bgscale") {  // background scaled around the first point to the real length
+      const a = st.pts[0], b = st.pts[1], bg = this._s.site_background;
+      const d = Math.sqrt(Math.pow(b[0] - a[0], 2) + Math.pow(b[1] - a[1], 2)), len = parseFloat(f("len").value);
+      if (!bg || !d || !(len > 0)) return;
+      const k = len / d;
+      this._emit((s) => {
+        const g = s.site_background;
+        g.x = +(a[0] + (g.x - a[0]) * k).toFixed(3); g.y = +(a[1] + (g.y - a[1]) * k).toFixed(3);
+        g.width = +(g.width * k).toFixed(3);
+        if (g.height) g.height = +(g.height * k).toFixed(3);
+      });
+    }
+    this._setTool("move");
+  }
+
+  _finishDraw() {
+    const st = this._step, poly = st.pts.slice();
+    this._setTool("move");
+    if (poly.length > 2) this._emit((s) => { if (s.areas[st.i]) s.areas[st.i].poly = poly; });
+  }
+
+  /* ---------- Drawing area ---------- */
   _canvas() {
     const host = this.querySelector(".fl-canvas");
-    if (!host) return;
+    if (!host || !this._s) return;
     const t = this._t, d = this._geo(), site = this._s;
+    this._d = d;
     if (!d) { host.innerHTML = `<p class="fl-hint">${esc(t.loading)}</p>`; return; }
     const sf = d.floors.site;
     if (!sf) { host.innerHTML = `<p class="fl-hint">${esc(t.noBlds)}</p>`; return; }
-    const v = [sf.view[0], sf.view[1] - 2.5, sf.view[2], sf.view[3] + 2.5];
+    const W = host.clientWidth || 600, H = host.clientHeight || 400;
+    if (!this._vb) {  // fit, with the frame's aspect ratio
+      const v = [sf.view[0], sf.view[1] - 2.5, sf.view[2], sf.view[3] + 2.5];
+      const ar = W / H, w = Math.max(v[2], v[3] * ar), h = w / ar;
+      this._vb = [v[0] - (w - v[2]) / 2, v[1] - (h - v[3]) / 2, w, h];
+    }
+    const v = this._vb, u = v[2] / W;  // metres per pixel
     let g = "";
     if (sf.background) {
       const b = sf.background;
       g += `<image href="${esc(b.image)}" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height || b.width * 4}" opacity="${b.opacity}"` +
         ` preserveAspectRatio="${b.height ? "none" : "xMinYMin meet"}"${b.rotation ? ` transform="rotate(${b.rotation} ${b.x} ${b.y})"` : ""}/>`;
     }
-    for (let x = Math.ceil(v[0] / 5) * 5; x <= v[0] + v[2]; x += 5) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}"/><text class="gt" x="${x + 0.2}" y="${v[1] + 1}">${x}</text>`;
-    for (let y = Math.ceil(v[1] / 5) * 5; y <= v[1] + v[3]; y += 5) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}"/><text class="gt" x="${v[0] + 0.2}" y="${y - 0.2}">${y}</text>`;
+    const stepG = u * 60 > 5 ? (u * 60 > 25 ? 50 : 10) : u * 60 > 1 ? 5 : 1;
+    for (let x = Math.ceil(v[0] / stepG) * stepG; x <= v[0] + v[2]; x += stepG) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}" stroke-width="${u}"/><text class="gt" x="${x + 3 * u}" y="${v[1] + 12 * u}" font-size="${10 * u}">${x}</text>`;
+    for (let y = Math.ceil(v[1] / stepG) * stepG; y <= v[1] + v[3]; y += stepG) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}" stroke-width="${u}"/><text class="gt" x="${v[0] + 3 * u}" y="${y - 3 * u}" font-size="${10 * u}">${y}</text>`;
     site.areas.forEach((a) => {
       if (!a.poly || a.poly.length < 3) return;
       const c = centroid(a.poly);
-      g += `<polygon class="ea" points="${pts(a.poly)}"/><text class="et" x="${c[0]}" y="${c[1]}">${esc(a.name || a.id)}</text>`;
+      g += `<polygon class="ea" points="${pts(a.poly)}" stroke-width="${2 * u}"/><text class="et" x="${c[0]}" y="${c[1]}" font-size="${13 * u}">${esc(a.name || a.id)}</text>`;
     });
     const shapes = {};
     sf.bldShapes.forEach((x) => { (shapes[x.bld] || (shapes[x.bld] = [])).push(x.poly); });
     const warn = [];
+    this._corners = [];
+    const k = this._tool, st = this._step || { pts: [] };
+    const cornerMode = k === "corner" || (k === "align" && st.pts.length % 2 === 0);
     d.blds.forEach((b, i) => {
-      const own = shapes[b.id] || [];
-      const idx = site.buildings.map((x) => x.plan).indexOf(b.id);
-      g += `<g class="eb" data-b="${idx}">` + own.map((q) => `<polygon points="${pts(q)}"/>`).join("") +
-        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 0.6}">${esc(b.name)}</text></g>`;
+      const own = shapes[b.id] || [], idx = site.buildings.map((x) => x.plan).indexOf(b.id);
+      g += `<g class="eb" data-b="${idx}">` + own.map((q) => `<polygon points="${pts(q)}" stroke-width="${2 * u}"/>`).join("") +
+        `<text class="en" x="${(b.box[0] + b.box[2]) / 2}" y="${b.box[1] - 6 * u}" font-size="${14 * u}">${esc(b.name)}</text></g>`;
+      own.forEach((q) => q.forEach((c) => this._corners.push({ i: idx, p: c })));
       d.blds.slice(i + 1).forEach((o) => { if (own.some((q) => (shapes[o.id] || []).some((r) => polysOverlap(q, r)))) warn.push(b.name + " / " + o.name); });
     });
-    const dr = this._draw;
-    if (dr) g += `<polyline class="ed" points="${pts(dr.pts)}"/>` + dr.pts.map((q) => `<circle class="ep" cx="${q[0]}" cy="${q[1]}" r=".35"/>`).join("");
-    host.innerHTML = `<svg viewBox="${v[0]} ${v[1]} ${v[2]} ${v[3]}" class="${dr ? "drawing" : ""}">${g}</svg>` +
-      (dr ? `<div class="fl-drawbar">${esc(t.drawHint)} <button class="fl-mini" data-a="done">${esc(t.done)}</button><button class="fl-mini" data-a="cancel">${esc(t.cancel)}</button></div>` : "");
+    if (cornerMode) g += this._corners.map((c) => `<circle class="ec" cx="${c.p[0]}" cy="${c.p[1]}" r="${4 * u}"/>`).join("");
+    const marks = (st.pts || []).map((q) => (q.p || q));
+    if (k === "draw") g += `<polyline class="ed" points="${pts(marks)}" stroke-width="${2 * u}"/>`;
+    if (k === "bgscale" && marks.length === 2) g += `<polyline class="ed" points="${pts(marks)}" stroke-width="${2 * u}"/>`;
+    g += marks.map((q, j) => `<circle class="ep" cx="${q[0]}" cy="${q[1]}" r="${5 * u}"/><text class="eq" x="${q[0] + 7 * u}" y="${q[1] - 7 * u}" font-size="${12 * u}">${j + 1}</text>`).join("");
+    host.innerHTML = `<svg viewBox="${v.join(" ")}" class="${k !== "move" ? "pick" : ""}">${g}</svg>`;
     this.querySelector(".fl-warn").textContent = warn.length ? t.overlap + warn.join(", ") : "";
-    const svg = host.querySelector("svg"), coord = this.querySelector(".fl-coord");
+    this._bindCanvas(host.querySelector("svg"), u);
+  }
+
+  _bindCanvas(svg, u) {
+    const coord = this.querySelector(".fl-coord");
     const at = (e) => { const q = svg.createSVGPoint(); q.x = e.clientX; q.y = e.clientY; const m = svg.getScreenCTM(); const r = m ? q.matrixTransform(m.inverse()) : q; return [r.x, r.y]; };
-    svg.addEventListener("pointermove", (e) => {
-      const q = at(e);
-      coord.textContent = "x " + q[0].toFixed(1) + " · y " + q[1].toFixed(1) + " m";
-      const dg = this._drag;
-      if (dg && dg.id === e.pointerId) {
-        const dx = +(q[0] - dg.p[0]).toFixed(1), dy = +(q[1] - dg.p[1]).toFixed(1);
-        dg.pos = { x: +(dg.ox + dx).toFixed(1), y: +(dg.oy + dy).toFixed(1) };
-        dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
-      }
-    });
-    if (dr) {
-      const snap = (q) => [Math.round(q[0] * 4) / 4, Math.round(q[1] * 4) / 4];
-      const finish = () => {
-        const poly = dr.pts.slice();
-        this._draw = null;
-        if (poly.length > 2) this._emit((s) => { s.areas[dr.i].poly = poly; }); else this._canvas();
-      };
-      svg.addEventListener("click", (e) => {
-        const q = snap(at(e));
-        if (dr.pts.length > 2 && Math.abs(q[0] - dr.pts[0][0]) + Math.abs(q[1] - dr.pts[0][1]) < 0.8) { finish(); return; }
-        dr.pts.push(q);
-        this._canvas();
-      });
-      svg.addEventListener("dblclick", (e) => { e.preventDefault(); dr.pts.pop(); finish(); });
-      host.querySelector('[data-a="done"]').addEventListener("click", finish);
-      host.querySelector('[data-a="cancel"]').addEventListener("click", () => { this._draw = null; this._canvas(); });
-      return;
-    }
-    svg.querySelectorAll(".eb").forEach((el) => {
-      const i = +el.getAttribute("data-b");
-      el.addEventListener("pointerdown", (e) => {
-        const b = d.blds.filter((x) => x.id === (site.buildings[i] || {}).plan)[0];
-        if (!b) return;
+    const corner = (p) => {  // nearest building corner within 12 px
+      let best = null, bd = 12 * u;
+      (this._corners || []).forEach((c) => { const dd = Math.sqrt(Math.pow(c.p[0] - p[0], 2) + Math.pow(c.p[1] - p[1], 2)); if (dd < bd) { bd = dd; best = c; } });
+      return best;
+    };
+    svg.addEventListener("wheel", (e) => {  // zoom at the pointer (Shift / Alt over a building: turn / scale)
+      const eb = e.target.closest ? e.target.closest(".eb") : null;
+      if (eb && (e.shiftKey || e.altKey) && this._tool === "move") {
         e.preventDefault();
-        svg.setPointerCapture(e.pointerId);
-        this._drag = { i: i, el: el, id: e.pointerId, p: at(e), ox: b.pos.x, oy: b.pos.y, pos: { x: b.pos.x, y: b.pos.y } };
-      });
-      el.addEventListener("wheel", (e) => {
-        if (!e.shiftKey && !e.altKey) return;
-        e.preventDefault();
+        const i = +eb.getAttribute("data-b");
         this._emit((s) => {
           const b = s.buildings[i];
-          if (e.shiftKey) b.rotation = ((b.rotation || 0) + (e.deltaY < 0 ? 5 : -5)) % 360;
-          else b.scale = Math.max(0.05, +((b.scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)).toFixed(2));
+          if (e.shiftKey) b.rotation = +(((b.rotation || 0) + (e.deltaY < 0 ? 1 : -1)) % 360).toFixed(2);
+          else b.scale = Math.max(0.01, +((b.scale || 1) * (e.deltaY < 0 ? 1.01 : 0.99)).toFixed(4));
         });
-      }, { passive: false });
+        return;
+      }
+      e.preventDefault();
+      const p = at(e), f = e.deltaY > 0 ? 1.15 : 0.87, v = this._vb;
+      this._vb = [p[0] - (p[0] - v[0]) * f, p[1] - (p[1] - v[1]) * f, v[2] * f, v[3] * f];
+      this._canvas();
+    }, { passive: false });
+    svg.addEventListener("pointermove", (e) => {
+      const p = at(e);
+      coord.textContent = "x " + p[0].toFixed(2) + " · y " + p[1].toFixed(2) + " m";
+      const dg = this._drag;
+      if (!dg || dg.id !== e.pointerId) return;
+      if (dg.pan) {
+        const dx = (e.clientX - dg.c[0]) * u, dy = (e.clientY - dg.c[1]) * u;
+        svg.setAttribute("viewBox", [dg.vb[0] - dx, dg.vb[1] - dy, dg.vb[2], dg.vb[3]].join(" "));
+        dg.nv = [dg.vb[0] - dx, dg.vb[1] - dy, dg.vb[2], dg.vb[3]];
+        return;
+      }
+      const dx = +(p[0] - dg.p[0]).toFixed(2), dy = +(p[1] - dg.p[1]).toFixed(2);
+      dg.pos = { x: +(dg.ox + dx).toFixed(3), y: +(dg.oy + dy).toFixed(3) };
+      dg.el.setAttribute("transform", `translate(${dx} ${dy})`);
+    });
+    svg.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const p = at(e), k = this._tool;
+      if (k !== "move") return;
+      const eb = e.target.closest ? e.target.closest(".eb") : null;
+      svg.setPointerCapture(e.pointerId);
+      if (eb) {
+        const i = +eb.getAttribute("data-b"), b = this._bld(i);
+        if (!b) return;
+        this._drag = { i: i, el: eb, id: e.pointerId, p: p, ox: b.pos.x, oy: b.pos.y, pos: { x: b.pos.x, y: b.pos.y } };
+      } else this._drag = { pan: true, id: e.pointerId, c: [e.clientX, e.clientY], vb: this._vb.slice() };
     });
     svg.addEventListener("pointerup", () => {
       const dg = this._drag;
       if (!dg) return;
       this._drag = null;
-      if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { Object.assign(s.buildings[dg.i], dg.pos); });
+      if (dg.pan) { if (dg.nv) { this._vb = dg.nv; this._canvas(); } return; }
+      if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { s.buildings[dg.i].x = dg.pos.x; s.buildings[dg.i].y = dg.pos.y; });
     });
+    svg.addEventListener("click", (e) => {
+      const k = this._tool, st = this._step, p = at(e);
+      if (k === "move") return;
+      if (k === "draw") {
+        const q = [Math.round(p[0] * 4) / 4, Math.round(p[1] * 4) / 4];
+        if (st.pts.length > 2 && Math.abs(q[0] - st.pts[0][0]) + Math.abs(q[1] - st.pts[0][1]) < 10 * u) { this._finishDraw(); return; }
+        st.pts.push(q);
+      } else if (k === "corner") {
+        const c = corner(p);
+        if (!c || st.pts.length >= 2 || (st.pts.length === 1 && c.i === st.pts[0].i)) return;
+        st.pts.push(c);
+      } else if (k === "align") {
+        if (st.pts.length >= 4) return;
+        if (st.pts.length % 2 === 0) { const c = corner(p); if (!c || (st.pts.length === 2 && c.i !== st.pts[0].i)) return; st.pts.push(c); }
+        else st.pts.push({ p: p });
+      } else if (k === "bgscale") {
+        if (st.pts.length >= 2) return;
+        st.pts.push(p);
+      }
+      this._toolbar();
+      this._canvas();
+    });
+    svg.addEventListener("dblclick", (e) => { if (this._tool === "draw") { e.preventDefault(); this._step.pts.pop(); this._finishDraw(); } });
   }
 }
 
 FloorplanLiteSiteEditor.styles = `
-  floorplan-lite-site-editor { display: block; }
-  floorplan-lite-site-editor h4 { margin: 16px 0 6px; }
-  .fl-hint { font-size: 13px; opacity: .75; margin: 4px 0 12px; }
-  .fl-warn { color: var(--error-color, #db4437); opacity: 1; }
-  .fl-canvas svg { width: 100%; height: auto; max-height: 62vh; background: #141c32; border-radius: 8px; touch-action: none; display: block; }
-  .fl-canvas svg.drawing { cursor: crosshair; }
-  .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); stroke-width: .05; } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); font-size: .9px; }
-  .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; stroke-width: .12; }
-  .fl-canvas .et { fill: #ffd6a0; font-size: 1.2px; text-anchor: middle; }
-  .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; stroke-width: .15; }
+  floorplan-lite-site-editor { display: block; height: 100%; }
+  .fl-cv { position: relative; height: 100%; display: flex; flex-direction: column; }
+  .fl-tools { flex: 0 0 auto; padding: 6px 8px; }
+  .fl-tbr { display: flex; flex-wrap: wrap; }
+  .fl-tb { display: inline-flex; align-items: center; margin: 0 6px 4px 0; padding: 4px 9px; font: inherit; font-size: 13px; cursor: pointer;
+    border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4)); background: transparent; color: var(--primary-text-color); }
+  .fl-tb.on { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); border-color: var(--primary-color, #03a9f4); }
+  .fl-tb ha-icon { --mdc-icon-size: 18px; margin-right: 4px; display: flex; }
+  .fl-step { font-size: 13px; min-height: 22px; } .fl-step input[type=number] { width: 80px; font: inherit; }
+  .fl-canvas { flex: 1 1 auto; min-height: 240px; position: relative; }
+  .fl-canvas svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #141c32; touch-action: none; display: block; cursor: grab; }
+  .fl-canvas svg.pick { cursor: crosshair; }
+  .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); }
+  .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; }
+  .fl-canvas .et { fill: #ffd6a0; text-anchor: middle; }
+  .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; }
   .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }
-  .fl-canvas .en { fill: #eef2fb; font-size: 1.6px; text-anchor: middle; }
-  .fl-canvas .ed { fill: none; stroke: #ffd166; stroke-width: .12; } .fl-canvas .ep { fill: #ffd166; }
-  .fl-coord { font-size: 12px; opacity: .7; min-height: 16px; }
-  .fl-drawbar { font-size: 13px; margin: 6px 0; }
+  .fl-canvas .en { fill: #eef2fb; text-anchor: middle; }
+  .fl-canvas .ec { fill: #9fd3ff; } .fl-canvas .ed { fill: none; stroke: #ffd166; } .fl-canvas .ep { fill: #ffd166; } .fl-canvas .eq { fill: #ffd166; }
+  .fl-coord { position: absolute; left: 10px; bottom: 6px; font-size: 12px; color: #cdd8f0; pointer-events: none; }
+  .fl-warn { position: absolute; right: 10px; bottom: 6px; font-size: 12px; color: #ff8a80; pointer-events: none; }
+  .fl-hint { font-size: 13px; opacity: .75; margin: 8px; }
+  .fl-sd h4 { margin: 14px 0 6px; }
   .fl-item { border: 1px solid var(--divider-color, rgba(127, 127, 127, .3)); border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
   .fl-head { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 6px; } .fl-head b { margin-right: 8px; }
   .fl-btn, .fl-mini { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--divider-color, rgba(127, 127, 127, .4));
     background: transparent; color: var(--primary-text-color); }
   .fl-btn { padding: 6px 12px; } .fl-mini { padding: 2px 8px; margin-left: 6px; font-size: 12px; }
+  .fl-prev { font-size: 12px; margin-left: 10px; } .fl-prev input { width: 110px; font: inherit; }
 `;
 
 class FloorplanLiteCardEditor extends HTMLElement {

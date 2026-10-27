@@ -2,6 +2,14 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.7.1 – 2026-10-27
+- Site editor uses the full editor area (no longer cut off): zoom with the wheel, pan by dragging the empty canvas, lists
+  in the side panel.
+- Placing buildings with real measures: „Corner to corner“ (pick a corner of the building to move, then a corner of
+  the other building, enter an offset in metres), „Align to background“ (two building corners onto two points of a
+  shared site plan, optionally scaling), background image/PDF upload for the site and „Background scale“ (two points
+  plus the real length). Corners snap.
+
 ## 0.7.0 – 2026-10-27
 - The site moves into the floor plan editor: „New site“ (⌂+) creates a plan whose buildings are other plans – drag,
   turn, scale them with an overlap warning, draw the shared areas outside and link them to HA areas with their

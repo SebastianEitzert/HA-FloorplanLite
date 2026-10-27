@@ -180,7 +180,9 @@ colour. *Fill all rooms with area* does it for every room. **Create pop-up YAML*
   release it.
 - *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
   a building onto two points of a site plan, optionally scaling) – placing to a shared site plan.
-- *Draw area outside*: shared areas (yard, garden) with HA area and entities.
+- *Draw area outside*: shared areas (yard, garden) with HA area and entities. Points snap to corners and edges of
+  buildings and other areas, else 45° steps and a 0.25 m grid (Shift: free). Drag an area's corners to edit it (same
+  snapping); double-click an edge adds a corner, double-click a corner removes it.
 - *Appearance*: north in the site view (degrees, 0 = up, clockwise), building views along their own axis or north up,
   5 m grid, background settings. Drag a building's name to move its badge, double-click resets it.
 

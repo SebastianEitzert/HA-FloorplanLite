@@ -2142,8 +2142,8 @@ const ED = {
     aus_schalter: "Aus-Schalter je Ebene (z. B. site: false)", buttons: "Eigene Schaltflächen je Ebene (site / <grundriss>: Liste)",
     raster: "5-m-Raster in der Grundstücksansicht", north: "Norden in der Grundstücksansicht (Grad, 0 = oben, im Uhrzeigersinn)",
     ausrichtung: "Gebäudeansichten ausrichten", oAxis: "an der Hauptachse des Gebäudes", oNorth: "Norden oben",
-    labelHint: "Gebäudenamen ziehen, um das Badge zu verschieben; Doppelklick setzt es zurück.", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
-    gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Außenbereich: Klicken setzt Punkte (0,25-m-Raster), Doppelklick oder Klick auf den ersten Punkt schließt. Esc bricht ab.",
+    labelHint: "Gebäudenamen ziehen, um das Badge zu verschieben; Doppelklick setzt es zurück. Ecken von Außenbereichen ziehen (mit Punktfang), Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie.", site_background: "Hintergrundbild des Grundstücks (image, x, y, width, height, rotation, opacity)",
+    gsite: "Grundstück", overlap: "Achtung, Gebäude überlappen: ", drawHint: "Außenbereich: Klicken setzt Punkte – sie fangen Ecken und Kanten von Gebäuden und Außenbereichen, sonst 45°-Schritte und 0,25-m-Raster (Umschalt: frei). Doppelklick oder Klick auf den ersten Punkt schließt, Esc bricht ab.",
     dragHint: "Gebäude ziehen = verschieben, Umschalt+Rad = drehen, Alt+Rad = Maßstab, Rad = zoomen, freie Fläche ziehen = Ansicht verschieben.",
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst).",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
@@ -2179,8 +2179,8 @@ const ED = {
     aus_schalter: "Off button per level (e.g. site: false)", buttons: "Own buttons per level (site / <plan>: list)",
     raster: "5 m grid in the site view", north: "North in the site view (degrees, 0 = up, clockwise)",
     ausrichtung: "Align building views", oAxis: "along the building's main axis", oNorth: "north up",
-    labelHint: "Drag a building name to move its badge; double-click resets it.", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
-    gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points (0.25 m grid), a double click or a click on the first point closes. Esc cancels.",
+    labelHint: "Drag a building name to move its badge; double-click resets it. Drag corners of areas (with snapping); double-click an edge adds a corner, a corner removes it.", site_background: "Background image of the site (image, x, y, width, height, rotation, opacity)",
+    gsite: "Site", overlap: "Careful, buildings overlap: ", drawHint: "Clicks set points – they snap to corners and edges of buildings and areas, else 45° steps and a 0.25 m grid (Shift: free). A double click or a click on the first point closes, Esc cancels.",
     dragHint: "Drag a building to move it, Shift+wheel turns, Alt+wheel scales, wheel zooms, dragging empty space pans.",
     params: "Address: ?raum=<room> or ?ansicht=<plan>[:<level>] or ?ansicht=grundstueck opens the card there (for every user, also as #raum=…); ?geraet=<name> remembers a device name once for the template (the TV Streamer gives its own).",
     notDrawn: "not drawn yet", loading: "loading …" },
@@ -2536,10 +2536,12 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     const stepG = u * 60 > 5 ? (u * 60 > 25 ? 50 : 10) : u * 60 > 1 ? 5 : 1;
     for (let x = Math.ceil(v[0] / stepG) * stepG; x <= v[0] + v[2]; x += stepG) g += `<line class="gr" x1="${x}" y1="${v[1]}" x2="${x}" y2="${v[1] + v[3]}" stroke-width="${u}"/><text class="gt" x="${x + 3 * u}" y="${v[1] + 12 * u}" font-size="${10 * u}">${x}</text>`;
     for (let y = Math.ceil(v[1] / stepG) * stepG; y <= v[1] + v[3]; y += stepG) g += `<line class="gr" x1="${v[0]}" y1="${y}" x2="${v[0] + v[2]}" y2="${y}" stroke-width="${u}"/><text class="gt" x="${v[0] + 3 * u}" y="${y - 3 * u}" font-size="${10 * u}">${y}</text>`;
-    site.areas.forEach((a) => {
+    let handles = "";
+    site.areas.forEach((a, ai) => {
       if (!a.poly || a.poly.length < 3) return;
       const c = centroid(a.poly);
-      g += `<polygon class="ea" points="${pts(a.poly)}" stroke-width="${2 * u}"/><text class="et" x="${c[0]}" y="${c[1]}" font-size="${13 * u}">${esc(a.name || a.id)}</text>`;
+      g += `<polygon class="ea" data-ea="${ai}" points="${pts(a.poly)}" stroke-width="${2 * u}"/><text class="et" x="${c[0]}" y="${c[1]}" font-size="${13 * u}">${esc(a.name || a.id)}</text>`;
+      if (this._tool === "move") handles += a.poly.map((q, vi) => `<circle class="av" data-ea="${ai}" data-v="${vi}" cx="${q[0]}" cy="${q[1]}" r="${5 * u}"/>`).join("");
     });
     const shapes = {};
     sf.bldShapes.forEach((x) => { (shapes[x.bld] || (shapes[x.bld] = [])).push(x.poly); });
@@ -2569,7 +2571,9 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         `<text x="${(p[0] + q[0]) / 2 + 6 * u}" y="${(p[1] + q[1]) / 2 - 6 * u}" font-size="${12 * u}">📏 ${lab}</text>` +
         `<line class="elh" x1="${q[0]}" y1="${q[1]}" x2="${p[0]}" y2="${p[1]}" stroke-width="${12 * u}"/></g>`;
     });
-    g += labels;
+    g += labels + handles + `<circle class="esnap" r="${7 * u}" cx="-99999" cy="-99999" stroke-width="${2 * u}"/>`;
+    this._snapPolys = Object.keys(shapes).reduce((l, kk) => l.concat(shapes[kk].map((q) => ({ poly: q }))), [])
+      .concat(site.areas.map((a, ai) => ({ poly: a.poly || [], area: ai })).filter((x) => x.poly.length > 1));
     {  // compass rose, bottom right
       const nr = site.north || 0, cx = v[0] + v[2] - 34 * u, cy = v[1] + v[3] - 34 * u;
       g += `<g class="erose" transform="translate(${cx} ${cy}) rotate(${nr}) scale(${u})"><circle r="20"/><path class="rs" d="M0 -17 L5 0 L0 17 L-5 0 Z"/>` +
@@ -2594,6 +2598,38 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       (this._corners || []).forEach((c) => { const dd = Math.sqrt(Math.pow(c.p[0] - p[0], 2) + Math.pow(c.p[1] - p[1], 2)); if (dd < bd) { bd = dd; best = c; } });
       return best;
     };
+    /* Point snap for areas: corners of buildings and areas, then their edges, then 45°/90° from the previous point,
+       then a 25 cm grid. Shift: free. skip = [area, vertex] being moved. */
+    const mark = svg.querySelector(".esnap");
+    const snap = (p, skip, prev, free) => {
+      const show = (q) => { mark.setAttribute("cx", q ? q[0] : -99999); mark.setAttribute("cy", q ? q[1] : -99999); };
+      if (free) { show(null); return [+p[0].toFixed(2), +p[1].toFixed(2)]; }
+      const R = 12 * u, D = (a, b) => Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2));
+      let best = null, bd = R;
+      (this._snapPolys || []).forEach((sp) => sp.poly.forEach((q, vi) => {
+        if (skip && sp.area === skip[0] && vi === skip[1]) return;
+        const dd = D(q, p); if (dd < bd) { bd = dd; best = q; }
+      }));
+      if (best) { show(best); return best.slice(); }
+      (this._snapPolys || []).forEach((sp) => sp.poly.forEach((a, vi) => {
+        const b = sp.poly[(vi + 1) % sp.poly.length];
+        if (skip && sp.area === skip[0] && (vi === skip[1] || (vi + 1) % sp.poly.length === skip[1])) return;
+        if (sp.area !== undefined && vi === sp.poly.length - 1 && sp.poly.length < 3) return;
+        const ex = b[0] - a[0], ey = b[1] - a[1], L = ex * ex + ey * ey;
+        if (!L) return;
+        const tt = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / L)), q = [a[0] + ex * tt, a[1] + ey * tt];
+        const dd = D(q, p); if (dd < bd) { bd = dd; best = q; }
+      }));
+      if (best) { show(best); return [+best[0].toFixed(3), +best[1].toFixed(3)]; }
+      show(null);
+      let q = [Math.round(p[0] * 4) / 4, Math.round(p[1] * 4) / 4];
+      if (prev) {  // 45° steps from the previous point
+        const dx = p[0] - prev[0], dy = p[1] - prev[1], len = Math.sqrt(dx * dx + dy * dy);
+        const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4), al = Math.atan2(dy, dx);
+        if (len > 0 && Math.abs(Math.sin(al - ang)) * len < R) q = [+(prev[0] + Math.cos(ang) * Math.round(len * 4) / 4).toFixed(3), +(prev[1] + Math.sin(ang) * Math.round(len * 4) / 4).toFixed(3)];
+      }
+      return q;
+    };
     svg.addEventListener("wheel", (e) => {  // zoom at the pointer (Shift / Alt over a building: turn / scale)
       const eb = e.target.closest ? e.target.closest(".eb") : null;
       if (eb && (e.shiftKey || e.altKey) && this._tool === "move") {
@@ -2615,7 +2651,17 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const p = at(e);
       coord.textContent = "x " + p[0].toFixed(2) + " · y " + p[1].toFixed(2) + " m";
       const dg = this._drag;
+      if (this._tool === "draw" && !dg) { const st0 = this._step.pts; snap(p, null, st0[st0.length - 1], e.shiftKey); }
       if (!dg || dg.id !== e.pointerId) return;
+      if (dg.av) {  // moving a corner of an area
+        const poly = this._s.areas[dg.av[0]].poly, n = poly.length;
+        dg.q = snap(p, dg.av, null, e.shiftKey);
+        dg.el.setAttribute("cx", dg.q[0]); dg.el.setAttribute("cy", dg.q[1]);
+        const np = poly.slice(); np[dg.av[1]] = dg.q;
+        const pg = svg.querySelector(`.ea[data-ea="${dg.av[0]}"]`);
+        if (pg && n) pg.setAttribute("points", pts(np));
+        return;
+      }
       if (dg.pan) {
         const dx = (e.clientX - dg.c[0]) * u, dy = (e.clientY - dg.c[1]) * u;
         svg.setAttribute("viewBox", [dg.vb[0] - dx, dg.vb[1] - dy, dg.vb[2], dg.vb[3]].join(" "));
@@ -2641,6 +2687,12 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         if (window.confirm(this._t.delLink)) this._emit((s) => { s.links.splice(j, 1); });
         return;
       }
+      const av = e.target.closest ? e.target.closest(".av") : null;
+      if (av) {
+        svg.setPointerCapture(e.pointerId);
+        this._drag = { av: [+av.getAttribute("data-ea"), +av.getAttribute("data-v")], el: av, id: e.pointerId };
+        return;
+      }
       const lb = e.target.closest ? e.target.closest(".en") : null;
       if (lb) {
         svg.setPointerCapture(e.pointerId);
@@ -2664,6 +2716,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       if (!dg) return;
       this._drag = null;
       if (dg.pan) { if (dg.nv) { this._vb = dg.nv; this._canvas(); } return; }
+      if (dg.av) { if (dg.q) this._emit((s) => { s.areas[dg.av[0]].poly[dg.av[1]] = dg.q; }); return; }
       if (dg.lab !== undefined) { if (dg.at) this._emit((s) => { s.buildings[dg.lab].label_at = dg.at; }); return; }
       if (dg.pos.x !== dg.ox || dg.pos.y !== dg.oy) this._emit((s) => { s.buildings[dg.i].x = dg.pos.x; s.buildings[dg.i].y = dg.pos.y; });
     });
@@ -2671,7 +2724,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       const k = this._tool, st = this._step, p = at(e);
       if (k === "move") return;
       if (k === "draw") {
-        const q = [Math.round(p[0] * 4) / 4, Math.round(p[1] * 4) / 4];
+        const q = snap(p, null, st.pts[st.pts.length - 1], e.shiftKey);
         if (st.pts.length > 2 && Math.abs(q[0] - st.pts[0][0]) + Math.abs(q[1] - st.pts[0][1]) < 10 * u) { this._finishDraw(); return; }
         st.pts.push(q);
       } else if (k === "corner") {
@@ -2690,6 +2743,25 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       this._canvas();
     });
     svg.addEventListener("dblclick", (e) => {
+      const av = e.target.closest ? e.target.closest(".av") : null;
+      if (av && this._tool === "move") {  // double-click on an area corner removes it
+        const ai = +av.getAttribute("data-ea"), vi = +av.getAttribute("data-v");
+        if (this._s.areas[ai].poly.length > 3) this._emit((s) => { s.areas[ai].poly.splice(vi, 1); });
+        return;
+      }
+      const ea = e.target.closest ? e.target.closest(".ea") : null;
+      if (ea && this._tool === "move") {  // double-click on an area edge adds a corner there
+        const ai = +ea.getAttribute("data-ea"), poly = this._s.areas[ai].poly, p = at(e);
+        let bi = 0, bd = Infinity;
+        poly.forEach((a, i) => {
+          const b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1], L = ex * ex + ey * ey || 1;
+          const tt = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / L));
+          const dd = Math.pow(a[0] + ex * tt - p[0], 2) + Math.pow(a[1] + ey * tt - p[1], 2);
+          if (dd < bd) { bd = dd; bi = i; }
+        });
+        this._emit((s) => { s.areas[ai].poly.splice(bi + 1, 0, [+p[0].toFixed(2), +p[1].toFixed(2)]); });
+        return;
+      }
       const lb = e.target.closest ? e.target.closest(".en") : null;
       if (lb && this._tool === "move") { const i = +lb.getAttribute("data-lb"); this._emit((s) => { delete s.buildings[i].label_at; }); }
     });
@@ -2712,6 +2784,8 @@ FloorplanLiteSiteEditor.styles = `
   .fl-canvas svg.pick { cursor: crosshair; }
   .fl-canvas .gr { stroke: rgba(160, 182, 230, .18); } .fl-canvas .gt { fill: rgba(205, 216, 240, .6); }
   .fl-canvas .ea { fill: rgba(255, 214, 160, .18); stroke: #ffd6a0; }
+  .fl-canvas .av { fill: #ffd6a0; stroke: #141c32; cursor: move; } .fl-canvas .av:hover { fill: #fff; }
+  .fl-canvas .esnap { fill: none; stroke: #7dffb0; pointer-events: none; }
   .fl-canvas .et { fill: #ffd6a0; text-anchor: middle; }
   .fl-canvas .eb { cursor: move; } .fl-canvas .eb polygon { fill: rgba(79, 111, 216, .35); stroke: #8d9cc4; }
   .fl-canvas .eb:hover polygon { fill: rgba(79, 111, 216, .55); }

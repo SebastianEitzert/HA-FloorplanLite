@@ -185,7 +185,9 @@ Seitenbereich.
 - *Hintergrund (Bild/PDF)* + *Hintergrund-Maßstab* (zwei Punkte und die echte Länge) + *Am Hintergrund ausrichten* (zwei
   Ecken eines Gebäudes auf zwei Punkte eines Lageplans, wahlweise mit Skalieren) – Platzieren nach einem gemeinsamen
   Lageplan.
-- *Außenbereich zeichnen*: gemeinsame Bereiche (Hof, Garten) mit HA-Bereich und Entitäten.
+- *Außenbereich zeichnen*: gemeinsame Bereiche (Hof, Garten) mit HA-Bereich und Entitäten. Punkte fangen Ecken und
+  Kanten von Gebäuden und anderen Außenbereichen, sonst 45°-Schritte und 0,25-m-Raster (Umschalt: frei). Ecken eines
+  Bereichs ziehen bearbeitet ihn (gleicher Punktfang); Doppelklick auf eine Kante fügt eine Ecke ein, auf eine Ecke löscht sie.
 - *Darstellung*: Norden in der Grundstücksansicht (Grad, 0 = oben, im Uhrzeigersinn), Gebäudeansichten an der eigenen
   Hauptachse oder Norden oben, 5-m-Raster, Hintergrund. Den Gebäudenamen ziehen verschiebt sein Badge, Doppelklick setzt
   es zurück.

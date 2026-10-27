@@ -3,6 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
+- Site editor: drawing and editing areas outside snaps to corners and edges of buildings and other areas, else 45° steps and a 0.25 m grid (Shift: free); corners of areas can be dragged, double-click an edge adds a corner, a corner removes it.
 - Editor page keeps the window height: only the side panel scrolls, the drawing area stays in place.
 - Site editor: the grid no longer slips when the editor area changes its size (the view keeps the frame's shape).
 - Editor: the north arrow of a plan that stands on a site follows the site (site north and the building's turn); the

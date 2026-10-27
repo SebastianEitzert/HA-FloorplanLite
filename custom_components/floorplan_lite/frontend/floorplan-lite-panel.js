@@ -2211,7 +2211,7 @@ const STYLES = `
     background: var(--primary-background-color); color: var(--primary-text-color); }
   .dlg .primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
   .dlg .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
-  :host { display: block; height: 100%; background: var(--primary-background-color); color: var(--primary-text-color);
+  :host { display: block; height: 100vh; overflow: hidden; background: var(--primary-background-color); color: var(--primary-text-color);
     font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif); }
   * { box-sizing: border-box; }
   .app { display: flex; flex-direction: column; height: 100%; }
@@ -2233,7 +2233,7 @@ const STYLES = `
   .grp { display: flex; flex-direction: column; gap: 4px; }
   .tool { width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; }
   .tool.on { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: transparent; }
-  .stage { flex: 1; position: relative; min-width: 0; }
+  .stage { flex: 1; position: relative; min-width: 0; overflow: hidden; }
   .canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; outline: none; cursor: crosshair; display: block; }
   .levels { position: absolute; top: 8px; left: 8px; z-index: 2; display: flex; gap: 4px; flex-wrap: wrap; }
   .lv { background: rgba(20,28,50,.85); color: #dfe6f7; border-color: rgba(255,255,255,.15); }

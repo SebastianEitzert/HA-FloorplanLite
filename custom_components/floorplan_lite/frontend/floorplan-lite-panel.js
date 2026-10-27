@@ -19,7 +19,7 @@ const T = {
     preview: "Vorschau", fit: "Einpassen", none: "Noch kein Grundriss – lege einen neuen an.",
     leave: "Ungespeicherte Änderungen verwerfen?",
     stairHint: "Die gestrichelte Linie ist die Lauflinie: vom Antritt (Punkt) zum Austritt (Pfeil). Ecken werden gewendelt – Radius = Abstand der Lauflinie vom Wendelpunkt. Ecken ziehen wie bei Linien.",
-    stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairNext: "– nächstes Stockwerk –",
+    stairSteps: "Steigungen (Stufen)", stairRadius: "Radius der Wendelung (m, 0 = Podest-Ecke)", stairTo: "Führt nach", stairForm: "Form", formSquare: "eckig (gerade Wangen, Stufen fächern vom Kern)", formRound: "rund (Wangen folgen der Wendelung)", stairNext: "– nächstes Stockwerk –",
     stairLen: "Lauflinie %l m · Auftritt ≈ %s cm",
     tools: { select: "Auswählen / bearbeiten", room: "Raum zeichnen", roomGen: "Raum erzeugen (in eine Fläche klicken)", split: "Raum teilen (Linie von Wand zu Wand)", wall: "Innenwand zeichnen", outline: "Außenwand zeichnen", outdoor: "Bereich außen (Garten, Hof, Terrasse)",
       line: "Hilfslinie (Vordach …)", stair: "Treppe (Lauflinie von unten nach oben)", door: "Tür", window: "Fenster", passage: "Durchgang ohne Tür", garage: "Garagentor", skylight: "Dachfenster / Lichtkuppel (frei im Raum)", openWall: "Keine Wand (offener Bereich)",
@@ -85,7 +85,7 @@ const T = {
     preview: "Preview", fit: "Fit", none: "No floor plan yet – create a new one.",
     leave: "Discard unsaved changes?",
     stairHint: "The dashed line is the walking line: from the first step (dot) to the top (arrow). Corners are wound – radius = distance of the walking line from the turning point. Drag corners like with lines.",
-    stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairNext: "– next level –",
+    stairSteps: "Risers (steps)", stairRadius: "Radius of the winding (m, 0 = landing corner)", stairTo: "Leads to", stairForm: "Shape", formSquare: "square (straight strings, winders from the core)", formRound: "round (strings follow the turn)", stairNext: "– next level –",
     stairLen: "Walking line %l m · going ≈ %s cm",
     tools: { select: "Select / edit", room: "Draw room", roomGen: "Generate room (click into an area)", split: "Split room (line from wall to wall)", wall: "Draw inner wall", outline: "Draw outer wall", stair: "Stair (walking line from bottom to top)", outdoor: "Area outside (garden, yard, terrace)",
       line: "Helper line (canopy …)", stair: "Stair (walking line from bottom to top)", door: "Door", window: "Window", passage: "Passage without door", garage: "Garage door", skylight: "Roof window / dome (anywhere in a room)", openWall: "No wall (open plan)",
@@ -152,14 +152,16 @@ const POLY_TOOLS = ["room", "outline", "outdoor"];
 const SHAPES = ["rooms", "outlines", "walls", "lines", "stairs"];  // elements with a poly
 
 /* Stair: the walking line (poly) is rounded in its turns (radius), the steps stand across it at equal distances –
-   in a turn they fan out like winders. Returns the rounded line, both edges, the step lines, start and end. */
+   in a turn they fan out like winders. form "rund": the edges follow the rounded line; otherwise (eckig, the default)
+   the edges stay square and the winders run from the inner corner to the outer edges. Returns the edges, the step
+   lines, start, arrow and the length of the walking line. */
 function stairGeo(st) {
   const P = (st.poly || []).filter((q) => Array.isArray(q) && q.length === 2);
-  const w = st.width > 0 ? st.width : 1, n = Math.max(2, Math.round(st.steps || 16));
+  const w = st.width > 0 ? st.width : 1, n = Math.max(2, Math.round(st.steps || 16)), round = st.form === "rund";
   if (P.length < 2) return null;
   const R = typeof st.radius === "number" ? st.radius : w * 0.6;
   const len = (a, b) => Math.sqrt(Math.pow(b[0] - a[0], 2) + Math.pow(b[1] - a[1], 2));
-  const line = [P[0]];
+  const line = [P[0]], turns = [];  // turns: [index in line where the arc starts, index where it ends, corner index]
   for (let i = 1; i < P.length - 1; i++) {  // fillet every corner
     const a = P[i - 1], c = P[i], b = P[i + 1], la = len(c, a), lb = len(c, b);
     const ua = [(a[0] - c[0]) / la, (a[1] - c[1]) / la], ub = [(b[0] - c[0]) / lb, (b[1] - c[1]) / lb];
@@ -175,29 +177,64 @@ function stairGeo(st) {
     let a1 = Math.atan2(t1[1] - o[1], t1[0] - o[0]), a2 = Math.atan2(t2[1] - o[1], t2[0] - o[0]), da = a2 - a1;
     while (da > Math.PI) da -= 2 * Math.PI;
     while (da < -Math.PI) da += 2 * Math.PI;
-    const k = Math.max(4, Math.ceil(Math.abs(da) / 0.12));
+    const k = Math.max(4, Math.ceil(Math.abs(da) / 0.12)), from = line.length;
     for (let j = 0; j <= k; j++) { const an = a1 + da * j / k; line.push([o[0] + Math.cos(an) * r, o[1] + Math.sin(an) * r]); }
+    turns.push([from, line.length - 1, i]);
   }
   line.push(P[P.length - 1]);
   const cum = [0];
   for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + len(line[i - 1], line[i]));
   const L = cum[cum.length - 1];
   if (!L) return null;
-  const at = (s) => {  // point and direction at the distance s along the line
+  const at = (s) => {  // point, direction and line index at the distance s along the line
     let i = 1;
     while (i < line.length - 1 && cum[i] < s) i++;
     const a = line[i - 1], b = line[i], seg = cum[i] - cum[i - 1] || 1, f = Math.max(0, Math.min(1, (s - cum[i - 1]) / seg));
-    return { p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], u: [(b[0] - a[0]) / seg, (b[1] - a[1]) / seg] };
+    return { p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], u: [(b[0] - a[0]) / seg, (b[1] - a[1]) / seg], i: i };
   };
-  const across = (s) => { const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2; return [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]]; };
+  // square edges: the walking line's polyline moved by ±w/2, corners mitred
+  const offset = (pl, sgn) => pl.map((q, i) => {
+    const nrm = (a, b) => { const l = len(a, b) || 1; return [-(b[1] - a[1]) / l * sgn * w / 2, (b[0] - a[0]) / l * sgn * w / 2]; };
+    if (i === 0) { const m = nrm(pl[0], pl[1]); return [q[0] + m[0], q[1] + m[1]]; }
+    if (i === pl.length - 1) { const m = nrm(pl[i - 1], pl[i]); return [q[0] + m[0], q[1] + m[1]]; }
+    const m1 = nrm(pl[i - 1], q), m2 = nrm(q, pl[i + 1]), mx = m1[0] + m2[0], my = m1[1] + m2[1];
+    const dot = (m1[0] * mx + m1[1] * my) / (w * w / 4) || 1;
+    return [q[0] + mx / dot, q[1] + my / dot];
+  });
+  const sqL = offset(P, 1), sqR = offset(P, -1);
+  const hit = (o, dir, edge) => {  // first crossing of the ray o + t·dir (t > 0) with the polyline edge
+    let best = null;
+    for (let j = 0; j < edge.length - 1; j++) {
+      const a = edge[j], b = edge[j + 1], e = [b[0] - a[0], b[1] - a[1]], den = dir[0] * e[1] - dir[1] * e[0];
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((a[0] - o[0]) * e[1] - (a[1] - o[1]) * e[0]) / den, u = ((a[0] - o[0]) * dir[1] - (a[1] - o[1]) * dir[0]) / den;
+      if (t > 1e-6 && u >= -1e-6 && u <= 1 + 1e-6 && (best === null || t < best)) best = t;
+    }
+    return best === null ? null : [o[0] + dir[0] * best, o[1] + dir[1] * best];
+  };
+  const across = (s) => {
+    const q = at(s), nx = -q.u[1] * w / 2, ny = q.u[0] * w / 2, plain = [[q.p[0] + nx, q.p[1] + ny], [q.p[0] - nx, q.p[1] - ny]];
+    if (round) return plain;
+    const tr = turns.filter((x) => q.i > x[0] && q.i <= x[1])[0];
+    if (!tr) return plain;
+    // in a turn: from the inner corner through the walking line to the outer edge (winder)
+    const c = P[tr[2]], a = P[tr[2] - 1], b = P[tr[2] + 1];
+    const cross = (c[0] - a[0]) * (b[1] - c[1]) - (c[1] - a[1]) * (b[0] - c[0]);  // > 0: turns to the left (y down: right)
+    const inner = cross > 0 ? sqL : sqR, outer = cross > 0 ? sqR : sqL, pv = inner[tr[2]];
+    const dir = [q.p[0] - pv[0], q.p[1] - pv[1]], end = hit(pv, dir, outer);
+    return end ? [pv, end] : plain;
+  };
   const steps = [];
   for (let k = 0; k <= n; k++) steps.push(across(L * k / n));
-  const edgeL = [], edgeR = [];
-  line.forEach((q, i) => {
-    const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], l = len(a, b) || 1;
-    const nx = -(b[1] - a[1]) / l * w / 2, ny = (b[0] - a[0]) / l * w / 2;
-    edgeL.push([q[0] + nx, q[1] + ny]); edgeR.push([q[0] - nx, q[1] - ny]);
-  });
+  let edgeL = sqL, edgeR = sqR;
+  if (round) {
+    edgeL = []; edgeR = [];
+    line.forEach((q, i) => {
+      const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)], l = len(a, b) || 1;
+      const nx = -(b[1] - a[1]) / l * w / 2, ny = (b[0] - a[0]) / l * w / 2;
+      edgeL.push([q[0] + nx, q[1] + ny]); edgeR.push([q[0] - nx, q[1] - ny]);
+    });
+  }
   const e = at(L), ar = Math.min(0.35, w * 0.3);
   const arrow = [[e.p[0] - e.u[0] * ar - e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar + e.u[0] * ar * 0.6], e.p,
     [e.p[0] - e.u[0] * ar + e.u[1] * ar * 0.6, e.p[1] - e.u[1] * ar - e.u[0] * ar * 0.6]];
@@ -865,6 +902,7 @@ class FloorplanLitePanel extends HTMLElement {
       const g = stairGeo(el), lv = this._plan.levels.map((l) => `<option value="${esc(l.id)}"${el.to_level === l.id ? " selected" : ""}>${esc(l.name)}</option>`).join("");
       h += `<p class="small">${esc(t.stairHint)}</p>` + this._field(t.widthM, this._num("width", el.width || 1, 0.05)) + this._field(t.stairSteps, this._num("steps", el.steps || 16, 1)) +
         this._field(t.stairRadius, this._num("radius", typeof el.radius === "number" ? el.radius : R3((el.width || 1) * 0.6), 0.05)) +
+        this._field(t.stairForm, `<select data-k="form"><option value="">${esc(t.formSquare)}</option><option value="rund"${el.form === "rund" ? " selected" : ""}>${esc(t.formRound)}</option></select>`) +
         this._field(t.stairTo, `<select data-k="to_level"><option value="">${esc(t.stairNext)}</option>${lv}</select>`) +
         (g ? `<p class="small">${esc(t.stairLen.replace("%l", g.length.toFixed(2)).replace("%s", (g.length / (el.steps || 16) * 100).toFixed(1)))}</p>` : "") +
         this._field(t.building, this._buildingSel("building", el.building));

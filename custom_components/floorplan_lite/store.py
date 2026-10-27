@@ -89,6 +89,7 @@ STAIR = vol.Schema(  # a stair: its walking line from the bottom step to the top
         vol.Optional("width", default=1.0): vol.All(NUM, vol.Range(min=0.3, max=5)),
         vol.Optional("steps", default=16): vol.All(vol.Coerce(int), vol.Range(min=2, max=60)),
         vol.Optional("radius"): vol.All(NUM, vol.Range(min=0, max=10)),  # radius of the walking line in turns
+        vol.Optional("form"): vol.In(["eckig", "rund"]),  # eckig: square strings, winders from the core
         vol.Optional("to_level"): ID,
         vol.Optional("building"): ID,
     }

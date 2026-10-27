@@ -3,7 +3,7 @@
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
 ## Unreleased
-- **Stairs**: new editor tool „Stair“ – draw the walking line from the bottom step to the top one; turns are wound (radius of the walking line, 0 = landing corner), the steps fan out in the turns. Width, number of risers, radius and the level it leads to in the side panel (walking line length and going shown). The card draws it with start dot and arrow, and dashed on the level above (`stairs` in the plan).
+- **Stairs**: new editor tool „Stair“ – draw the walking line from the bottom step to the top one; turns are wound – square by default (straight strings, the winders fan out from the core corner, like a precast U-stair), or round (`form: rund`) (radius of the walking line, 0 = landing corner), the steps fan out in the turns. Width, number of risers, radius and the level it leads to in the side panel (walking line length and going shown). The card draws it with start dot and arrow, and dashed on the level above (`stairs` in the plan).
 - Editor: splitting a room in a plan whose rooms draw their own walls no longer creates a wall – the new border gets „no wall“ automatically (walls at its ends stay). The setting „Rooms draw their own walls“ explains that off = borders without walls, walls then come from „Inner wall“.
 - **Script blueprint in English** (breaking for the script's own settings): fields `room`, `event`, `lights`, `players`;
   events `up`, `down`, `wheel_up`, `wheel_down`, `yellow`, `play`, `pause`, `play_pause`, `stop`, `next`, `previous`,

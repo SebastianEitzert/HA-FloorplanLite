@@ -43,6 +43,7 @@
  */
 
 const WALL = 0.2, OUTER = 0.5;
+const FILL_GAP = 24;  // height: fill leaves this margin (px) below the card
 
 /* ---------- Geometry helpers ---------- */
 const centroid = (p) => {
@@ -194,7 +195,7 @@ const CARDS = [];
 const DOUBLE = {};  // script → {keys: keys with an action for „twice“, ms: waiting time}
 /* English names for the card's options (YAML in English or German – both work; inside the card the German ones). */
 const OPT_EN = { off_buttons: "aus_schalter", music_off: "musik_aus", off_with_outside: "aus_mit_aussen", orientation: "ausrichtung",
-  compass: "kompass", other_floors: "andere_geschosse", neighbour_margin: "nachbar_rand", height: "hoehe", legend: "legende", frame: "rahmen" };
+  compass: "kompass", other_floors: "andere_geschosse", neighbour_margin: "nachbar_rand", height: "hoehe", legend: "legende", frame: "rahmen", marker: "markierung" };
 const ROOM_EN = { light: "licht", lights: "licht", main_light: "hauptlicht", presence: "praesenz", motion: "bewegung", temperature: "temp",
   window: "fenster", windows: "fenster", shade: "beschattung", shades: "beschattung", music: "musik", light_colour: "lichtfarbe", light_color: "lichtfarbe" };
 const FOLLOW_EN = { type: "art", template: "vorlage", view: "ansicht", room: "raum", ble_last: "ble_letzter", max_age: "max_alter" };
@@ -856,11 +857,10 @@ class FloorplanLiteCard extends HTMLElement {
     const card = root.querySelector("ha-card.fixedh"), box = root.querySelector(".views");
     if (!card || !box) return;
     if (h === "fill" || h === "fuellen") {
+      // only the card's own top edge counts (not the page height: other sections or hidden pop-ups would shrink it),
+      // and a margin of FILL_GAP below it
       const top = this.getBoundingClientRect().top + (window.pageYOffset || 0);
-      let hh = Math.max(240, window.innerHeight - Math.max(0, top) - 8);
-      card.style.height = hh + "px";
-      const over = document.documentElement.scrollHeight - window.innerHeight;  // what lies below the card (margins of the view)
-      if (over > 0) { hh = Math.max(240, hh - over); card.style.height = hh + "px"; }
+      card.style.height = Math.max(240, Math.round(window.innerHeight - Math.max(0, top) - FILL_GAP)) + "px";
     } else card.style.height = String(h);
     const W = box.clientWidth, H = box.clientHeight;
     if (!W || !H) return;
@@ -2089,7 +2089,8 @@ class FloorplanLiteCard extends HTMLElement {
       if (!goal) goal = { view: this._single ? this._lastFloor[this._single] : "site" };
     }
     if (!goal) return;
-    this._here = goal.room ? { room: goal.room, text: text || t.here } : null;
+    // markierung: false → the card still opens the room's view, but without „You are here“ and the room's outline
+    this._here = goal.room && this._config.markierung !== false ? { room: goal.room, text: text || t.here } : null;
     let v = goal.view;
     if (!this._floors[v]) v = this._view || this._fl[0];
     this._show(v, { anim: reason !== "entry" && !!this._view });
@@ -2441,7 +2442,7 @@ FloorplanLiteCard.styles = `
 /* ---------- Visual editor of the card (dashboard → edit card) ---------- */
 const ED = {
   de: { plan: "Grundriss", mode: "Darstellung", swipe: "Ein Stockwerk groß – wischen, Reiter, Pfeile", all: "Alle Stockwerke nebeneinander",
-    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten", andere_geschosse: "Außenwände der anderen Stockwerke als Hilfslinien", hoehe: "Höhe der Karte (leer = automatisch, fill = bis zum Fensterende – Fernseher scrollen nie, oder z. B. 600px, 80vh)", legende: "Legende zeigen", rahmen: "Gleiche Höhe für alle Ansichten (aus = jede Ansicht in ihrer eigenen Größe)",
+    start: "Erstes Stockwerk", floors: "Gezeigte Stockwerke (leer = alle)", align: "Stockwerke aneinander ausrichten", andere_geschosse: "Außenwände der anderen Stockwerke als Hilfslinien", hoehe: "Höhe der Karte (leer = automatisch, fill = bis zum Fensterende – Fernseher scrollen nie, oder z. B. 600px, 80vh)", legende: "Legende zeigen", rahmen: "Gleiche Höhe für alle Ansichten (aus = jede Ansicht in ihrer eigenen Größe)", markierung: "Standort markieren („Du bist hier“, „Dieser Fernseher“; aus = Karte folgt weiter, ohne Marke)",
     background: "Hintergrundbilder zeigen", intro: "Aufbau-Animation beim Laden", tap: "Antippen eines Raums",
     popup: "Pop-up #raum öffnen (Bubble Card)", none: "nichts", hide_label: "Entitäten mit diesen Labels ignorieren",
     script: "Skript für Tasten, Klicks und Mausrad (Standard: script.raum_klick)",
@@ -2478,7 +2479,7 @@ const ED = {
     params: "Adresse: ?raum=<raum> oder ?ansicht=<grundriss>[:<stockwerk>] bzw. ?ansicht=grundstueck öffnet die Karte dort (für alle Benutzer, auch als #raum=…); ?geraet=<name> merkt sich einmalig den Gerätenamen für die Vorlage (der TV Streamer liefert ihn selbst). Englisch auch ?room=, ?view=site, ?device=.",
     notDrawn: "noch nicht gezeichnet", loading: "lädt …" },
   en: { plan: "Floor plan", mode: "Display", swipe: "One level large – swipe, tabs, arrows", all: "All levels side by side",
-    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines", hoehe: "Height of the card (empty = automatic, fill = down to the bottom of the window – a TV never scrolls, or e.g. 600px, 80vh)", legende: "Show the legend", rahmen: "Same height for every view (off = every view in its own size)",
+    start: "First level", floors: "Levels shown (empty = all)", align: "Align levels to each other", andere_geschosse: "Outer walls of the other levels as helper lines", hoehe: "Height of the card (empty = automatic, fill = down to the bottom of the window – a TV never scrolls, or e.g. 600px, 80vh)", legende: "Show the legend", rahmen: "Same height for every view (off = every view in its own size)", markierung: "Mark the location („You are here“, „This TV“; off = the card still follows, without the mark)",
     background: "Show background images", intro: "Build-up animation on load", tap: "Tapping a room",
     popup: "Open pop-up #room (Bubble Card)", none: "nothing", hide_label: "Ignore entities with these labels",
     script: "Script for keys, clicks and the wheel (default: script.raum_klick)",
@@ -3329,6 +3330,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
       { name: "hoehe", selector: { text: {} } },
       { name: "legende", selector: { boolean: {} } },
       { name: "rahmen", selector: { boolean: {} } },
+      { name: "markierung", selector: { boolean: {} } },
       { name: "tap", selector: sel([{ value: "popup", label: t.popup }, { value: "none", label: t.none }]) },
       { name: "hide_label", selector: { label: { multiple: true } } },
       { name: "script", selector: { entity: { filter: { domain: "script" } } } },
@@ -3341,7 +3343,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     return {
       building: c.building || "",
       plan: c.plan || "", mode: c.mode === "swipe" ? "swipe" : "all", start: c.start || "", floors: c.floors || [],
-      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false, andere_geschosse: c.andere_geschosse === true, hoehe: c.hoehe || "", legende: c.legende !== false, rahmen: c.rahmen !== false,
+      align: c.align === undefined ? this._planAlign : !!c.align, background: c.background !== false, intro: c.intro !== false, andere_geschosse: c.andere_geschosse === true, hoehe: c.hoehe || "", legende: c.legende !== false, rahmen: c.rahmen !== false, markierung: c.markierung !== false,
       tap: c.tap === "none" ? "none" : "popup", scroll_keys: c.scroll_keys === true, script: c.script ? (String(c.script).indexOf("script.") === 0 ? c.script : "script." + c.script) : "", hide_label: c.hide_label === undefined ? this._planLabels || [] : (Array.isArray(c.hide_label) ? c.hide_label : [c.hide_label]),
     };
   }
@@ -3364,6 +3366,7 @@ class FloorplanLiteCardEditor extends HTMLElement {
     set("hoehe", v.hoehe, !!v.hoehe);
     set("legende", false, v.legende === false);
     set("rahmen", false, v.rahmen === false);
+    set("markierung", false, v.markierung === false);
     set("tap", "none", v.tap === "none");
     set("scroll_keys", true, v.scroll_keys === true);
     set("script", v.script, v.script && v.script !== "script.raum_klick");

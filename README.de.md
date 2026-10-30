@@ -108,9 +108,10 @@ rooms:                # optional: Entitäten je Raum – ersetzen die im Grundri
 | `align` | `true` / `false` (`align_levels` des Plans) | alle Stockwerke in einem Rahmen – obere bleiben beim Wischen über den unteren |
 | `ausrichtung` | `achse` / `norden` (Einstellung von Plan / Grundstück) | `norden` dreht Grundriss- bzw. Gebäudeansichten so, dass Norden oben ist; `achse` behält die eigene Achse der Zeichnung |
 | `kompass` | `false` (gezeigt) | blendet die Windrose aus |
-| `hoehe` | `fill` / CSS-Länge (automatisch) | feste Höhe der Karte (Grundstücks-Karten): `fill` = von der Karte bis zum Fensterende – Fernseher oder Wandpanel scrollen nie; oder z. B. `600px`, `80vh`. Jede Ansicht wird so groß wie sie hineinpasst |
+| `hoehe` | `fill` / CSS-Länge (automatisch) | feste Höhe der Karte (Grundstücks-Karten): `fill` = vom oberen Rand der Karte bis zum Fensterende mit 24 px Abstand unten – Fernseher oder Wandpanel scrollen nie. Es zählt nur die Lage der Karte selbst; Karten oder (unsichtbare) Pop-ups daneben und darunter ändern die Höhe nicht; oder z. B. `600px`, `80vh`. Jede Ansicht wird so groß wie sie hineinpasst |
 | `legende` | `false` (gezeigt) | blendet die Legende aus – mehr Platz für den Plan |
 | `rahmen` | `false` (an) | jede Ansicht in ihrer eigenen Größe statt einer gemeinsamen Höhe |
+| `markierung` | `false` (an) | Standort nicht markieren: die Karte öffnet weiter Gebäude, Stockwerk und Raum (Adresse, `follow`), zeigt aber kein „Du bist hier“ / „Dieser Fernseher“ / „Dieses Gerät“ und hebt den Raum nicht hervor. Im Editor: *Standort markieren* |
 | `andere_geschosse` | `true` (`false`) | Außenwände der anderen Stockwerke als feine gestrichelte Hilfslinien – z. B. zeigt das Dachgeschoss, wo das Erdgeschoss endet; mit `align: true` teilen alle Stockwerke einen Rahmen, dann sind die Linien ganz zu sehen |
 | `tap` | `none` (Pop-up + Skript) | `none`: kein Pop-up beim Antippen und keine Ereignisse an das Skript |
 | `script` | Skript-Entität (`script.raum_klick`) | bekommt Tasten, Klicks, Mausrad und Tippen über einem Raum (siehe *Skript-Vorlage*) |
@@ -430,7 +431,7 @@ follow_hold: 120                   # nach eigener Bedienung 120 s nicht springen
 ```
 
 Ablauf: Adresse (`?raum=` / `?ansicht=`) → Geofence (nicht zu Hause → Grundstück) → aktueller Bluetooth-Bereich →
-letzter Bereich (wenn jünger als `max_alter`) → `start`. Der gefundene Raum wird mit „Du bist hier“ markiert. Ändert sich
+letzter Bereich (wenn jünger als `max_alter`) → `start`. Der gefundene Raum wird mit „Du bist hier“ markiert (abschalten mit `markierung: false`). Ändert sich
 der Bereich, folgt die Karte – außer in den `follow_hold` Sekunden nach eigener Bedienung oder solange ein Pop-up offen ist.
 Im Karten-Editor stellst du das unter *Benutzer: Startansicht und Standort* ein (mit Vorschau für feste Vorlagen).
 

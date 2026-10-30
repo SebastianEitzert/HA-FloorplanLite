@@ -406,6 +406,8 @@ function prepare(plan, align, building) {
     const rooms = (plan.rooms || []).filter(at).map((r) => ({
       id: r.id, key: r.key, name: r.name === undefined ? r.id : r.name, poly: R(r.poly),
       labelAt: r.label_at ? rot(r.label_at) : null, small: !!r.small, outdoor: !!r.outdoor, color: r.color, area: r.area,
+      // own walls: the room's room_walls, else the plan's
+      walls: typeof r.room_walls === "boolean" ? r.room_walls : plan.room_walls !== false,
     }));
     const openings = (plan.openings || []).filter(at).map((o) => {
       const q = Object.assign({}, o, { at: rot(o.at), angle: (o.angle || 0) + (plan.rotation || 0) });
@@ -860,7 +862,10 @@ class FloorplanLiteCard extends HTMLElement {
       // only the card's own top edge counts (not the page height: other sections or hidden pop-ups would shrink it),
       // and a margin of FILL_GAP below it
       const top = this.getBoundingClientRect().top + (window.pageYOffset || 0);
-      card.style.height = Math.max(240, Math.round(window.innerHeight - Math.max(0, top) - FILL_GAP)) + "px";
+      const want = Math.max(240, Math.round(window.innerHeight - Math.max(0, top) - FILL_GAP));
+      card.style.height = want + "px";
+      const extra = Math.round(card.getBoundingClientRect().height) - want;  // padding and border of the card
+      if (extra > 0) card.style.height = Math.max(240, want - extra) + "px";
     } else card.style.height = String(h);
     const W = box.clientWidth, H = box.clientHeight;
     if (!W || !H) return;
@@ -1031,7 +1036,7 @@ class FloorplanLiteCard extends HTMLElement {
       spills += `<polygon class="spill" data-i="${i}" points="${p}"/>`;
       lights += `<g class="light" data-i="${i}"><polygon points="${p}" fill="url(#${n("g", i)})"/></g>`;
       edges += `<polygon class="edge" data-i="${i}" points="${p}" filter="url(#${n("ed")})" clip-path="url(#${n("c", i)})"/>`;
-      if (!room.outdoor && f.roomWalls) walls += `<polygon points="${p}"/>`;
+      if (!room.outdoor && (room.walls === undefined ? f.roomWalls : room.walls)) walls += `<polygon points="${p}"/>`;
       hits += `<polygon class="hit${room.site ? " area" : ""}" data-room="${esc(room.id)}"${room.bld ? ` data-bld="${esc(room.bld)}"` : ""} points="${p}"/>`;
       if (!room.name) return;  // part of another room: no own dot, no label
       // presence/motion dot: HTML layer, so the animation runs on the graphics card and the SVG is not redrawn
@@ -1147,10 +1152,11 @@ class FloorplanLiteCard extends HTMLElement {
     if (o.type === "window") return line(a, b, "win");
     if (o.type === "garage") return line(a, b, "gar");
     if (o.type === "door") {  // leaf open by 90° with its swing arc
-      const s = o.flip ? -1 : 1, L = 2 * w;
-      const tip = [a[0] - dy * L * s, a[1] + dx * L * s];
-      return line(a, tip, "leaf") +
-        `<path class="swing" d="M${tip[0].toFixed(3)} ${tip[1].toFixed(3)} A${L.toFixed(3)} ${L.toFixed(3)} 0 0 ${s > 0 ? 0 : 1} ${b[0].toFixed(3)} ${b[1].toFixed(3)}"/>`;
+      // flip: the other side of the wall, hinge_end: hinged at the other end – together four ways
+      const s = o.flip ? -1 : 1, L = 2 * w, he = !!o.hinge_end, p = he ? b : a, q = he ? a : b;
+      const tip = [p[0] - dy * L * s, p[1] + dx * L * s];
+      return line(p, tip, "leaf") +
+        `<path class="swing" d="M${tip[0].toFixed(3)} ${tip[1].toFixed(3)} A${L.toFixed(3)} ${L.toFixed(3)} 0 0 ${(s > 0) !== he ? 0 : 1} ${q[0].toFixed(3)} ${q[1].toFixed(3)}"/>`;
     }
     return "";
   }
@@ -2547,10 +2553,10 @@ class FloorplanLiteSiteEditor extends HTMLElement {
     return ED[String(l).slice(0, 2)] || ED.en;
   }
 
-  _emit(fn) {
+  _emit(fn, nudge) {  // nudge: a step of the arrow keys (several in a row are one undo entry in the editor)
     fn(this._s);
     this._solve(this._s);
-    this.dispatchEvent(new CustomEvent("site-changed", { detail: { site: JSON.parse(JSON.stringify(this._s)) }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent("site-changed", { detail: { site: JSON.parse(JSON.stringify(this._s)), nudge: !!nudge }, bubbles: true, composed: true }));
     this._render();
   }
 
@@ -2638,6 +2644,7 @@ class FloorplanLiteSiteEditor extends HTMLElement {
       this._opt = opt;
       (this._forms || (this._forms = [])).push(opt);
       window.addEventListener("keydown", (e) => { if (e.key === "Escape" && this._tool !== "move" && this.isConnected) this._setTool("move"); });
+      window.addEventListener("keydown", (e) => this._arrowKey(e));
       if (window.ResizeObserver) new ResizeObserver(() => this._canvas()).observe(this.querySelector(".fl-canvas"));
     }
     const plans = (this._planList || []).filter((p) => p.id !== this._siteId).map((p) => ({ value: p.id, label: p.name }));
@@ -2880,6 +2887,38 @@ class FloorplanLiteSiteEditor extends HTMLElement {
   }
 
   /* An area („3“) or a property line („b0“): its points in the site s */
+  /* Arrow keys move what was grabbed last: a building (one fixed by a measure line: that line's distance), an area or one of
+     its corners, a building's label, or the background (its tool). 1 cm, Shift 10 cm, Alt one screen pixel. */
+  _arrowKey(e) {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!d || e.ctrlKey || e.metaKey || !this.isConnected || !this._s || !this.offsetParent) return;
+    const path = e.composedPath ? e.composedPath() : [];
+    if (path.some((n) => n && (n.tagName === "INPUT" || n.tagName === "TEXTAREA" || n.tagName === "SELECT" || n.tagName === "HA-FORM"))) return;
+    const svg = this.querySelector(".fl-canvas svg");
+    const step = e.altKey ? (this._vb && svg && svg.clientWidth ? this._vb[2] / svg.clientWidth : 0.01) : e.shiftKey ? 0.1 : 0.01;
+    const dx = d[0] * step, dy = d[1] * step, R = (v) => +v.toFixed(3), pk = this._pick, s0 = this._s;
+    let fn = null;
+    if (this._tool === "bgmove" && s0.site_background) {
+      fn = (s) => { s.site_background.x = R((s.site_background.x || 0) + dx); s.site_background.y = R((s.site_background.y || 0) + dy); };
+    } else if (pk && pk.b !== undefined && s0.buildings[pk.b]) {
+      const plan = s0.buildings[pk.b].plan, b = this._bld(pk.b);
+      if ((s0.links || []).some((l) => l.plan === plan)) {
+        fn = (s) => s.links.forEach((l) => { if (l.plan === plan) { l.dx = R((l.dx || 0) + dx); l.dy = R((l.dy || 0) + dy); } });
+      } else if (b) fn = (s) => { s.buildings[pk.b].x = R(b.pos.x + dx); s.buildings[pk.b].y = R(b.pos.y + dy); };
+    } else if (pk && pk.av && this._polyOf(s0, pk.av[0]) && this._polyOf(s0, pk.av[0])[pk.av[1]]) {
+      fn = (s) => { const q = this._polyOf(s, pk.av[0]); q[pk.av[1]] = [R(q[pk.av[1]][0] + dx), R(q[pk.av[1]][1] + dy)]; };
+    } else if (pk && pk.area !== undefined && s0.areas[pk.area] && s0.areas[pk.area].poly) {
+      fn = (s) => { s.areas[pk.area].poly = s.areas[pk.area].poly.map((q) => [R(q[0] + dx), R(q[1] + dy)]); };
+    } else if (pk && pk.lab !== undefined && s0.buildings[pk.lab]) {
+      const lb = this.querySelector(`.en[data-lb="${pk.lab}"]`), at = s0.buildings[pk.lab].label_at || (lb ? [+lb.getAttribute("x"), +lb.getAttribute("y")] : null);
+      if (at) fn = (s) => { s.buildings[pk.lab].label_at = [R(at[0] + dx), R(at[1] + dy)]; };
+    }
+    if (!fn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this._emit(fn, true);
+  }
+
   _polyOf(s, key) { return typeof key === "string" && key[0] === "b" ? ((s.boundary || [])[+key.slice(1)] || {}).poly : (s.areas[+key] || {}).poly; }
   _polyMin(s, key) { return typeof key === "string" && key[0] === "b" ? (((s.boundary || [])[+key.slice(1)] || {}).closed ? 3 : 2) : 3; }
 
@@ -3119,15 +3158,19 @@ class FloorplanLiteSiteEditor extends HTMLElement {
         svg.setPointerCapture(e.pointerId);
         const ak = av.getAttribute("data-ea");
         this._drag = { av: [ak[0] === "b" ? ak : +ak, +av.getAttribute("data-v")], el: av, id: e.pointerId };
+        this._pick = { av: this._drag.av };
         return;
       }
       const lb = e.target.closest ? e.target.closest(".en") : null;
       if (lb) {
         svg.setPointerCapture(e.pointerId);
         this._drag = { lab: +lb.getAttribute("data-lb"), el: lb, id: e.pointerId, p: p, o: [+lb.getAttribute("x"), +lb.getAttribute("y")] };
+        this._pick = { lab: this._drag.lab };
         return;
       }
       let eb = e.target.closest && k === "move" ? e.target.closest(".eb") : null;
+      const ea = e.target.closest ? e.target.closest(".ea") : null;
+      this._pick = eb ? { b: +eb.getAttribute("data-b") } : ea ? { area: +ea.getAttribute("data-ea") } : null;
       if (eb) {
         const bi = this._s.buildings[+eb.getAttribute("data-b")];
         if (bi && (this._s.links || []).some((l) => l.plan === bi.plan)) { this._note = this._t.fixed; this.querySelector(".fl-warn").textContent = this._note; eb = null; }

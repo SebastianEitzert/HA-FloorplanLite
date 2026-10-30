@@ -1,24 +1,25 @@
 # HANDOFF – HA-FloorplanLite
 
-Stand: 2026-10-27. Diese Datei wird bei jeder Änderung mitgepflegt. Sie ist öffentlich: keine Zugangsdaten, IPs, Entitäts-IDs, Plan- oder Benutzernamen. Installationsbezogene Details stehen in einer privaten Übergabedatei außerhalb des Repos.
+Stand: 2026-10-30. Diese Datei wird bei jeder Änderung mitgepflegt. Sie ist öffentlich: keine Zugangsdaten, IPs, Entitäts-IDs, Plan- oder Benutzernamen. Installationsbezogene Details stehen in einer privaten Übergabedatei außerhalb des Repos.
 
 ## 1. Stand
 
 | | |
 |---|---|
-| Letztes Release | **0.10.1**, Tag `v0.10.1` (GitHub-Release mit `floorplan_lite.zip`) |
+| Letztes Release | **0.11.0**, Tag `v0.11.0` (GitHub-Release mit `floorplan_lite.zip`) |
 | Dateien unter `www/` | keine – Karte und Editor werden von der Integration ausgeliefert |
 | Ressourcen-URL | keine Lovelace-Ressource. Die Integration registriert `/floorplan_lite_static/floorplan-lite-card.js?v=<version>` per `add_extra_js_url`, den Editor `/floorplan_lite_static/floorplan-lite-panel.js?v=<version>` |
-| Branch mit neuer Arbeit | `next` (= `main` nach 0.10.1) |
+| Branch mit neuer Arbeit | `next` (= `main` nach 0.11.0) |
 
-## 2. Funktionsumfang (bis 0.10.1)
+## 2. Funktionsumfang (bis 0.11.0)
 
 - Grundstück als eigener Plan (`site`): Gebäude, Lage/Drehung/Maßstab, Maßlinien, Norden, Hintergrund, Grundstücksgrenze, Symbole.
 - Außenbereiche (`areas`), Treppen (`stairs`), Startansicht/Folgen je Benutzer (`follow`), Adressparameter.
 - Aus-Schalter je Ebene/Stockwerk über das Skript (`event: off`), eigene Buttons, feste Kartenhöhe, Wischen zwischen Stockwerken.
 - Englische Aliase für alle Optionen, Skript-Vorlage auf Englisch, Entitätspicker im Editor.
+- 0.11.0: Höhe `fill` nur nach eigener Lage (24 px Rand), Option `markierung`/`marker: false`, Türen in vier Arten (`flip` × `hinge_end`, Tasten G/H), Pfeiltasten-Feinverschieben in beiden Editoren, `room_walls` je Raum.
 
-Halb fertig: nichts. Offen: Höhe `fill` in HA am echten Gerät prüfen.
+Halb fertig: nichts. Offen: Höhe `fill` in HA am echten Gerät prüfen (jetzt ohne Seitenhöhe gerechnet).
 
 ## 3. Nicht gepushte Änderungen
 

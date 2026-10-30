@@ -57,10 +57,10 @@ const T = {
     more: "Weitere", inserted: "%s Pop-ups eingetragen, %s schon vorhanden", insertAsk: "%s Pop-ups in „%d“ → „%v“ eintragen? Vorhandene Pop-ups mit gleichem Hash bleiben unverändert.",
     strategy: "Dieses Dashboard wird automatisch erzeugt und kann nicht bearbeitet werden", noArea: "ohne Bereich → einfache Kacheln",
     defaultDash: "Übersicht (Standard)", areaHint: "Wähle den Bereich – Name, ID und die gefundenen Entitäten werden übernommen.",
-    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (aus = Raumgrenzen ohne Wand, Wände dann mit „Innenwand“)", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
+    room: "Raum", wallEl: "Innenwand", wallWidth: "Stärke (m)", closedF: "geschlossen", roomWalls: "Räume zeichnen eigene Wände (aus = Raumgrenzen ohne Wand, Wände dann mit „Innenwand“)", roomWallsRoom: "Raum zeichnet eigene Wände", rwPlan: "wie Grundriss", yes: "ja", no: "nein", outline: "Außenwand", refF: "Gezeichnete Linie ist", refOut: "Außenkante (Maß außen)", refMid: "Wandmitte", refIn: "Innenkante (Maß innen)", line: "Hilfslinie", opening: "Öffnung", id: "ID (Pop-up #…)", partOf: "Teil von Raum",
     partNone: "– eigener Raum –", ownEntities: "Eigene Entitäten (Schlüssel)", outdoorF: "Bereich außen", small: "kleine Beschriftung",
     color: "Farbe", noColor: "Standard", open: "offen (keine geschlossene Form)", type: "Art", widthM: "Breite (m)", depth: "Wandstärke (m)",
-    flip: "Aufschlag spiegeln", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
+    flip: "Öffnungsseite", flipTip: "Tür öffnet zur anderen Seite der Wand (H)", hinge: "Anschlag", hingeTip: "Band ans andere Ende – DIN links ↔ rechts (G); mit der Öffnungsseite vier Arten", entities: "Entitäten", ent: { licht: "Licht", hauptlicht: "Hauptlicht (füllt den Raum, die anderen als Saum)", praesenz: "Präsenz", bewegung: "Bewegung", temp: "Temperatur",
       fenster: "Fenster", beschattung: "Beschattung", musik: "Musik" },
     types: { door: "Tür", window: "Fenster", passage: "Durchgang", garage: "Garagentor", open: "Offen (keine Wand)", skylight: "Dachfenster / Lichtkuppel" },
     opEntities: "Entitäten (Kontakt, Cover, Schloss, Tor …)", opEntHint: "Antippen schaltet Schloss, Cover (Tor, elektrisches Fenster) oder Taster – mit Sicherheitsabfrage nach Rückfrage, sonst sofort. Ohne schaltbare Entität öffnet sich die Karte der ersten Entität. Gekippte Fenster werden erkannt (Zustand/Attribut gekippt oder tilted).",
@@ -123,10 +123,10 @@ const T = {
     more: "More", inserted: "%s pop-ups added, %s already there", insertAsk: "Add %s pop-ups to “%d” → “%v”? Existing pop-ups with the same hash stay as they are.",
     strategy: "This dashboard is generated automatically and cannot be edited", noArea: "no area → simple tiles",
     defaultDash: "Overview (default)", areaHint: "Choose the area – name, id and the entities found are taken over.",
-    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (off = borders between rooms without a wall, walls then with „Inner wall“)", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
+    room: "Room", wallEl: "Inner wall", wallWidth: "Thickness (m)", closedF: "closed", roomWalls: "Rooms draw their own walls (off = borders between rooms without a wall, walls then with „Inner wall“)", roomWallsRoom: "Room draws its own walls", rwPlan: "as the plan", yes: "yes", no: "no", outline: "Outer wall", refF: "The drawn line is", refOut: "outside face (outside size)", refMid: "centre of the wall", refIn: "inside face (inside size)", line: "Helper line", opening: "Opening", id: "ID (pop-up #…)", partOf: "Part of room",
     partNone: "– own room –", ownEntities: "Own entities (key)", outdoorF: "Area outside", small: "small label",
     color: "Colour", noColor: "Default", open: "open (not a closed shape)", type: "Type", widthM: "Width (m)", depth: "Wall thickness (m)",
-    flip: "Mirror swing", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
+    flip: "Swing side", flipTip: "The door opens to the other side of the wall (H)", hinge: "Hinge", hingeTip: "Hinge at the other end – left ↔ right hand (G); with the swing side four ways", entities: "Entities", ent: { licht: "Light", hauptlicht: "Main light (fills the room, the others as a seam)", praesenz: "Presence", bewegung: "Motion", temp: "Temperature",
       fenster: "Window", beschattung: "Shade", musik: "Music" },
     types: { door: "Door", window: "Window", passage: "Passage", garage: "Garage door", open: "Open (no wall)", skylight: "Roof window / dome" },
     opEntities: "Entities (contact, cover, lock, gate …)", opEntHint: "Tapping works the lock, cover (gate, electric window) or button – after a question if \"Ask first\" is ticked, otherwise at once. Without anything to switch, the first entity's dialog opens. Tilted windows are recognised (state or attribute tilted/gekippt).",
@@ -586,8 +586,9 @@ class FloorplanLitePanel extends HTMLElement {
     if (!this._siteEd) {
       this._siteEd = document.createElement("floorplan-lite-site-editor");
       this._siteEd.addEventListener("site-changed", (e) => {
-        this._undo.push(JSON.stringify(this._plan));
-        this._redo = [];
+        const now = Date.now(), run = e.detail.nudge && this._siteNudge && now - this._siteNudge < 1500;  // arrow steps in a row: one undo entry
+        this._siteNudge = e.detail.nudge ? now : 0;
+        if (!run) { this._undo.push(JSON.stringify(this._plan)); this._redo = []; }
         this._plan.site = e.detail.site;
         this._dirty = true;
         this._renderHeader();
@@ -929,6 +930,9 @@ class FloorplanLitePanel extends HTMLElement {
       }
       h += this._field(t.building, this._buildingSel("building", el.building)) +
         this._field(t.outdoorF, this._chk("outdoor", el.outdoor)) + this._field(t.small, this._chk("small", el.small)) +
+        (el.outdoor ? "" : this._field(t.roomWallsRoom, `<select data-k="room_walls">` +
+          [["", t.rwPlan + " (" + (this._plan.room_walls !== false ? t.yes : t.no) + ")"], ["yes", t.yes], ["no", t.no]].map(([v, l]) =>
+            `<option value="${v}"${(el.room_walls === true ? "yes" : el.room_walls === false ? "no" : "") === v ? " selected" : ""}>${esc(l)}</option>`).join("") + `</select>`)) +
         this._field(t.color, this._color("color", el.color, "#2a3657")) +
         this._field(t.ownEntities, this._txt("key", el.key || ""));
       h += this._entitiesHtml(el.key || el.id);
@@ -954,7 +958,8 @@ class FloorplanLitePanel extends HTMLElement {
       h += this._field(t.type, `<select data-k="type">${(sky ? ["skylight"] : OPENING_TOOLS.concat(["open"])).map((k) => `<option value="${k}"${el.type === k ? " selected" : ""}>${esc(t.types[k])}</option>`).join("")}</select>`) +
         this._field(t.widthM, this._num("width", el.width, 0.05)) + this._field(sky ? t.lengthM : t.depth, this._num("depth", el.depth, 0.02)) +
         (sky ? this._field(t.angleDeg, this._num("angle", el.angle || 0, 1)) + this._field(t.roundF, this._chk("round", el.round)) : "") +
-        (el.type === "door" ? this._field(t.flip, this._chk("flip", el.flip)) : "") +
+        (el.type === "door" ? `<div class="row"><button class="mini" data-act="hinge" title="${esc(t.hingeTip)}">↔ ${esc(t.hinge)}</button>` +
+          `<button class="mini" data-act="swingside" title="${esc(t.flipTip)}">⇅ ${esc(t.flip)}</button></div>` : "") +
         (el.type === "passage" || el.type === "open" ? "" :
           this._entPick(t.opEntities, ["binary_sensor", "cover", "lock", "button", "switch", "input_boolean"], true, ents, (v) => this._change(() => {
             const o = this._plan.openings[s.i];
@@ -1214,6 +1219,7 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (k === "key") { if (v) el.key = slug(v); else delete el.key; return; }
     if (k === "building" && !v) { delete el.building; return; }
+    if (k === "room_walls") { if (v === "yes" || v === "no") el.room_walls = v === "yes"; else delete el.room_walls; return; }
     if (v === false || v === "") { delete el[k]; return; }
     el[k] = v;
   }
@@ -1235,6 +1241,7 @@ class FloorplanLitePanel extends HTMLElement {
   async _act(a, btn) {
     const t = this.t, p = this._plan;
     if (a === "delsel") return this._deleteSel();
+    if (a === "hinge" || a === "swingside") return this._doorTurn(a === "hinge" ? "hinge_end" : "flip");
     if (a === "popup" || a === "popupall") {
       const seen = {}, rooms = (a === "popup" ? [p[this._sel.kind][this._sel.i]] : p.rooms).filter((r) => {
         if (!r || r.name === null || r.outdoor && !r.area || seen[r.id]) return false;
@@ -1493,8 +1500,9 @@ class FloorplanLitePanel extends HTMLElement {
           { h += `<poly${k === "walls" && !x.closed ? "line" : "gon"} class="ghost" points="${pts(x.poly)}" stroke-width="${2 * px}"/>`; }));
       }
     }
-    const S = this._sel, rw = this._roomWalls();
+    const S = this._sel;
     this._of("rooms").forEach(({ x, i }) => {
+      const rw = this._roomWalls(x);
       const sel = S && S.kind === "rooms" && S.i === i;
       h += `<polygon class="room${x.outdoor ? " out" : ""}${sel ? " sel" : ""}" data-k="rooms" data-i="${i}" points="${pts(x.poly)}" ` +
         `fill="${x.color ? esc(x.color) : x.outdoor ? "rgba(90,160,110,.28)" : "url(#fl)"}" stroke="${esc(rw ? st.wall : st.edge)}" stroke-width="${x.outdoor || !rw ? 2 * px : this._wall("wall_width")}"${rw ? "" : ` stroke-opacity=".5"`}/>`;
@@ -1547,7 +1555,7 @@ class FloorplanLitePanel extends HTMLElement {
     // handles of the selection
     if (S && this._plan[S.kind][S.i] && S.kind !== "openings") {
       const el = this._plan[S.kind][S.i];
-      el.poly.forEach((q, j) => { h += `<circle class="handle" data-v="${j}" cx="${q[0]}" cy="${q[1]}" r="${6 * px}" stroke-width="${2 * px}"/>`; });
+      el.poly.forEach((q, j) => { h += `<circle class="handle${this._selV === j && this._selVOf === this._sel.kind + "/" + this._sel.i ? " on" : ""}" data-v="${j}" cx="${q[0]}" cy="${q[1]}" r="${6 * px}" stroke-width="${2 * px}"/>`; });
       if (S.kind === "rooms" && el.name) {
         const c = el.label_at || centroid(el.poly);
         h += `<rect class="lhandle" data-lh="1" x="${c[0] - 5 * px}" y="${c[1] + 8 * px}" width="${10 * px}" height="${10 * px}" stroke-width="${2 * px}"/>`;
@@ -1627,8 +1635,9 @@ class FloorplanLitePanel extends HTMLElement {
     if (o.type === "window") return line(a, b, "sym win");
     if (o.type === "garage") return line(a, b, "sym gar");
     if (o.type === "door") {
-      const s = o.flip ? -1 : 1, L = 2 * w, tip = [a[0] - dy * L * s, a[1] + dx * L * s];
-      return line(a, tip, "sym") + `<path class="sym swing" d="M${tip[0]} ${tip[1]} A${L} ${L} 0 0 ${s > 0 ? 0 : 1} ${b[0]} ${b[1]}" stroke-width="${1.5 * px}"/>`;
+      const s = o.flip ? -1 : 1, L = 2 * w, he = !!o.hinge_end, p = he ? b : a, q = he ? a : b;
+      const tip = [p[0] - dy * L * s, p[1] + dx * L * s];
+      return line(p, tip, "sym") + `<path class="sym swing" d="M${tip[0]} ${tip[1]} A${L} ${L} 0 0 ${(s > 0) !== he ? 0 : 1} ${q[0]} ${q[1]}" stroke-width="${1.5 * px}"/>`;
     }
     return "";
   }
@@ -1793,14 +1802,17 @@ class FloorplanLitePanel extends HTMLElement {
     });
   }
 
-  /* Rooms draw walls along their edges (plans without inner walls) */
-  _roomWalls() { return !!this._plan && this._plan.room_walls !== false; }
+  /* Rooms draw walls along their edges (plans without inner walls): the room's own setting, else the plan's */
+  _roomWalls(room) {
+    if (room && typeof room.room_walls === "boolean") return room.room_walls;
+    return !!this._plan && this._plan.room_walls !== false;
+  }
 
   _nearestWall(p) {  // nearest edge of a room or outer wall on this level
     const tol = 14 * this._scale();
     let best = null;
     ["outlines", "walls", "rooms"].forEach((k) => this._of(k).forEach(({ x }) => {
-      if (k === "rooms" && (x.outdoor || !this._roomWalls())) return;
+      if (k === "rooms" && (x.outdoor || !this._roomWalls(x))) return;
       const poly = k === "outlines" ? this._centre(x) : x.poly;
       poly.forEach((a, j) => {
         if (k === "walls" && !x.closed && j === poly.length - 1) return;
@@ -1952,6 +1964,7 @@ class FloorplanLitePanel extends HTMLElement {
     const hit = this._hit(e);
     if (hit && hit.v !== undefined && this._sel) {
       this._undo.push(JSON.stringify(this._plan)); this._redo = [];
+      this._selV = hit.v; this._selVOf = this._sel.kind + "/" + this._sel.i;  // the arrow keys move this corner now
       this._drag = { vertex: hit.v }; svg.setPointerCapture(e.pointerId); return;
     }
     if (hit && hit.lh && this._sel) {
@@ -1960,7 +1973,7 @@ class FloorplanLitePanel extends HTMLElement {
     }
     if (hit && hit.kind) {
       const same = this._sel && this._sel.kind === hit.kind && this._sel.i === hit.i;
-      this._sel = { kind: hit.kind, i: hit.i };
+      this._sel = { kind: hit.kind, i: hit.i }; this._selV = undefined;
       if (same || hit.kind === "openings") {
         this._undo.push(JSON.stringify(this._plan)); this._redo = [];
         this._drag = { body: true, start: p, orig: clone(this._plan[hit.kind][hit.i]), moved: false };
@@ -2336,7 +2349,7 @@ class FloorplanLitePanel extends HTMLElement {
       delete other.label_at; delete other.key; delete other.color;
       r.poly = parts[keep];
       pl.rooms.push(other);
-      if (this._roomWalls()) {  // a split is a border, not a wall: no wall along the new line (the walls at its ends stay)
+      if (this._roomWalls(r)) {  // a split is a border, not a wall: no wall along the new line (the walls at its ends stay)
         const ww = this._wall("wall_width");
         path.forEach((a, j) => {
           const b = path[j + 1];
@@ -2349,6 +2362,47 @@ class FloorplanLitePanel extends HTMLElement {
       }
       this._sel = { kind: "rooms", i: pl.rooms.length - 1 };
     });
+  }
+
+  /* Arrow keys: move the selection (a grabbed corner only that corner; a door, window or opening along its wall), or the
+     background image while its tool is active. Steps in a row (within 1.5 s) are one undo entry. */
+  _nudge(dx, dy) {
+    const S = this._sel, lv = this._lv();
+    const el = S ? this._plan[S.kind] && this._plan[S.kind][S.i] : null;
+    const img = !el && this._tool === "image" && lv && lv.background ? lv.background : null;
+    if (!el && !img) return false;
+    const v = S && this._selVOf === S.kind + "/" + S.i ? this._selV : undefined;
+    const key = img ? "img" : S.kind + "/" + S.i + "/" + v, now = Date.now();
+    if (!(this._nudged && this._nudged.key === key && now - this._nudged.t < 1500)) {
+      this._undo.push(JSON.stringify(this._plan)); if (this._undo.length > 150) this._undo.shift();
+      this._redo = [];
+    }
+    this._nudged = { key: key, t: now };
+    const mv = (q) => [R3(q[0] + dx), R3(q[1] + dy)];
+    if (img) { img.x = R3((img.x || 0) + dx); img.y = R3((img.y || 0) + dy); }
+    else if (S.kind === "openings") {
+      if (el.type === "skylight") el.at = mv(el.at);
+      else {  // along its wall
+        const r = (el.angle || 0) * Math.PI / 180, c = Math.cos(r), s = Math.sin(r), d = dx * c + dy * s;
+        el.at = [R3(el.at[0] + c * d), R3(el.at[1] + s * d)];
+        this._keepGap(el, el);
+      }
+    } else if (el.poly && v !== undefined && el.poly[v]) {
+      el.poly[v] = mv(el.poly[v]);
+    } else if (el.poly) {
+      el.poly = el.poly.map(mv);
+      if (el.label_at) el.label_at = mv(el.label_at);
+    } else return false;
+    this._dirty = true;
+    this._renderAll();
+    return true;
+  }
+
+  /* Door: hinge at the other end (G) or opening to the other side (H) – the two together give all four ways */
+  _doorTurn(k) {
+    const S = this._sel, el = S && S.kind === "openings" ? this._plan.openings[S.i] : null;
+    if (!el || el.type !== "door") return;
+    this._change(() => { if (el[k]) delete el[k]; else el[k] = true; });
   }
 
   _key(e) {
@@ -2364,6 +2418,16 @@ class FloorplanLitePanel extends HTMLElement {
     if (e.key === "Enter" && this._draft) { e.preventDefault(); return this._finish(); }
     if (e.key === "Backspace" && this._draft) { e.preventDefault(); this._draft.pop(); if (!this._draft.length) this._draft = null; return this._renderCanvas(); }
     if ((e.key === "Delete" || e.key === "Backspace") && this._sel) { e.preventDefault(); return this._deleteSel(); }
+    const arrow = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (arrow && !e.ctrlKey && !e.metaKey) {
+      // fine nudging: 1 cm, Shift 10 cm, Alt one screen pixel (depends on the zoom); no snapping
+      const step = e.altKey ? this._scale() : e.shiftKey ? 0.1 : 0.01;
+      if (this._nudge(arrow[0] * step, arrow[1] * step)) e.preventDefault();
+      return;
+    }
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && this._sel && (e.key === "g" || e.key === "G" || e.key === "h" || e.key === "H")) {
+      return this._doorTurn(e.key.toLowerCase() === "g" ? "hinge_end" : "flip");
+    }
   }
 
   /* ---------- Preview with the real card ---------- */
@@ -2474,7 +2538,7 @@ const STYLES = `
   .sym.swing { stroke-dasharray: .12 .1; opacity: .7; }
   .lbl { fill: #e8eefb; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3,7,18,.8); stroke-width: .06; }
   .dim { fill: #ffd9a0; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: rgba(3,7,18,.9); stroke-width: .05; }
-  .handle { fill: #fff; stroke: #4fc3ff; cursor: move; } .lhandle { fill: #ffcd91; stroke: #4fc3ff; cursor: move; }
+  .handle { fill: #fff; stroke: #4fc3ff; cursor: move; } .handle.on { fill: #4fc3ff; } .lhandle { fill: #ffcd91; stroke: #4fc3ff; cursor: move; }
   .draft { fill: none; stroke: #4fc3ff; stroke-dasharray: .2 .12; pointer-events: none; }
   .guide { stroke: #ffd166; opacity: .8; pointer-events: none; }
   .right { fill: none; stroke: #ffd166; pointer-events: none; }

@@ -42,6 +42,13 @@ def test_validate_plan() -> None:
     assert walls["walls"][0]["closed"] is False and walls["entities"]["kitchen"]["hauptlicht"] == "light.a"
     with pytest.raises(vol.Invalid):
         validate_plan({**PLAN, "walls": [{"level": "og", "poly": [[0, 0], [0, 3]]}]})  # unknown level
+    # a room may draw its own walls or not, apart from the plan; doors hang four ways (flip × hinge_end)
+    own = validate_plan({**PLAN, "room_walls": False, "rooms": [{**PLAN["rooms"][0], "room_walls": True}, PLAN["rooms"][1]],
+                         "openings": [{**PLAN["openings"][0], "flip": True, "hinge_end": True}]})
+    assert own["rooms"][0]["room_walls"] is True and "room_walls" not in own["rooms"][1]
+    assert own["openings"][0]["hinge_end"] is True and plan["openings"][0]["hinge_end"] is False
+    with pytest.raises(vol.Invalid):
+        validate_plan({**PLAN, "rooms": [{**PLAN["rooms"][0], "room_walls": "maybe"}]})
 
 
 async def _setup(hass: HomeAssistant) -> MockConfigEntry:

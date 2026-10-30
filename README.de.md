@@ -65,6 +65,11 @@ Ohne Skript gehen Wiedergabe / Pause direkt an die Musik-Player des Raums.
    Die Entitäten je Raum in der Seitenleiste eintragen. Räume ohne Wand dazwischen (offener Bereich): Werkzeug *Keine
    Wand*, dann die gemeinsame Wand anklicken. Ein Stockwerk lässt sich samt Inhalt als Grundlage des nächsten kopieren. Wandstärken und den Namen des Grundrisses (✎ neben der Auswahl) gibt es in
    der Seitenleiste. Strg+Z/Y rückgängig/wiederholen, Strg+S speichert.
+   **Pfeiltasten** verschieben das ausgewählte Teil fein: 1 cm, mit Umschalt 10 cm, mit Alt einen Bildschirmpixel (je nach
+   Zoom), ohne Einrasten. Wurde zuletzt eine Ecke angefasst (gefüllter Punkt), bewegt sich nur diese Ecke (Wandpunkt,
+   Raumecke); Türen, Fenster und Durchgänge gleiten an ihrer Wand entlang, bei aktivem Werkzeug *Hintergrund verschieben*
+   bewegt sich das Bild. Mehrere Schritte hintereinander sind ein Eintrag in Rückgängig. Nicht, solange ein Eingabefeld
+   den Fokus hat.
    Wähle für jeden Raum einen Home-Assistant-Bereich: Name, ID und die dort gefundenen Entitäten werden übernommen
    (oder jedes Mal live aus dem Bereich gelesen). *Pop-up-YAML erzeugen* baut je Raum ein Bubble-Card-Pop-up (`#raum`) –
    zum Kopieren oder direkt in ein Dashboard eingetragen.
@@ -179,7 +184,7 @@ echte Karte neben dem Editor), JSON importieren / exportieren, löschen und spei
 | Bereich außen | Garten, Terrasse, Hof – wie ein Raum gezeichnet, ohne Wände dargestellt |
 | Hilfslinie | gestrichelte Linien (Vordach, Terrassenkante) |
 | Treppe | die **Lauflinie** zeichnen, vom Antritt (Punkt) bis zum Austritt (Pfeil), an jeder Wendung ein Punkt; Wendungen werden mit dem *Radius* gewendelt (Abstand der Lauflinie vom Wendelpunkt – z. B. 0,6 bei 1,00 m Laufbreite um einen 20-cm-Kern, 0 = Podest-Ecke), die Stufen fächern sich dort auf – *eckig* (Standard: gerade Wangen, Stufen verteilt wie bei der runden Form) oder *rund*. Seitenbereich: Breite, Steigungen, Radius, Form, *führt nach* (Standard: nächstes Stockwerk, dort gestrichelt); Länge der Lauflinie und Auftritt werden angezeigt. Punkte fangen wie bei allen Linien (Ecken, Kanten, 45°/90° zum vorigen Punkt, Raster) und zusätzlich die Laufmitte (halbe Treppenbreite von den Wänden) |
-| Tür, Fenster, Durchgang, Garagentor | auf eine Wand klicken; Breite, Aufschlag (spiegeln), Entitäten und Sicherheitsabfrage im Seitenbereich |
+| Tür, Fenster, Durchgang, Garagentor | auf eine Wand klicken; Breite, Entitäten und Sicherheitsabfrage im Seitenbereich. Türen: *↔ Anschlag* (Taste G) setzt das Band ans andere Ende (DIN links ↔ rechts), *⇅ Öffnungsseite* (Taste H) lässt sie zur anderen Wandseite aufgehen – zusammen alle vier Arten |
 | Dachfenster / Lichtkuppel | frei im Raum, eckig oder rund |
 | Keine Wand | die Wand zwischen zwei Räumen anklicken – sie verschwindet, beide bleiben Räume (offene Küche) |
 | Hintergrund: verschieben, Maßstab, gerade ausrichten | Bild verschieben; zwei Punkte bekannten Abstands setzen den Maßstab; zwei Punkte auf einer Wand des Bildes drehen nur das Bild gerade |
@@ -209,6 +214,9 @@ zeigt die Ecken aller Bereiche zum Ziehen (Gebäude bleiben stehen); *Bearbeiten
   eingeben (0 / 0 = bündig). Mit „dauerhaft als Maßlinie“ (Standard) bleibt die Linie: eine Linie legt die Lage fest,
   zwei auch die Drehung; wird das andere Gebäude bewegt, wandert es mit. Fixierte Gebäude lassen sich nicht ziehen –
   Maßlinie anklicken löst sie.
+- *Pfeiltasten*: das zuletzt angefasste Teil fein verschieben – Gebäude (ein durch Maßlinien festgelegtes: der Abstand
+  seiner Maßlinien), Bereich außen (Fläche anklicken) oder eine seiner Ecken, Gebäudename, bei *Hintergrund verschieben*
+  das Bild. 1 cm, Umschalt 10 cm, Alt ein Bildschirmpixel; mehrere Schritte sind ein Eintrag in Rückgängig.
 - *Hintergrund verschieben* (ziehen; Umschalt+Rad dreht, Alt+Rad skaliert um den Mauszeiger) und *Hintergrund drehen*
   (zwei Punkte auf einer Linie des Bildes, z. B. einer Grundstücksgrenze, dann ihre Richtung: 0 = waagerecht, 90 = senkrecht).
 - *Hintergrund (Bild/PDF)* + *Hintergrund-Maßstab* (zwei Punkte und die echte Länge) + *Am Hintergrund ausrichten* (zwei
@@ -450,11 +458,11 @@ Koordinaten in Metern, `y` zeigt nach unten. Ein Grundriss enthält:
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | Außenwände je Stockwerk und Gebäude: `{level, building, poly}` |
 | `walls` | Innenwände (Mittellinie): `{level, poly, width?, closed?}` – `width` in Metern, sonst `style.wall_width` |
-| `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls` |
-| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
+| `room_walls` | `true` (Vorgabe älterer Grundrisse): Räume zeichnen Wände entlang ihres Rands; neue Grundrisse: `false`, die Wände kommen aus `outlines` und `walls`. Je Raum abweichend mit `rooms[].room_walls` (Editor: *Raum zeichnet eigene Wände* – wie Grundriss / ja / nein) |
+| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?, room_walls?}` – `name: null` = Teil eines anderen Raums; `outdoor` für Bereiche außerhalb (Garten, Terrasse, Hof) |
 | `lines` | gestrichelte Hilfslinien (Vordach, Terrasse): `{level, poly, open?}` |
 | `stairs` | `{level, poly (Lauflinie, unten → oben), width (1), steps (16), radius? (width × 0,6), form? (eckig / rund), to_level?, building?}` |
-| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
+| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip? (Tür öffnet zur anderen Wandseite), hinge_end? (Band am anderen Ende), round?, entities?, confirm?, confirm_text?, tap?}` – werden aus den Wänden ausgeschnitten; `open` = gar keine Wand zwischen zwei Räumen (offene Küche und Wohnzimmer) |
 | `entities` | Entitäten je Raum-Schlüssel (wie `rooms` der Karte) |
 
 ## Englische und deutsche Namen

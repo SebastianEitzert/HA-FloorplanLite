@@ -64,6 +64,10 @@ script, play / pause go straight to the room's media players.
    the walls. Points snap to corners, edges, 45°/90° and a 5 cm grid (Shift: free angle). Enter the entities per room
    in the side panel. Rooms without a wall between them (open plan): tool *No wall*, then click the wall they share.
    A level can be copied with everything on it as the start of the next one. Wall thickness and the plan's name (✎ next to the plan list) are in the side panel. Ctrl+Z/Y undo/redo, Ctrl+S saves.
+   The **arrow keys** nudge the selected part: 1 cm, with Shift 10 cm, with Alt one screen pixel (depends on the zoom),
+   without snapping. If a corner was grabbed last (filled dot), only that corner moves (wall point, room corner); doors,
+   windows and passages slide along their wall; with the tool *Move background* active the image moves. Several steps in a
+   row are one undo entry. Not while an input field has the focus.
    Choose a Home Assistant area for each room: name, id and the entities found there are filled in (or taken live
    from the area every time). *Create pop-up YAML* builds a Bubble Card pop-up (`#room`) per room – to copy, or added
    to a dashboard directly.
@@ -177,7 +181,7 @@ editor), JSON import / export, delete and save (Ctrl+S).
 | Area outside | garden, terrace, yard – drawn like a room, shown without walls |
 | Helper line | dashed lines (canopy, terrace edge) |
 | Stair | draw the **walking line** from the bottom step (dot) to the top one (arrow), a point at every turn; turns are wound with the *radius* (distance of the walking line from the turning point – e.g. 0.6 for a 1.00 m run around a 20 cm core, 0 = landing corner), the steps fan out there – *square* (default: straight strings, the steps lie as in the round form) or *round*. Side panel: width, risers, radius, shape, *leads to* (default: the next level, where it shows dashed); walking line length and going are shown. Points snap like all lines (corners, edges, 45°/90° to the previous point, grid) and to the middle of a run (half the stair width from the walls) |
-| Door, window, passage, garage door | click onto a wall; width, swing (mirror), entities and confirmation in the side panel |
+| Door, window, passage, garage door | click onto a wall; width, entities and confirmation in the side panel. Doors: *↔ Hinge* (key G) moves the hinge to the other end (left ↔ right hand), *⇅ Swing side* (key H) opens it to the other side of the wall – together all four ways |
 | Skylight / dome | free inside a room, square or round |
 | No wall | click the wall between two rooms – it disappears, both stay rooms (open plan) |
 | Background: move, scale, straighten | move the image; two points of known distance set the scale; two points on a wall of the image turn only the image straight |
@@ -205,6 +209,9 @@ area shows all buildings, the lists are in the side panel. *Edit areas outside* 
   metres (0 / 0 = flush). With „keep as measure line“ (default) the line stays: one line fixes the position, two lines
   the turn too; moving the other building takes it along. Fixed buildings can't be dragged – click a measure line to
   release it.
+- *Arrow keys*: nudge the part grabbed last – a building (one fixed by measure lines: the offset of its lines), an area
+  outside (click its surface) or one of its corners, a building's name, the image with *Move background*. 1 cm, Shift
+  10 cm, Alt one screen pixel; several steps are one undo entry.
 - *Move background* (drag; Shift+wheel turns, Alt+wheel scales around the pointer) and *Turn background* (two points on
   a line of the image, e.g. a boundary, then its direction: 0 = horizontal, 90 = vertical).
 - *Background (image/PDF)* + *Background scale* (two points and the real length) + *Align to background* (two corners of
@@ -440,11 +447,11 @@ Coordinates are in metres; `y` points down. A plan has:
 | `levels` | `[{id, name, short, view?, background?}]` – `background`: `{image, x, y, width, height?, rotation, opacity, mode: under/over/hidden}` |
 | `outlines` | outer walls per level and building: `{level, building, poly}` |
 | `walls` | inner walls (centre line): `{level, poly, width?, closed?}` – `width` in metres, otherwise `style.wall_width` |
-| `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls` |
-| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
+| `room_walls` | `true` (default of older plans): rooms draw walls along their edges; new plans: `false`, the walls come from `outlines` and `walls`. Per room with `rooms[].room_walls` (editor: *Room draws its own walls* – as the plan / yes / no) |
+| `rooms` | `{id, level, poly, name, key?, building?, label_at?, small?, outdoor?, color?, area?, area_live?, room_walls?}` – `name: null` = part of another room; `outdoor` for areas outside (garden, terrace, yard) |
 | `lines` | dashed helper lines (canopy, terrace): `{level, poly, open?}` |
 | `stairs` | `{level, poly (walking line, bottom → top), width (1), steps (16), radius? (width × 0.6), form? (eckig / rund), to_level?, building?}` |
-| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip?, round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
+| `openings` | `{level, type: door/window/passage/garage/open/skylight, at, angle, width, depth?, flip? (door opens to the other side of the wall), hinge_end? (hinge at the other end), round?, entities?, confirm?, confirm_text?, tap?}` – cut into the walls; `open` = no wall at all between two rooms (open-plan kitchen and living room) |
 | `entities` | entities per room key (as in the card's `rooms`) |
 
 ## English and German names

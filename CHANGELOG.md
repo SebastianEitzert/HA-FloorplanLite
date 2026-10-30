@@ -2,6 +2,13 @@
 
 All notable changes to this project. Versions follow the `version` in `custom_components/floorplan_lite/manifest.json`.
 
+## 0.11.0 – 2026-10-30
+- Card (site): `height` / `hoehe: fill` counts only the card's own position – sections, cards or hidden pop-ups beside or below it no longer make it too low or too high. It reaches down to the bottom of the window with a 24 px margin.
+- Card (site): option `marker` / `markierung: false` – the card still opens the building, level and room of the address or the `follow` entry, but without „You are here“ / „This TV“ / „This device“ and without highlighting the room. In the card editor: *Mark the location*.
+- Editor: **doors in all four ways** – *↔ Hinge* (key G) puts the hinge at the other end (left ↔ right hand), *⇅ Swing side* (key H) opens the door to the other side of the wall. New field `hinge_end` on openings; existing doors stay as they are.
+- Editor: **arrow keys nudge the selection** – 1 cm, Shift 10 cm, Alt one screen pixel, without snapping. A corner grabbed last (filled dot) moves alone; doors, windows and passages slide along their wall; with *Move background* the image. In the site editor: the building grabbed last (one fixed by measure lines: the offset of its lines), an area or its corner, a building's name, the background. Steps in a row are one undo entry.
+- **Room walls per room**: `rooms[].room_walls` (`true` / `false`, not set = the plan's `room_walls`), in the editor *Room draws its own walls* – as the plan / yes / no. Card, snapping and splitting follow it.
+
 ## 0.10.1 – 2026-10-28
 - Floor plan editor: every entity field (room entities, opening entities, shade, tilted entity) uses Home Assistant's entity picker – search by name, icons, several entities as chips – instead of comma-separated ids.
 

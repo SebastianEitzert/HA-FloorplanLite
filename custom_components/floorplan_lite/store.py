@@ -53,6 +53,7 @@ ROOM = vol.Schema(
         vol.Optional("color"): vol.All(str, vol.Length(max=32)),
         vol.Optional("area"): vol.All(str, vol.Length(max=255)),  # Home Assistant area the room stands for
         vol.Optional("area_live", default=False): bool,  # the card takes the area's entities itself, every time
+        vol.Optional("room_walls"): bool,  # this room draws walls along its edges (not set: the plan's room_walls)
     }
 )
 
@@ -105,7 +106,8 @@ OPENING = vol.Schema(
         vol.Optional("angle", default=0): NUM,  # direction of the wall in degrees (0 = along x)
         vol.Optional("width", default=0.9): vol.All(NUM, vol.Range(min=0.1, max=20)),
         vol.Optional("depth", default=0.24): vol.All(NUM, vol.Range(min=0.05, max=20)),  # wall thickness to cut, skylight: length
-        vol.Optional("flip", default=False): bool,  # door swing side
+        vol.Optional("flip", default=False): bool,  # door: opens to the other side of the wall
+        vol.Optional("hinge_end", default=False): bool,  # door: hinge at the other end (with flip: four ways to hang it)
         vol.Optional("entity"): vol.All(str, vol.Length(max=255)),  # older plans: one entity
         vol.Optional("entities"): ENTITY_LIST,  # window contact, cover, lock, garage door, button …
         vol.Optional("round", default=False): bool,  # skylight: a dome instead of a rectangle
